@@ -23,7 +23,6 @@ Install chokidar via node.js package manager:
 
     npm install chokidar
 
-
 Then just require the package in your code:
 
 ```javascript
