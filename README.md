@@ -29,7 +29,7 @@ Then just require the package in your code:
 ```javascript
 var chokidar = require('chokidar');
 
-var watcher = chokidar('file or dir', ignored: /^\./);
+var watcher = chokidar('file or dir', {ignored: /^\./});
 
 watcher
   .on('add', function(path) {console.log('File', path, 'has been added');})
@@ -42,7 +42,7 @@ watcher
 * `constructor`: constructor takes paths to be watched and options.
 Right now only `options.ignored` is supported. It's a RegExp or function against
 which all added files will be checked. Example that will ignore dotfiles:
-`chokidar('file', ignored: /^\./)`
+`chokidar('file', {ignored: /^\./})`
 * `.add(file / files)`: add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
 * `.on(event, callback)`: listen for an FS event.
