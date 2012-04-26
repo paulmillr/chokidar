@@ -37,11 +37,15 @@ watcher
   .on('error', function(error) {console.error('Error happened', error);})
 ```
 
-## Watcher API
-* `constructor`: constructor takes paths to be watched and options.
-Right now only `options.ignored` is supported. It's a RegExp or function against
-which all added files will be checked. Example that will ignore dotfiles:
-`chokidar('file', {ignored: /^\./})`
+## API
+* `chokidar.watch(paths, options)`: takes paths to be watched and options:
+    * `options.ignored` (regexp or function) files to be ignored. Example:
+    `chokidar.watch('file', {ignored: /^\./})`.
+    * `options.persistent` (default: `true`). indicates whether the process
+    should continue to run as long as files are being watched.
+
+`chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
+
 * `.add(file / files)`: add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
 * `.on(event, callback)`: listen for an FS event.
