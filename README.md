@@ -28,7 +28,7 @@ Then just require the package in your code:
 ```javascript
 var chokidar = require('chokidar');
 
-var watcher = chokidar('file or dir', {ignored: /^\./});
+var watcher = chokidar.watch('file or dir', {ignored: /^\./});
 
 watcher
   .on('add', function(path) {console.log('File', path, 'has been added');})

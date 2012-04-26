@@ -160,5 +160,5 @@ class FSWatcher extends EventEmitter
     @watched = {}
     this
 
-module.exports = watch = (files, options) ->
+exports.watch = (files, options) ->
   new FSWatcher(files, options)
