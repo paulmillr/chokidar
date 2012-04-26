@@ -1,0 +1,1 @@
+require('beare').parseArgs();
