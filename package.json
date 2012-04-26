@@ -25,7 +25,7 @@
     "node": "~0.6.10 || 0.7 || 0.8"
   },
   "dependencies": {
-    "beare": "0.1.0"
+    "beare": "0.1.1"
   },
   "devDependencies": {
     "mocha": "1.0.1",
