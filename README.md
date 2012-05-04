@@ -36,6 +36,12 @@ watcher
   .on('change', function(path) {console.log('File', path, 'has been changed');})
   .on('unlink', function(path) {console.log('File', path, 'has been removed');})
   .on('error', function(error) {console.error('Error happened', error);})
+
+watcher.add('new-file');
+watcher.add(['new-file-2', 'new-file-3']);
+
+// Only needed if watching is persistent.
+watcher.close();
 ```
 
 ## API
