@@ -2,7 +2,7 @@
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile.",
   "version": "0.2.0",
-  "keywords": ["fs", "watch", "watchFile", "watcher", "watching", "file"],
+  "keywords": ["fs", "watch", "watchFile", "watcher", "file"],
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (http://paulmillr.com)",
   "repository": {
