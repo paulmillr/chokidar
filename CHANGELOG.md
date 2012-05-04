@@ -1,3 +1,6 @@
+# Chokidar 0.2.2 (May 4, 2012)
+* Fixed watcher signature.
+
 # Chokidar 0.2.1 (May 4, 2012)
 * Fixed invalid API bug when using `watch()`.
 
