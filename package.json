@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "keywords": ["fs", "watch", "watchFile", "watcher", "watching", "file"],
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (http://paulmillr.com)",
@@ -17,16 +17,10 @@
     "url": "http://github.com/paulmillr/chokidar/raw/master/README.md"
   }],
   "main": "./lib/index",
-  "scripts": {
-    "postinstall": "node beare.js compileCoffeeScripts",
-    "test": "node beare.js testWithMocha"
-  },
   "engines": {
     "node": "~0.6.10 || 0.7 || 0.8"
   },
-  "dependencies": {
-    "beare": "0.1.1"
-  },
+  "dependencies": {},
   "devDependencies": {
     "mocha": "1.0.1",
     "expect.js": "0.1.2"
