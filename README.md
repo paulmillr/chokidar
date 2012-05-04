@@ -4,9 +4,10 @@ A neat wrapper around node.js fs.watch / fs.watchFile.
 ## Why?
 Node.js `fs.watch`:
 
-* Doesn't report filenames on mac
-* Sometimes report events twice on mac
-* Has only one non-useful event: `rename`
+* Doesn't report filenames on mac.
+* Doesn't report events at all when using editors like TextMate2 on mac.
+* Sometimes report events twice.
+* Has only one non-useful event: `rename`.
 * Has [a lot of other issues](https://github.com/joyent/node/issues/search?utf8=✓&q=fs.watch)
 
 Node.js `fs.watchFile`:
@@ -41,7 +42,7 @@ watcher
 * `chokidar.watch(paths, options)`: takes paths to be watched and options:
     * `options.ignored` (regexp or function) files to be ignored. Example:
     `chokidar.watch('file', {ignored: /^\./})`.
-    * `options.persistent` (default: `true`). indicates whether the process
+    * `options.persistent` (default: `false`). indicates whether the process
     should continue to run as long as files are being watched.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
