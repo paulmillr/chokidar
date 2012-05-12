@@ -1,3 +1,6 @@
+# Chokidar 0.2.3 (May 12, 2012)
+* Fixed watching of files on windows.
+
 # Chokidar 0.2.2 (May 4, 2012)
 * Fixed watcher signature.
 
