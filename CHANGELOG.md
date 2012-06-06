@@ -1,3 +1,6 @@
+# Chokidar 0.2.4 (June 7, 2012)
+* Fixed a bug when unlinked files emitted events after unlink.
+
 # Chokidar 0.2.3 (May 12, 2012)
 * Fixed watching of files on windows.
 
