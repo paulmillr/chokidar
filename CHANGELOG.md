@@ -1,3 +1,6 @@
+# Chokidar 0.2.6 (June 8, 2012)
+* Prevented creating of duplicate 'add' events.
+
 # Chokidar 0.2.5 (June 8, 2012)
 * Fixed a bug when new files in new directories hadn't been added.
 
