@@ -1,3 +1,6 @@
+# Chokidar 0.2.5 (June 8, 2012)
+* Fixed a bug when new files in new directories hadn't been added.
+
 # Chokidar 0.2.4 (June 7, 2012)
 * Fixed a bug when unlinked files emitted events after unlink.
 
