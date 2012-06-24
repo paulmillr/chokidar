@@ -31,10 +31,6 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     dir = directory.replace(/[\\\/]$/, '')
     @watched[dir] ?= []
 
-  _watchedDirExists: (directory) =>
-    dir = directory.replace(/[\\\/]$/, '')
-    @watched[dir]?
-
   _addToWatchedDir: (directory, file) =>
     watchedFiles = @_getWatchedDir directory
     watchedFiles.push file
@@ -59,7 +55,6 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     # for recursive deleting and cleaning of watched object
     # if it is not a directory, nestedDirectoryChildren will be empty array
     fullPath = sysPath.join(directory, item)
-    isDirectory = @_watchedDirExists fullPath
     nestedDirectoryChildren = @_getWatchedDir(fullPath).slice()
 
     # Remove directory / file from watched list.
@@ -68,7 +63,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     # Recursively remove children directories / files.
     nestedDirectoryChildren.forEach (nestedItem) =>
       @_remove fullPath, nestedItem
-    @emit 'unlink', fullPath unless isDirectory
+    @emit 'unlink', fullPath
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
