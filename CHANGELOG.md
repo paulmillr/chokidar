@@ -1,3 +1,7 @@
+# Chokidar 0.3.0 (June 24, 2012)
+* `unlink` event are no longer emitted for directories, for consistency
+with `add`.
+
 # Chokidar 0.2.6 (June 8, 2012)
 * Prevented creating of duplicate 'add' events.
 
