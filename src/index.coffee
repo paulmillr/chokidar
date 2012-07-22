@@ -156,7 +156,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
   emit: (event, args...) ->
     super
-    super 'all', event, args...
+    super 'all', event, args... if event in ['add', 'change', 'unlink']
 
   # Public: Adds directories / files for tracking.
   #
