@@ -154,6 +154,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         @_handleFile item if stats.isFile()
         @_handleDir item if stats.isDirectory()
 
+  emit: (event, args...) ->
+    super
+    super 'all', event, args...
+
   # Public: Adds directories / files for tracking.
   #
   # * files - array of strings (file paths).

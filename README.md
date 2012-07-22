@@ -56,7 +56,7 @@ watcher.close();
 * `.add(file / files)`: add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
 * `.on(event, callback)`: listen for an FS event.
-Available events: add, change, unlink, error.
+Available events: `add`, `change`, `unlink`, `error`, `all`.
 * `.close()`: remove all listeners from watched files.
 
 ## License
