@@ -63,6 +63,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     # Recursively remove children directories / files.
     nestedDirectoryChildren.forEach (nestedItem) =>
       @_remove fullPath, nestedItem
+    fs.unwatchFile fullPath
     @emit 'unlink', fullPath
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
