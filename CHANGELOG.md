@@ -1,3 +1,9 @@
+# Chokidar 0.4.0 (July 26, 2012)
+* Added `all` event that receives two args (event name and path) that
+combines `add`, `change` and `unlink` events.
+* Switched to `fs.watchFile` on node.js 0.8 on windows.
+* Files are now correctly unwatched after unlink.
+
 # Chokidar 0.3.0 (June 24, 2012)
 * `unlink` event are no longer emitted for directories, for consistency
 with `add`.
