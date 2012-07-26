@@ -4,6 +4,8 @@
 fs = require 'fs'
 sysPath = require 'path'
 
+nodeVersion = process.versions.node.substring(0, 3)
+
 # Watches files & directories for changes.
 #
 # Emitted events: `add`, `change`, `unlink`, `error`.
@@ -82,7 +84,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     return if parent.indexOf(basename) >= 0
 
     @_addToWatchedDir directory, basename
-    if process.platform is 'win32'
+    if process.platform is 'win32' and nodeVersion is '0.6'
       watcher = fs.watch item, options, (event, path) =>
         callback item
       @watchers.push watcher
