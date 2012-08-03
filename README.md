@@ -17,7 +17,10 @@ Node.js `fs.watchFile`:
 
 Chokidar resolves this problems.
 
-It is used in [brunch](http://brunch.io) and had proven itself in production env.
+It is used in
+[brunch](http://brunch.io) and
+[socketstream](http://www.socketstream.org)
+and had proven itself in production env.
 
 ## Getting started
 Install chokidar via node.js package manager:
