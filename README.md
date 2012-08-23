@@ -1,3 +1,4 @@
+[![build status](https://secure.travis-ci.org/paulmillr/chokidar.png)](http://travis-ci.org/paulmillr/chokidar)
 # Chokidar
 A neat wrapper around node.js fs.watch / fs.watchFile.
 
