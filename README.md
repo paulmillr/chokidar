@@ -18,8 +18,9 @@ Node.js `fs.watchFile`:
 Chokidar resolves this problems.
 
 It is used in
-[brunch](http://brunch.io) and
-[socketstream](http://www.socketstream.org)
+[brunch](http://brunch.io),
+[socketstream](http://www.socketstream.org),
+and [tower.js](http://towerjs.org)
 and had proven itself in production env.
 
 ## Getting started
