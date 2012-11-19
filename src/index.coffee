@@ -23,6 +23,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @watched = Object.create(null)
     @watchers = []
     @options.persistent ?= no
+    @options.ignoreInitial ?= no
     @_ignored = do =>
       switch toString.call(@options.ignored)
         when '[object RegExp]' then (string) -> @options.ignored.test(string)
@@ -79,7 +80,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     basename = sysPath.basename(item)
     parent = @_getWatchedDir directory
     options = {persistent: @options.persistent}
-  
+
     # Prevent memory leaks.
     return if parent.indexOf(basename) >= 0
 
@@ -92,7 +93,6 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       options.interval = 100
       fs.watchFile item, options, (curr, prev) =>
         callback item if curr.mtime.getTime() isnt prev.mtime.getTime()
-    @emit 'add', item if itemType is 'file'
 
   # Private: Emit `change` event once and watch file to emit it in the future
   # once the file is changed.
@@ -100,9 +100,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # file - string, fs path.
   #
   # Returns nothing.
-  _handleFile: (file) =>
+  _handleFile: (file, initialAdd = no) =>
     @_watch file, 'file', (file) =>
       @emit 'change', file
+    @emit 'add', file unless initialAdd and @options.ignoreInitial
 
   # Private: Read directory to add / remove files from `@watched` list
   # and re-read it on change.
@@ -133,7 +134,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
           .filter (file) =>
             previous.indexOf(file) < 0
           .forEach (file) =>
-            @_handle sysPath.join(directory, file)
+            @_handle sysPath.join(directory, file), previous.length is 0
 
     read directory
     @_watch directory, 'directory', read
@@ -144,7 +145,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # item - string, path to file or directory.
   #
   # Returns nothing.
-  _handle: (item) =>
+  _handle: (item, initialAdd = no) =>
     # Don't handle invalid files, dotfiles etc.
     return if @_ignored item
 
@@ -154,7 +155,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       # Get file info, check is it file, directory or something else.
       fs.stat item, (error, stats) =>
         return @emit 'error', error if error?
-        @_handleFile item if stats.isFile()
+        @_handleFile item, initialAdd if stats.isFile()
         @_handleDir item if stats.isDirectory()
 
   emit: (event, args...) ->
