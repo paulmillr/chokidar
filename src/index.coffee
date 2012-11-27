@@ -24,6 +24,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @watchers = []
     @options.persistent ?= no
     @options.ignoreInitial ?= no
+    @options.ignorePermissionErrors ?= no
     @_ignored = do =>
       switch toString.call(@options.ignored)
         when '[object RegExp]' then (string) -> @options.ignored.test(string)
@@ -44,6 +45,15 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       if watchedFile is file
         watchedFiles.splice(index, 1)
         yes
+
+  # Private: Check for read permissions
+  # Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
+  # 
+  # stats - fs.Stats object
+  #
+  # Returns Boolean
+  _hasReadPermissions: (stats) =>
+    not not (4 & parseInt (stats.mode & parseInt '777', 8).toString(8)[0])
 
   # Private: Handles emitting unlink events for
   # files and directories, and via recursion, for
@@ -155,6 +165,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       # Get file info, check is it file, directory or something else.
       fs.stat item, (error, stats) =>
         return @emit 'error', error if error?
+        return if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
+        
         @_handleFile item, initialAdd if stats.isFile()
         @_handleDir item if stats.isDirectory()
 
