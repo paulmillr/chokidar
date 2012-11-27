@@ -54,7 +54,9 @@ watcher.close();
     `chokidar.watch('file', {ignored: /^\./})`.
     * `options.persistent` (default: `false`). indicates whether the process
     should continue to run as long as files are being watched.
-
+    * `options.ignorePermissionErrors` (default: `false`). indicates
+      wether to watch files that don't have read permissions or not.
+    
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
 * `.add(file / files)`: add directories / files for tracking.
