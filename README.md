@@ -12,7 +12,6 @@ Node.js `fs.watch`:
 
 Node.js `fs.watchFile`:
 
-* Doesn't work on windows
 * Almost as shitty in event tracking.
 
 Chokidar resolves this problems.

@@ -1,3 +1,11 @@
+# Chokidar 0.5.0 (unreleased)
+* Added a bunch of new options:
+    * `ignoreInitial` that allows to ignore initial `add` events.
+    * `ignorePermissionErrors` that allows to ignore ENOENT etc perm errors.
+    * `optimizeBinaryFiles` that will increase polling interval for bin files.
+    * `interval` and `binaryInterval` that allow to change default
+    fs polling intervals.
+
 # Chokidar 0.4.0 (July 26, 2012)
 * Added `all` event that receives two args (event name and path) that
 combines `add`, `change` and `unlink` events.
