@@ -63,6 +63,7 @@ watcher.close();
     polling interval for binary files should be different from
     default interval.
     * `options.binaryInterval` (default: `1000`). Interval of file system polling for binary files. Only used if `optimizeBinaryFiles` is enabled.
+
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
 * `.add(file / files)`: add directories / files for tracking.
