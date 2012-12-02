@@ -52,18 +52,19 @@ watcher.close();
 * `chokidar.watch(paths, options)`: takes paths to be watched and options:
     * `options.ignored` (regexp or function) files to be ignored. Example:
     `chokidar.watch('file', {ignored: /^\./})`.
-    * `options.persistent` (default: `false`). indicates whether the process
+    * `options.persistent` (default: `false`). Indicates whether the process
     should continue to run as long as files are being watched.
-    * `options.ignorePermissionErrors` (default: `false`). indicates
-      wether to watch files that don't have read permissions or not.
-    
+    * `options.ignorePermissionErrors` (default: `false`). Indicates
+      whether to watch files that don't have read permissions or not.
+    * `options.ignoreInitial` (default: `false`). Indicates whether chokidar
+    should ignore initial `add` events or not.
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
 * `.add(file / files)`: add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
 * `.on(event, callback)`: listen for an FS event.
 Available events: `add`, `change`, `unlink`, `error`.
-Also, `all` is available which emitted for every `add`, `change` and `unlink`. 
+Also, `all` is available which emitted for every `add`, `change` and `unlink`.
 * `.close()`: remove all listeners from watched files.
 
 ## License

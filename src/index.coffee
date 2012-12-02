@@ -48,12 +48,12 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
   # Private: Check for read permissions
   # Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
-  # 
+  #
   # stats - fs.Stats object
   #
   # Returns Boolean
   _hasReadPermissions: (stats) =>
-    not not (4 & parseInt (stats.mode & parseInt '777', 8).toString(8)[0])
+    Boolean (4 & parseInt (stats.mode & 0o777).toString(8)[0])
 
   # Private: Handles emitting unlink events for
   # files and directories, and via recursion, for
