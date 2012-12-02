@@ -41,7 +41,6 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     # You’re frozen when your heart’s not open.
     Object.freeze @options
-    Object.seal this
 
   _getWatchedDir: (directory) =>
     dir = directory.replace(/[\\\/]$/, '')
