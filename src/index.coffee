@@ -3,6 +3,7 @@
 {EventEmitter} = require 'events'
 fs = require 'fs'
 sysPath = require 'path'
+isBinary = require './is-binary'
 
 nodeVersion = process.versions.node.substring(0, 3)
 
@@ -22,14 +23,24 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   constructor: (@options = {}) ->
     @watched = Object.create(null)
     @watchers = []
+
+    # Set up default options.
     @options.persistent ?= no
     @options.ignoreInitial ?= no
     @options.ignorePermissionErrors ?= no
-    @_ignored = do =>
-      switch toString.call(@options.ignored)
-        when '[object RegExp]' then (string) -> @options.ignored.test(string)
-        when '[object Function]' then @options.ignored
+    @options.interval ?= 100
+    @options.optimizeBinaryFiles ?= no
+    @options.binaryInterval ?= 1000
+
+    @_ignored = do (ignored = @options.ignored) =>
+      switch toString.call(ignored)
+        when '[object RegExp]' then (string) -> ignored.test(string)
+        when '[object Function]' then ignored
         else -> no
+
+    # You’re frozen when your heart’s not open.
+    Object.seal this
+    Object.freeze @options
 
   _getWatchedDir: (directory) =>
     dir = directory.replace(/[\\\/]$/, '')
@@ -100,7 +111,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         callback item
       @watchers.push watcher
     else
-      options.interval = 100
+      options.interval = if @options.optimizeBinaryFiles and isBinary basename
+        @options.binaryInterval
+      else
+        @options.interval
       fs.watchFile item, options, (curr, prev) =>
         callback item if curr.mtime.getTime() isnt prev.mtime.getTime()
 
@@ -165,8 +179,9 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       # Get file info, check is it file, directory or something else.
       fs.stat item, (error, stats) =>
         return @emit 'error', error if error?
-        return if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
-        
+        if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
+          return
+
         @_handleFile item, initialAdd if stats.isFile()
         @_handleDir item if stats.isDirectory()
 
