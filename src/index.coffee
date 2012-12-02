@@ -21,6 +21,7 @@ nodeVersion = process.versions.node.substring(0, 3)
 #
 exports.FSWatcher = class FSWatcher extends EventEmitter
   constructor: (@options = {}) ->
+    super
     @watched = Object.create(null)
     @watchers = []
 
@@ -39,8 +40,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         else -> no
 
     # You’re frozen when your heart’s not open.
-    Object.seal this
     Object.freeze @options
+    Object.seal this
 
   _getWatchedDir: (directory) =>
     dir = directory.replace(/[\\\/]$/, '')
