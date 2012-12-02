@@ -18,8 +18,10 @@ describe 'chokidar', ->
     delay = (fn) =>
       setTimeout fn, 205
 
-    beforeEach ->
+    beforeEach (done) ->
       @watcher = chokidar.watch fixturesPath, options
+      delay =>
+        done()
 
     afterEach (done) ->
       @watcher.close()
@@ -51,7 +53,7 @@ describe 'chokidar', ->
       testPath = getFixturePath 'add.txt'
 
       @watcher.on 'add', (path) =>
-        spy() if path is testPath
+        spy()
 
       delay =>
         spy.should.not.have.been.called
@@ -66,7 +68,7 @@ describe 'chokidar', ->
       testPath = getFixturePath 'change.txt'
 
       @watcher.on 'change', (path) =>
-        spy() if path is testPath
+        spy()
 
       delay =>
         spy.should.not.have.been.called
@@ -80,10 +82,10 @@ describe 'chokidar', ->
       testPath = getFixturePath 'unlink.txt'
 
       @watcher.on 'unlink', (path) =>
-        spy() if path is testPath
+        spy()
 
       delay =>
-        spy.should.not.have.been
+        spy.should.not.have.been.called
         fs.unlinkSync testPath
         delay =>
           spy.should.have.been.calledOnce
