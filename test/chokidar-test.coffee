@@ -52,43 +52,42 @@ describe 'chokidar', ->
       spy = sinon.spy()
       testPath = getFixturePath 'add.txt'
 
-      @watcher.on 'add', (path) =>
-        spy()
+      @watcher.on 'add', spy
 
       delay =>
         spy.should.not.have.been.called
         fs.writeFileSync testPath, 'hello'
         delay =>
           spy.should.have.been.calledOnce
-          fs.unlinkSync testPath
+          spy.should.have.been.calledWith testPath
           done()
 
     it 'should emit `change` event when file was changed', (done) ->
       spy = sinon.spy()
       testPath = getFixturePath 'change.txt'
 
-      @watcher.on 'change', (path) =>
-        spy()
+      @watcher.on 'change', spy
 
       delay =>
         spy.should.not.have.been.called
         fs.writeFileSync testPath, 'c'
         delay =>
           spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testPath
           done()
 
     it 'should emit `unlink` event when file was removed', (done) ->
       spy = sinon.spy()
       testPath = getFixturePath 'unlink.txt'
 
-      @watcher.on 'unlink', (path) =>
-        spy()
+      @watcher.on 'unlink', spy
 
       delay =>
         spy.should.not.have.been.called
         fs.unlinkSync testPath
         delay =>
           spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testPath
           done()
 
 describe 'is-binary', ->
