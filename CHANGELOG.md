@@ -2,7 +2,6 @@
 * Added a bunch of new options:
     * `ignoreInitial` that allows to ignore initial `add` events.
     * `ignorePermissionErrors` that allows to ignore ENOENT etc perm errors.
-    * `optimizeBinaryFiles` that will increase polling interval for bin files.
     * `interval` and `binaryInterval` that allow to change default
     fs polling intervals.
 
