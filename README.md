@@ -58,10 +58,7 @@ watcher.close();
     * `options.ignoreInitial` (default: `false`). Indicates whether chokidar
     should ignore initial `add` events or not.
     * `options.interval` (default: `100`). Interval of file system polling.
-    * `options.optimizeBinaryFiles` (default: `false`). Determines if
-    polling interval for binary files should be different from
-    default interval.
-    * `options.binaryInterval` (default: `1000`). Interval of file system polling for binary files. Only used if `optimizeBinaryFiles` is enabled.
+    * `options.binaryInterval` (default: `100`). Interval of file system polling for binary files.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 

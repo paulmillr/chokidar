@@ -30,8 +30,9 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.ignoreInitial ?= no
     @options.ignorePermissionErrors ?= no
     @options.interval ?= 100
-    @options.optimizeBinaryFiles ?= no
-    @options.binaryInterval ?= 1000
+    @options.binaryInterval ?= 100
+
+    @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
     @_ignored = do (ignored = @options.ignored) =>
       switch toString.call(ignored)
@@ -111,7 +112,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         callback item
       @watchers.push watcher
     else
-      options.interval = if @options.optimizeBinaryFiles and isBinary basename
+      options.interval = if @enableBinaryInterval and isBinary basename
         @options.binaryInterval
       else
         @options.interval
