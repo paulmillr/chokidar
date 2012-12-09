@@ -1,4 +1,4 @@
-# Chokidar 0.5.0 (unreleased)
+# Chokidar 0.5.0 (December 9, 2012)
 * Added a bunch of new options:
     * `ignoreInitial` that allows to ignore initial `add` events.
     * `ignorePermissionErrors` that allows to ignore ENOENT etc perm errors.
