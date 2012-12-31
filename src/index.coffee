@@ -176,7 +176,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     # Get the canonicalized absolute pathname.
     fs.realpath item, (error, path) =>
-      return if error && error.code == 'ENOENT'
+      return if error and error.code == 'ENOENT'
       return @emit 'error', error if error?
       # Get file info, check is it file, directory or something else.
       fs.stat item, (error, stats) =>
