@@ -178,7 +178,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     fs.realpath item, (error, path) =>
       return @emit 'error', error if error?
       # Get file info, check is it file, directory or something else.
-      fs.stat item, (error, stats) =>
+      fs.stat path, (error, stats) =>
         return @emit 'error', error if error?
         if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
           return
