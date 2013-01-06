@@ -41,3 +41,4 @@ publish
 
 lib/
 node_modules/
+test/fixtures/subdir/

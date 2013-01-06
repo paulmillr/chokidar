@@ -1,3 +1,8 @@
+# Chokidar 0.5.1 (January 6, 2012)
+* When starting to watch non-existing paths, chokidar will no longer throw
+ENOENT error.
+* Fixed bug with absolute path.
+
 # Chokidar 0.5.0 (December 9, 2012)
 * Added a bunch of new options:
     * `ignoreInitial` that allows to ignore initial `add` events.
