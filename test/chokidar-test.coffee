@@ -33,6 +33,8 @@ describe 'chokidar', ->
       try fs.unlinkSync (getFixturePath 'add.txt'), 'b'
       fs.writeFileSync (getFixturePath 'change.txt'), 'b'
       fs.writeFileSync (getFixturePath 'unlink.txt'), 'b'
+      try fs.unlinkSync (getFixturePath 'subdir/add.txt'), 'b'
+      try fs.rmdirSync (getFixturePath 'subdir'), 'b'
 
     after ->
       try fs.unlinkSync (getFixturePath 'add.txt'), 'a'
@@ -89,6 +91,27 @@ describe 'chokidar', ->
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
+
+    it 'should survive ENOENT for missing subdirectories', ->
+      testDir = getFixturePath 'subdir'
+
+      @watcher.add testDir
+
+    xit 'should notice when a file appears in a new directory', (done) ->
+      spy = sinon.spy()
+      testDir = getFixturePath 'subdir'
+      testPath = getFixturePath 'subdir/add.txt'
+
+      @watcher.on 'add', spy
+      @watcher.add testDir
+
+      delay =>
+        spy.should.not.have.been.callled
+        fs.mkdirSync testDir, 0o755
+        fs.writeFileSync testPath, 'hello'
+        spy.should.have.been.calledOnce
+        spy.should.have.been.calledWith testPath
+        done()
 
 describe 'is-binary', ->
   it 'should be a function', ->
