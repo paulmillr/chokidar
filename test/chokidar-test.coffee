@@ -97,7 +97,7 @@ describe 'chokidar', ->
 
       @watcher.add testDir
 
-    xit 'should notice when a file appears in a new directory', (done) ->
+    it 'should notice when a file appears in a new directory', (done) ->
       spy = sinon.spy()
       testDir = getFixturePath 'subdir'
       testPath = getFixturePath 'subdir/add.txt'
@@ -109,9 +109,10 @@ describe 'chokidar', ->
         spy.should.not.have.been.callled
         fs.mkdirSync testDir, 0o755
         fs.writeFileSync testPath, 'hello'
-        spy.should.have.been.calledOnce
-        spy.should.have.been.calledWith testPath
-        done()
+        delay =>
+          spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testPath
+          done()
 
 describe 'is-binary', ->
   it 'should be a function', ->
