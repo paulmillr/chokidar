@@ -117,7 +117,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       else
         @options.interval
       fs.watchFile item, options, (curr, prev) =>
-        callback item if curr.mtime.getTime() isnt prev.mtime.getTime()
+        callback item if curr.mtime.getTime() > prev.mtime.getTime()
 
   # Private: Emit `change` event once and watch file to emit it in the future
   # once the file is changed.
@@ -148,7 +148,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         # and are removed from @watched[directory].
         previous
           .filter (file) =>
-            current.indexOf(file) < 0
+            current.indexOf(file) is -1
           .forEach (file) =>
             @_remove directory, file
 
@@ -157,7 +157,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         # emit `add` event.
         current
           .filter (file) =>
-            previous.indexOf(file) < 0
+            previous.indexOf(file) is -1
           .forEach (file) =>
             @_handle sysPath.join(directory, file), previous.length is 0
 
