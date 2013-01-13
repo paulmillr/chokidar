@@ -1,3 +1,6 @@
+# Chokidar 0.5.3 (January 13, 2012)
+* Removed emitting of `change` events before `unlink`.
+
 # Chokidar 0.5.2 (January 13, 2012)
 * Removed postinstall script to prevent various npm bugs.
 
