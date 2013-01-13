@@ -1,3 +1,6 @@
+# Chokidar 0.5.2 (January 13, 2012)
+* Removed postinstall script to prevent various npm bugs.
+
 # Chokidar 0.5.1 (January 6, 2012)
 * When starting to watch non-existing paths, chokidar will no longer throw
 ENOENT error.
