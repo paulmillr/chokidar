@@ -2,7 +2,13 @@
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile.",
   "version": "0.5.1",
-  "keywords": ["fs", "watch", "watchFile", "watcher", "file"],
+  "keywords": [
+    "fs",
+    "watch",
+    "watchFile",
+    "watcher",
+    "file"
+  ],
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (http://paulmillr.com)",
   "repository": {
@@ -12,18 +18,21 @@
   "bugs": {
     "url": "http://github.com/paulmillr/chokidar/issues"
   },
-  "licenses": [{
-    "type": "MIT",
-    "url": "http://github.com/paulmillr/chokidar/raw/master/README.md"
-  }],
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/paulmillr/chokidar/raw/master/README.md"
+    }
+  ],
   "main": "./lib/index",
   "engines": {
-    "node": "~0.6.10 || 0.7 || 0.8"
+    "node": "~0.6.10 || 0.7 || 0.8 || 0.9"
   },
   "scripts": {
-    "prepublish": "coffee -o lib/ src/",
-    "postinstall": "node setup.js postinstall",
-    "test": "node setup.js test"
+    "prepublish": "node setup.js prepublish",
+    "postpublish": "node setup.js postpublish",
+    "test": "node setup.js test",
+    "postinstall": "node setup.js test"
   },
   "dependencies": {},
   "devDependencies": {
