@@ -1,8 +1,35 @@
-.lock-wscript
-.svn/
-.hg/
-.git/
-CVS/
 *~
 *.bak
-.DS_Store
+*.diff
+*.err
+*.orig
+*.log
+*.rej
+*.swo
+*.swp
+*.vi
+*.sass-cache
+
+.cache
+.project
+.settings
+.tmproj
+nbproject
+
+# Dreamweaver added files
+_notes
+dwsync.xml
+
+# Komodo
+*.komodoproject
+.komodotools
+
+# Folders to ignore
+intermediate
+publish
+.idea
+
+*.sublime-project
+*.sublime-workspace
+
+test/fixtures/subdir/
