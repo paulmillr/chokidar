@@ -29,10 +29,8 @@
     "node": "~0.6.10 || 0.7 || 0.8 || 0.9"
   },
   "scripts": {
-    "prepublish": "node setup.js prepublish",
-    "postpublish": "node setup.js postpublish",
-    "test": "node setup.js test",
-    "postinstall": "node setup.js test"
+    "prepublish": "coffee -o lib/ src/",
+    "test": "node setup.js test"
   },
   "dependencies": {},
   "devDependencies": {
