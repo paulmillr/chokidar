@@ -30,7 +30,7 @@
   },
   "scripts": {
     "prepublish": "coffee -o lib/ src/",
-    "test": "node setup.js test"
+    "test": "mocha --compilers coffee:coffee-script --require test/common.js --colors"
   },
   "dependencies": {},
   "devDependencies": {
