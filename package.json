@@ -32,7 +32,7 @@
     "prepublish": "node setup.js prepublish",
     "postpublish": "node setup.js postpublish",
     "test": "node setup.js test",
-    "postinstall": "node setup.js test"
+    "postinstall": "node setup.js postinstall"
   },
   "dependencies": {},
   "devDependencies": {
