@@ -107,7 +107,9 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     return if parent.indexOf(basename) >= 0
 
     @_addToWatchedDir directory, basename
-    if process.platform is 'win32' and nodeVersion is '0.6'
+
+    unixlike = process.platform in ['darwin', 'freebsd', 'linux', 'sunos']
+    if (unixlike or process.platform is 'win32' and nodeVersion is '0.6')
       watcher = fs.watch item, options, (event, path) =>
         callback item
       @watchers.push watcher
