@@ -40,6 +40,12 @@ watcher
   .on('unlink', function(path) {console.log('File', path, 'has been removed');})
   .on('error', function(error) {console.error('Error happened', error);})
 
+// 'add' and 'change' events also receive stat() results as second argument.
+// http://nodejs.org/api/fs.html#fs_class_fs_stats
+watcher.on('change', function(path, stats) {
+  console.log('File', path, 'changed size to', stats.size);
+});
+
 watcher.add('new-file');
 watcher.add(['new-file-2', 'new-file-3']);
 
@@ -58,7 +64,7 @@ watcher.close();
     * `options.ignoreInitial` (default: `false`). Indicates whether chokidar
     should ignore initial `add` events or not.
     * `options.interval` (default: `100`). Interval of file system polling.
-    * `options.binaryInterval` (default: `100`). Interval of file system polling for binary files.
+    * `options.binaryInterval` (default: `300`). Interval of file system polling for binary files.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 

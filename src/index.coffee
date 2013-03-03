@@ -30,7 +30,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.ignoreInitial ?= no
     @options.ignorePermissionErrors ?= no
     @options.interval ?= 100
-    @options.binaryInterval ?= 100
+    @options.binaryInterval ?= 300
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
@@ -117,18 +117,20 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       else
         @options.interval
       fs.watchFile item, options, (curr, prev) =>
-        callback item if curr.mtime.getTime() > prev.mtime.getTime()
+        callback item, curr if curr.mtime.getTime() > prev.mtime.getTime()
 
   # Private: Emit `change` event once and watch file to emit it in the future
   # once the file is changed.
   #
-  # file - string, fs path.
+  # file       - string, fs path.
+  # stats      - object, result of executing stat(1) on file.
+  # initialAdd - boolean, was the file added at the launch?
   #
   # Returns nothing.
-  _handleFile: (file, initialAdd = no) =>
-    @_watch file, 'file', (file) =>
-      @emit 'change', file
-    @emit 'add', file unless initialAdd and @options.ignoreInitial
+  _handleFile: (file, stats, initialAdd = no) =>
+    @_watch file, 'file', (file, newStats) =>
+      @emit 'change', file, newStats
+    @emit 'add', file, stats unless initialAdd and @options.ignoreInitial
 
   # Private: Read directory to add / remove files from `@watched` list
   # and re-read it on change.
@@ -184,7 +186,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
           return
 
-        @_handleFile item, initialAdd if stats.isFile()
+        @_handleFile item, stats, initialAdd if stats.isFile()
         @_handleDir item if stats.isDirectory()
 
   emit: (event, args...) ->
