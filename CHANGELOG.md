@@ -1,3 +1,8 @@
+# Chokidar 0.6.0 (March 10, 2012)
+* File attributes (stat()) are now passed to `add` and `change` events
+  as second arguments.
+* Changed default polling interval for binary files to 300ms.
+
 # Chokidar 0.5.3 (January 13, 2012)
 * Removed emitting of `change` events before `unlink`.
 
