@@ -138,8 +138,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # directory - string, fs path.
   #
   # Returns nothing.
-  _handleDir: (directory) =>
-    read = (directory) =>
+  _handleDir: (directory, initialAdd) =>
+    read = (directory, initialAdd) =>
       fs.readdir directory, (error, current) =>
         return @emit 'error', error if error?
         return unless current
@@ -161,10 +161,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
           .filter (file) =>
             previous.indexOf(file) is -1
           .forEach (file) =>
-            @_handle sysPath.join(directory, file), previous.length is 0
+            @_handle sysPath.join(directory, file), initialAdd
 
-    read directory
-    @_watch directory, 'directory', read
+    read directory, initialAdd
+    @_watch directory, 'directory', (dir) -> read dir, no
 
   # Private: Handle added file or directory.
   # Delegates call to _handleFile / _handleDir after checks.
@@ -172,7 +172,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # item - string, path to file or directory.
   #
   # Returns nothing.
-  _handle: (item, initialAdd = no) =>
+  _handle: (item, initialAdd) =>
     # Don't handle invalid files, dotfiles etc.
     return if @_ignored item
 
@@ -187,7 +187,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
           return
 
         @_handleFile item, stats, initialAdd if stats.isFile()
-        @_handleDir item if stats.isDirectory()
+        @_handleDir item, initialAdd if stats.isDirectory()
 
   emit: (event, args...) ->
     super
@@ -204,7 +204,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # Returns an instance of FSWatcher for chaning.
   add: (files) =>
     files = [files] unless Array.isArray files
-    files.forEach @_handle
+    files.forEach (file) => @_handle file, true
     this
 
   # Public: Remove all listeners from watched files.
