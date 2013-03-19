@@ -1,3 +1,6 @@
+# Chokidar 0.6.2 (19 March 2013)
+* Fixed watching initially empty directories with `ignoreInitial` option.
+
 # Chokidar 0.6.1 (19 March 2013)
 * Added node.js 0.10 support.
 
