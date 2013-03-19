@@ -7,6 +7,8 @@ getFixturePath = (subPath) ->
   sysPath.join __dirname, 'fixtures', subPath
 
 fixturesPath = getFixturePath ''
+delay = (fn) =>
+  setTimeout fn, 205
 
 describe 'chokidar', ->
   it 'should expose public API methods', ->
@@ -15,8 +17,6 @@ describe 'chokidar', ->
 
   describe 'watch', ->
     options = {}
-    delay = (fn) =>
-      setTimeout fn, 205
 
     beforeEach (done) ->
       @watcher = chokidar.watch fixturesPath, options
@@ -113,6 +113,49 @@ describe 'chokidar', ->
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
+
+
+  describe 'watch options', ->
+    describe 'ignoreInitial', ->
+      options = { ignoreInitial: yes }
+
+      before (done) ->
+        try fs.unlinkSync getFixturePath('subdir/add.txt')
+        try fs.rmdirSync getFixturePath('subdir')
+        done()
+
+      after (done) ->
+        try fs.unlinkSync getFixturePath('subdir/add.txt')
+        try fs.rmdirSync getFixturePath('subdir')
+        done()
+
+      it 'should ignore inital add events', (done) ->
+        spy = sinon.spy()
+        watcher = chokidar.watch fixturesPath, options
+        watcher.on 'add', spy
+        delay ->
+          spy.should.not.have.been.called
+          watcher.close()
+          done()
+
+      it 'should notice when a file appears in an empty directory', (done) ->
+        spy = sinon.spy()
+        testDir = getFixturePath 'subdir'
+        testPath = getFixturePath 'subdir/add.txt'
+
+        watcher = chokidar.watch fixturesPath, options
+        watcher.on 'add', spy
+
+        delay ->
+          spy.should.not.have.been.called
+          fs.mkdirSync testDir, 0o755
+          watcher.add testDir
+
+          fs.writeFileSync testPath, 'hello'
+          delay ->
+            spy.should.have.been.calledOnce
+            spy.should.have.been.calledWith testPath
+            done()
 
 describe 'is-binary', ->
   it 'should be a function', ->
