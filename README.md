@@ -19,7 +19,7 @@ Chokidar resolves this problems.
 It is used in
 [brunch](http://brunch.io),
 [socketstream](http://www.socketstream.org),
-and [testacular](https://github.com/vojtajina/testacular/)
+and [karma](http://karma-runner.github.io)
 and had proven itself in production env.
 
 ## Getting started
