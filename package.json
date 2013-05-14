@@ -26,8 +26,10 @@
   ],
   "main": "./lib/index",
   "scripts": {
-    "prepublish": "coffee -o lib/ src/",
-    "test": "mocha --compilers coffee:coffee-script --require test/common.js --colors"
+    "prepublish": "node setup.js prepublish",
+    "postpublish": "node setup.js postpublish",
+    "test": "node setup.js test",
+    "postinstall": "node setup.js postinstall"
   },
   "dependencies": {},
   "devDependencies": {
