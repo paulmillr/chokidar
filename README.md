@@ -8,7 +8,7 @@ Node.js `fs.watch`:
 * Doesn't report events at all when using editors like TextMate2 on mac.
 * Sometimes report events twice.
 * Has only one non-useful event: `rename`.
-* Has [a lot of other issues](https://github.com/joyent/node/issues/search?utf8=✓&q=fs.watch)
+* Has [a lot of other issues](https://github.com/joyent/node/search?q=fs.watch&type=Issues)
 
 Node.js `fs.watchFile`:
 
