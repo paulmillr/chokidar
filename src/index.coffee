@@ -7,6 +7,10 @@ isBinary = require './is-binary'
 
 nodeVersion = process.versions.node.substring(0, 3)
 
+# Helloo, I am coffeescript file.
+# Chokidar is written in coffee because it uses OOP.
+# JS is fucking horrible with OOP. At least until ES6.
+
 # Watches files & directories for changes.
 #
 # Emitted events: `add`, `change`, `unlink`, `error`.
