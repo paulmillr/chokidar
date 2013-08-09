@@ -35,6 +35,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.ignorePermissionErrors ?= no
     @options.interval ?= 100
     @options.binaryInterval ?= 300
+    @options.usePolling ?= true
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
@@ -111,17 +112,17 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     return if parent.indexOf(basename) >= 0
 
     @_addToWatchedDir directory, basename
-    if process.platform is 'win32' and nodeVersion is '0.6'
-      watcher = fs.watch item, options, (event, path) =>
-        callback item
-      @watchers.push watcher
-    else
+    if @options.usePolling
       options.interval = if @enableBinaryInterval and isBinary basename
         @options.binaryInterval
       else
         @options.interval
       fs.watchFile item, options, (curr, prev) =>
         callback item, curr if curr.mtime.getTime() > prev.mtime.getTime()
+    else
+      watcher = fs.watch item, options, (event, path) =>
+        callback item
+      @watchers.push watcher
 
   # Private: Emit `change` event once and watch file to emit it in the future
   # once the file is changed.
