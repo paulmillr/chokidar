@@ -1,3 +1,8 @@
+# Chokidar 0.6.3 (12 August 2013)
+* Added `usePolling` option (default: `true`).
+  When `false`, chokidar will use `fs.watch` as backend.
+  `fs.watch` is much faster, but not like super reliable.
+
 # Chokidar 0.6.2 (19 March 2013)
 * Fixed watching initially empty directories with `ignoreInitial` option.
 
