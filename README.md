@@ -1,6 +1,8 @@
 # Chokidar
 A neat wrapper around node.js fs.watch / fs.watchFile.
 
+[![NPM](https://nodei.co/npm-dl/chokidar.png)](https://nodei.co/npm/chokidar/)
+
 ## Why?
 Node.js `fs.watch`:
 
