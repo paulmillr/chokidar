@@ -157,7 +157,14 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
           .filter (file) =>
             current.indexOf(file) is -1
           .forEach (file) =>
-            @_remove directory, file
+            fullPath = sysPath.join directory, file
+            setTimeout =>
+              fs.exists fullPath, (exists) =>
+                if exists
+                  @_handle fullPath, false
+                else
+                  @_remove directory, file
+            , 50
 
         # Files that present in current directory snapshot
         # but absent in previous are added to watch list and
