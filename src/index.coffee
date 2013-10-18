@@ -100,15 +100,14 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     nestedDirectoryChildren.forEach (nestedItem) =>
       @_remove fullPath, nestedItem
 
-    fs.unwatchFile fullPath
+    fs.unwatchFile fullPath if @options.usePolling
      
     # The Entry will either be a directory that just got removed
     # or a bogus entry to a file, in either case we have to remove it
     delete @watched[fullPath]
      
     # Only emit events for files
-    if not isDirectory
-      @emit 'unlink', fullPath
+    @emit 'unlink', fullPath unless isDirectory
  
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
@@ -123,7 +122,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     options = {persistent: @options.persistent}
 
     # Prevent memory leaks.
-    return if parent.indexOf(basename) >= 0
+    return if parent.indexOf(basename) isnt -1
 
     @_addToWatchedDir directory, basename
     if @options.usePolling
