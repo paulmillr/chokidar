@@ -92,6 +92,19 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
+    it 'should not emit `unlink` event when a empty directory was removed', (done) ->
+      spy = sinon.spy()
+      testDir = getFixturePath 'subdir'
+
+      @watcher.on 'unlink', spy
+
+      delay =>
+        fs.mkdirSync testDir, 0o755
+        fs.rmdirSync testDir
+        delay =>
+          spy.should.not.have.been.called
+          done()
+
     it 'should survive ENOENT for missing subdirectories', ->
       testDir = getFixturePath 'subdir'
 
