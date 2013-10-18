@@ -191,6 +191,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
           return
 
+        return if @_ignored.length is 2 and @_ignored item, stats
+
         @_handleFile item, stats, initialAdd if stats.isFile()
         @_handleDir item, initialAdd if stats.isDirectory()
 
