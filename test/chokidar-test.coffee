@@ -134,11 +134,15 @@ describe 'chokidar', ->
 
       before (done) ->
         try fs.unlinkSync getFixturePath('subdir/add.txt')
+        try fs.unlinkSync getFixturePath('subdir/dir/ignored.txt')
+        try fs.rmdirSync getFixturePath('subdir/dir')
         try fs.rmdirSync getFixturePath('subdir')
         done()
 
       after (done) ->
         try fs.unlinkSync getFixturePath('subdir/add.txt')
+        try fs.unlinkSync getFixturePath('subdir/dir/ignored.txt')
+        try fs.rmdirSync getFixturePath('subdir/dir')
         try fs.rmdirSync getFixturePath('subdir')
         done()
 
@@ -169,6 +173,29 @@ describe 'chokidar', ->
             spy.should.have.been.calledOnce
             spy.should.have.been.calledWith testPath
             done()
+
+      it 'should check ignore after stating', (done) ->
+        testDir = getFixturePath 'subdir'
+        spy = sinon.spy()
+
+        ignoredFn = (path, stats) ->
+          return no if path is testDir or not stats
+          # ignore directories
+          return stats.isDirectory()
+
+        watcher = chokidar.watch testDir, {ignored: ignoredFn}
+        watcher.on 'add', spy
+
+        fs.mkdirSync testDir, 0o755
+        fs.writeFileSync testDir + '/add.txt', ''         # this file should be added
+        fs.mkdirSync testDir + '/dir', 0o755              # this dir will be ignored
+        fs.writeFileSync testDir + '/dir/ignored.txt', '' # so this file should be ignored
+
+        delay ->
+          spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testDir + '/add.txt'
+          done()
+
 
 describe 'is-binary', ->
   it 'should be a function', ->

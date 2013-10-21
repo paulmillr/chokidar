@@ -59,8 +59,10 @@ watcher.close();
 * `chokidar.watch(paths, options)`: takes paths to be watched and options:
     * `options.ignored` (regexp or function) files to be ignored.
       This function or regexp is tested against the **whole path**,
-      not just filename. Example:
-    `chokidar.watch('file', {ignored: /^\./})`.
+      not just filename. If it is a function with two arguments, it gets called
+      twice per path - once with a single argument (the path), second time with
+      two arguments (the path and the [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
+      object of that path).
     * `options.persistent` (default: `false`). Indicates whether the process
     should continue to run as long as files are being watched.
     * `options.ignorePermissionErrors` (default: `false`). Indicates
