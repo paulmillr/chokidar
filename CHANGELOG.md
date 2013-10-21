@@ -1,3 +1,8 @@
+# Chokidar 0.7.0 (22 October 2013)
+* When `options.ignored` is two-argument function, it will
+  also be called after stating the FS, with `stats` argument.
+* `unlink` is no longer emitted on directories.
+
 # Chokidar 0.6.3 (12 August 2013)
 * Added `usePolling` option (default: `true`).
   When `false`, chokidar will use `fs.watch` as backend.
