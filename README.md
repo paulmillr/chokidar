@@ -8,7 +8,7 @@ Node.js `fs.watch`:
 
 * Doesn't report filenames on mac.
 * Doesn't report events at all when using editors like TextMate2 on mac.
-* Sometimes report events twice.
+* Sometimes reports events twice.
 * Has only one non-useful event: `rename`.
 * Has [a lot of other issues](https://github.com/joyent/node/search?q=fs.watch&type=Issues)
 
@@ -16,13 +16,13 @@ Node.js `fs.watchFile`:
 
 * Almost as shitty in event tracking.
 
-Chokidar resolves this problems.
+Chokidar resolves these problems.
 
 It is used in
 [brunch](http://brunch.io),
 [socketstream](http://www.socketstream.org),
 and [karma](http://karma-runner.github.io)
-and had proven itself in production env.
+and has proven itself in production environments.
 
 ## Getting started
 Install chokidar via node.js package manager:
@@ -66,9 +66,9 @@ watcher.close();
     * `options.persistent` (default: `false`). Indicates whether the process
     should continue to run as long as files are being watched.
     * `options.ignorePermissionErrors` (default: `false`). Indicates
-      whether to watch files that don't have read permissions or not.
+      whether to watch files that don't have read permissions.
     * `options.ignoreInitial` (default: `false`). Indicates whether chokidar
-    should ignore initial `add` events or not.
+    should ignore the initial `add` events or not.
     * `options.interval` (default: `100`). Interval of file system polling.
     * `options.binaryInterval` (default: `300`). Interval of file system 
     polling for binary files (see extensions in src/is-binary).
@@ -78,12 +78,12 @@ watcher.close();
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
-* `.add(file / files)`: add directories / files for tracking.
+* `.add(file / files)`: Add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
-* `.on(event, callback)`: listen for an FS event.
+* `.on(event, callback)`: Listen for an FS event.
 Available events: `add`, `change`, `unlink`, `error`.
-Also, `all` is available which emitted for every `add`, `change` and `unlink`.
-* `.close()`: remove all listeners from watched files.
+Additionally `all` is available which gets emitted for every `add`, `change` and `unlink`.
+* `.close()`: Removes all listeners from watched files.
 
 ## License
 The MIT license.
