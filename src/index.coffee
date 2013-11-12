@@ -235,6 +235,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       @watched[directory].forEach (file) =>
         fs.unwatchFile sysPath.join(directory, file)
     @watched = Object.create(null)
+    @removeAllListeners()
     this
 
 exports.watch = (files, options) ->
