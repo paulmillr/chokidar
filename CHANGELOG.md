@@ -1,3 +1,6 @@
+# Chokidar 0.7.1 (18 November 2013)
+* `Watcher#close` now also removes all event listeners.
+
 # Chokidar 0.7.0 (22 October 2013)
 * When `options.ignored` is two-argument function, it will
   also be called after stating the FS, with `stats` argument.
