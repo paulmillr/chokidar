@@ -7,7 +7,7 @@ getFixturePath = (subPath) ->
   sysPath.join __dirname, 'fixtures', subPath
 
 fixturesPath = getFixturePath ''
-delay = (fn) =>
+delay = (fn) ->
   setTimeout fn, 205
 
 describe 'chokidar', ->
@@ -20,13 +20,13 @@ describe 'chokidar', ->
 
     beforeEach (done) ->
       @watcher = chokidar.watch fixturesPath, options
-      delay =>
+      delay ->
         done()
 
     afterEach (done) ->
       @watcher.close()
       delete @watcher
-      delay =>
+      delay ->
         done()
 
     before ->
@@ -56,10 +56,10 @@ describe 'chokidar', ->
 
       @watcher.on 'add', spy
 
-      delay =>
+      delay ->
         spy.should.not.have.been.called
         fs.writeFileSync testPath, 'hello'
-        delay =>
+        delay ->
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
@@ -70,10 +70,10 @@ describe 'chokidar', ->
 
       @watcher.on 'change', spy
 
-      delay =>
+      delay ->
         spy.should.not.have.been.called
         fs.writeFileSync testPath, 'c'
-        delay =>
+        delay ->
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
@@ -84,10 +84,10 @@ describe 'chokidar', ->
 
       @watcher.on 'unlink', spy
 
-      delay =>
+      delay ->
         spy.should.not.have.been.called
         fs.unlinkSync testPath
-        delay =>
+        delay ->
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
@@ -98,10 +98,10 @@ describe 'chokidar', ->
 
       @watcher.on 'unlink', spy
 
-      delay =>
+      delay ->
         fs.mkdirSync testDir, 0o755
         fs.rmdirSync testDir
-        delay =>
+        delay ->
           spy.should.not.have.been.called
           done()
 
@@ -118,11 +118,11 @@ describe 'chokidar', ->
       @watcher.on 'add', spy
       @watcher.add testDir
 
-      delay =>
+      delay ->
         spy.should.not.have.been.callled
         fs.mkdirSync testDir, 0o755
         fs.writeFileSync testPath, 'hello'
-        delay =>
+        delay ->
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
