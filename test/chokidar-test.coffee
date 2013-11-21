@@ -186,7 +186,7 @@ describe 'chokidar', ->
         watcher = chokidar.watch testDir, {ignored: ignoredFn}
         watcher.on 'add', spy
 
-        fs.mkdirSync testDir, 0o755
+        try fs.mkdirSync testDir, 0o755
         fs.writeFileSync testDir + '/add.txt', ''         # this file should be added
         fs.mkdirSync testDir + '/dir', 0o755              # this dir will be ignored
         fs.writeFileSync testDir + '/dir/ignored.txt', '' # so this file should be ignored
