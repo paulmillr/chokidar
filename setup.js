@@ -61,6 +61,7 @@ switch (mode) {
 
   // Run tests.
   case 'test':
+      execute(getBinaryPath('coffee'), '-o lib/ src/');
       execute(
         getBinaryPath('mocha'),
         '--compilers coffee:coffee-script --require test/common --colors'
