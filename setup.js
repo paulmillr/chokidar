@@ -63,7 +63,7 @@ switch (mode) {
   case 'test':
       execute(
         getBinaryPath('mocha'),
-        '--compilers coffee:coffee-script --require test/common.coffee --colors'
+        '--compilers coffee:coffee-script --require test/common --colors'
       );
     break;
 }
