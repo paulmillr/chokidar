@@ -2,6 +2,7 @@
 
 {EventEmitter} = require 'events'
 fs = require 'fs'
+os = require 'os'
 sysPath = require 'path'
 isBinary = require './is-binary'
 
@@ -35,7 +36,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.ignorePermissionErrors ?= no
     @options.interval ?= 100
     @options.binaryInterval ?= 300
-    @options.usePolling ?= true
+    @options.usePolling ?= os.platform() is 'darwin'
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
@@ -88,27 +89,27 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     # Check if it actually is a directory
     isDirectory = @watched[fullPath]
-     
+
     # This will create a new entry in the watched object in either case
     # so we got to do the directory check beforehand
     nestedDirectoryChildren = @_getWatchedDir(fullPath).slice()
-     
+
     # Remove directory / file from watched list.
     @_removeFromWatchedDir directory, item
-     
+
     # Recursively remove children directories / files.
     nestedDirectoryChildren.forEach (nestedItem) =>
       @_remove fullPath, nestedItem
 
     fs.unwatchFile fullPath if @options.usePolling
-     
+
     # The Entry will either be a directory that just got removed
     # or a bogus entry to a file, in either case we have to remove it
     delete @watched[fullPath]
-     
+
     # Only emit events for files
     @emit 'unlink', fullPath unless isDirectory
- 
+
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
   # item     - string, path to file or directory.
