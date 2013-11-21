@@ -224,8 +224,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   #
   # Returns an instance of FSWatcher for chaning.
   add: (files) =>
+    @_initialAdd ?= true
     files = [files] unless Array.isArray files
-    files.forEach (file) => @_handle file, true
+    files.forEach (file) => @_handle file, @_initialAdd
+    @_initialAdd = false
     this
 
   # Public: Remove all listeners from watched files.
