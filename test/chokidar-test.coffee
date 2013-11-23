@@ -7,7 +7,7 @@ getFixturePath = (subPath) ->
   sysPath.join __dirname, 'fixtures', subPath
 
 fixturesPath = getFixturePath ''
-delay = (fn) =>
+delay = (fn) ->
   setTimeout fn, 205
 
 describe 'chokidar', ->
@@ -20,13 +20,13 @@ describe 'chokidar', ->
 
     beforeEach (done) ->
       @watcher = chokidar.watch fixturesPath, options
-      delay =>
+      delay ->
         done()
 
     afterEach (done) ->
       @watcher.close()
       delete @watcher
-      delay =>
+      delay ->
         done()
 
     before ->
@@ -150,7 +150,7 @@ describe 'chokidar', ->
         spy = sinon.spy()
         watcher = chokidar.watch fixturesPath, options
         watcher.on 'add', spy
-        delay ->
+        delay =>
           spy.should.not.have.been.called
           watcher.close()
           done()
@@ -163,13 +163,13 @@ describe 'chokidar', ->
         watcher = chokidar.watch fixturesPath, options
         watcher.on 'add', spy
 
-        delay ->
+        delay =>
           spy.should.not.have.been.called
           fs.mkdirSync testDir, 0o755
           watcher.add testDir
 
           fs.writeFileSync testPath, 'hello'
-          delay ->
+          delay =>
             spy.should.have.been.calledOnce
             spy.should.have.been.calledWith testPath
             done()
@@ -191,7 +191,7 @@ describe 'chokidar', ->
         fs.mkdirSync testDir + '/dir', 0o755              # this dir will be ignored
         fs.writeFileSync testDir + '/dir/ignored.txt', '' # so this file should be ignored
 
-        delay ->
+        delay =>
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testDir + '/add.txt'
           done()

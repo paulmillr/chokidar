@@ -40,26 +40,26 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
-    @_ignored = do (ignored = @options.ignored) =>
-      switch toString.call(ignored)
-        when '[object RegExp]' then (string) -> ignored.test(string)
+    @_ignored = do (ignored = @options.ignored) ->
+      switch toString.call ignored
+        when '[object RegExp]' then (string) -> ignored.test string
         when '[object Function]' then ignored
         else -> no
 
     # You’re frozen when your heart’s not open.
     Object.freeze @options
 
-  _getWatchedDir: (directory) =>
+  _getWatchedDir: (directory) ->
     dir = directory.replace(/[\\\/]$/, '')
     @watched[dir] ?= []
 
-  _addToWatchedDir: (directory, file) =>
+  _addToWatchedDir: (directory, file) ->
     watchedFiles = @_getWatchedDir directory
     watchedFiles.push file
 
-  _removeFromWatchedDir: (directory, file) =>
+  _removeFromWatchedDir: (directory, file) ->
     watchedFiles = @_getWatchedDir directory
-    watchedFiles.some (watchedFile, index) =>
+    watchedFiles.some (watchedFile, index) ->
       if watchedFile is file
         watchedFiles.splice(index, 1)
         yes
@@ -70,7 +70,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # stats - fs.Stats object
   #
   # Returns Boolean
-  _hasReadPermissions: (stats) =>
+  _hasReadPermissions: (stats) ->
     Boolean (4 & parseInt (stats.mode & 0o777).toString(8)[0])
 
   # Private: Handles emitting unlink events for
@@ -81,7 +81,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # item      - string, base path of item/directory
   #
   # Returns nothing.
-  _remove: (directory, item) =>
+  _remove: (directory, item) ->
     # if what is being deleted is a directory, get that directory's paths
     # for recursive deleting and cleaning of watched object
     # if it is not a directory, nestedDirectoryChildren will be empty array
@@ -98,7 +98,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @_removeFromWatchedDir directory, item
 
     # Recursively remove children directories / files.
-    nestedDirectoryChildren.forEach (nestedItem) =>
+    nestedDirectoryChildren.forEach (nestedItem) ->
       @_remove fullPath, nestedItem
 
     fs.unwatchFile fullPath if @options.usePolling
@@ -116,7 +116,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # callback - function that will be executed on fs change.
   #
   # Returns nothing.
-  _watch: (item, itemType, callback = (->)) =>
+  _watch: (item, itemType, callback = (->)) ->
     directory = sysPath.dirname(item)
     basename = sysPath.basename(item)
     parent = @_getWatchedDir directory
@@ -131,10 +131,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         @options.binaryInterval
       else
         @options.interval
-      fs.watchFile item, options, (curr, prev) =>
+      fs.watchFile item, options, (curr, prev) ->
         callback item, curr if curr.mtime.getTime() > prev.mtime.getTime()
     else
-      watcher = fs.watch item, options, (event, path) =>
+      watcher = fs.watch item, options, (event, path) ->
         callback item
       @watchers.push watcher
 
@@ -146,7 +146,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # initialAdd - boolean, was the file added at the launch?
   #
   # Returns nothing.
-  _handleFile: (file, stats, initialAdd = no) =>
+  _handleFile: (file, stats, initialAdd = no) ->
     @_watch file, 'file', (file, newStats) =>
       @emit 'change', file, newStats
     @emit 'add', file, stats unless initialAdd and @options.ignoreInitial
@@ -157,7 +157,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # directory - string, fs path.
   #
   # Returns nothing.
-  _handleDir: (directory, initialAdd) =>
+  _handleDir: (directory, initialAdd) ->
     read = (directory, initialAdd) =>
       fs.readdir directory, (error, current) =>
         return @emit 'error', error if error?
@@ -191,7 +191,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # item - string, path to file or directory.
   #
   # Returns nothing.
-  _handle: (item, initialAdd) =>
+  _handle: (item, initialAdd) ->
     # Don't handle invalid files, dotfiles etc.
     return if @_ignored item
 
@@ -223,7 +223,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   #   add ['app', 'vendor']
   #
   # Returns an instance of FSWatcher for chaning.
-  add: (files) =>
+  add: (files) ->
     @_initialAdd ?= true
     files = [files] unless Array.isArray files
     files.forEach (file) => @_handle file, @_initialAdd
