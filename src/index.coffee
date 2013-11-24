@@ -4,9 +4,19 @@
 fs = require 'fs'
 os = require 'os'
 sysPath = require 'path'
+recursiveReaddir = require 'recursive-readdir'
 isBinary = require './is-binary'
+try
+  fsevents = require 'fsevents'
+catch
+  fsevents = null
 
 nodeVersion = process.versions.node.substring(0, 3)
+
+createFSEventsInstance = (path, callback) ->
+  watcher = new fsevents.FSEvents path
+  watcher.on 'fsevent', callback
+  watcher
 
 # Helloo, I am coffeescript file.
 # Chokidar is written in coffee because it uses OOP.
@@ -37,6 +47,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.interval ?= 100
     @options.binaryInterval ?= 300
     @options.usePolling ?= os.platform() is 'darwin'
+    @options.useFsEvents ?= yes
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
@@ -109,6 +120,24 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     # Only emit events for files
     @emit 'unlink', fullPath unless isDirectory
+
+  _watchWithFsEvents: (path) ->
+    watcher = createFSEventsInstance path, (path, flags) =>
+      info = fsevents.getInfo path, flags
+      switch info.event
+        when 'created'
+          @emit 'add', path
+        when 'modified'
+          @emit 'change', path
+        when 'deleted'
+          @emit 'unlink', path
+        when 'moved'
+          fs.stat path, (error, stats) =>
+            if error or not stats
+              @emit 'unlink', path
+            else
+              @emit 'add', path
+    @watchers.push watcher
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
@@ -214,6 +243,22 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     super
     super 'all', event, args... if event in ['add', 'change', 'unlink']
 
+  _addToFsEvents: (files) ->
+    handle = (path) =>
+      @emit 'add', path
+    files.forEach (file) =>
+      unless @options.ignoreInitial
+        fs.stat file, (error, stats) =>
+          return @emit 'error', error if error?
+          if stats.isDirectory()
+            recursiveReaddir file, (error, dirFiles) =>
+              return @emit 'error', error if error?
+              dirFiles.forEach handle
+          else
+            handle file
+      @_watchWithFsEvents file
+    this
+
   # Public: Adds directories / files for tracking.
   #
   # * files - array of strings (file paths).
@@ -226,6 +271,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   add: (files) ->
     @_initialAdd ?= true
     files = [files] unless Array.isArray files
+    return @_addToFsEvents files if @options.useFsEvents
     files.forEach (file) => @_handle file, @_initialAdd
     @_initialAdd = false
     this
@@ -233,7 +279,12 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # Public: Remove all listeners from watched files.
   # Returns an instance of FSWatcher for chaning.
   close: =>
-    @watchers.forEach (watcher) -> watcher.close()
+    @watchers.forEach (watcher) =>
+      if @options.useFsEvents
+        watcher.stop()
+      else
+        watcher.close()
+
     Object.keys(@watched).forEach (directory) =>
       @watched[directory].forEach (file) =>
         fs.unwatchFile sysPath.join(directory, file)
