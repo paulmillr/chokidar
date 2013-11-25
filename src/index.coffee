@@ -112,7 +112,6 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     else
       @emit 'unlink_dir', fullPath
 
-
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
   # item     - string, path to file or directory.
