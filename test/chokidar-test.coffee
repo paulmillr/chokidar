@@ -64,6 +64,20 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
+    it 'should emit `add_dir` event when directory was added', (done) ->
+      spy = sinon.spy()
+      testDir = getFixturePath 'subdir'
+
+      @watcher.on 'add_dir', spy
+
+      delay =>
+        spy.should.not.have.been.called
+        fs.mkdirSync testDir, 0o755
+        delay =>
+          spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testDir
+          done()
+
     it 'should emit `change` event when file was changed', (done) ->
       spy = sinon.spy()
       testPath = getFixturePath 'change.txt'
@@ -92,17 +106,17 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
-    it 'should not emit `unlink` event when a empty directory was removed', (done) ->
+    it 'should not emit `unlink_dir` event when an empty directory was removed', (done) ->
       spy = sinon.spy()
       testDir = getFixturePath 'subdir'
 
-      @watcher.on 'unlink', spy
+      @watcher.on 'unlink_dir', spy
 
       delay =>
-        fs.mkdirSync testDir, 0o755
         fs.rmdirSync testDir
         delay =>
-          spy.should.not.have.been.called
+          spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testDir
           done()
 
     it 'should survive ENOENT for missing subdirectories', ->
