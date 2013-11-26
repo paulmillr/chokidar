@@ -110,7 +110,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     unless isDirectory
       @emit 'unlink', fullPath
     else
-      @emit 'unlink_dir', fullPath
+      @emit 'unlinkDir', fullPath
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
@@ -186,7 +186,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     read directory, initialAdd
     @_watch directory, 'directory', (dir) -> read dir, no
-    @emit 'add_dir', directory, stats unless initialAdd and @options.ignoreInitial
+    @emit 'addDir', directory, stats unless initialAdd and @options.ignoreInitial
 
   # Private: Handle added file or directory.
   # Delegates call to _handleFile / _handleDir after checks.

@@ -64,11 +64,11 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
-    it 'should emit `add_dir` event when directory was added', (done) ->
+    it 'should emit `addDir` event when directory was added', (done) ->
       spy = sinon.spy()
       testDir = getFixturePath 'subdir'
 
-      @watcher.on 'add_dir', spy
+      @watcher.on 'addDir', spy
 
       delay =>
         spy.should.not.have.been.called
@@ -106,11 +106,11 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
-    it 'should emit `unlink_dir` event when a directory was removed', (done) ->
+    it 'should emit `unlinkDir` event when a directory was removed', (done) ->
       spy = sinon.spy()
       testDir = getFixturePath 'subdir'
 
-      @watcher.on 'unlink_dir', spy
+      @watcher.on 'unlinkDir', spy
 
       delay =>
         fs.rmdirSync testDir
