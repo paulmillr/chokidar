@@ -106,7 +106,7 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
-    it 'should not emit `unlink_dir` event when an empty directory was removed', (done) ->
+    it 'should emit `unlink_dir` event when a directory was removed', (done) ->
       spy = sinon.spy()
       testDir = getFixturePath 'subdir'
 
