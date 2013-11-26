@@ -107,7 +107,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     # or a bogus entry to a file, in either case we have to remove it
     delete @watched[fullPath]
 
-    unless isDirectory
+    if not isDirectory
       @emit 'unlink', fullPath
     else
       @emit 'unlinkDir', fullPath
