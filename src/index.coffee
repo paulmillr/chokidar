@@ -107,10 +107,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     # or a bogus entry to a file, in either case we have to remove it
     delete @watched[fullPath]
 
-    if not isDirectory
-      @emit 'unlink', fullPath
-    else
+    if isDirectory
       @emit 'unlinkDir', fullPath
+    else
+      @emit 'unlink', fullPath
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
