@@ -5,8 +5,23 @@ fs = require 'fs'
 os = require 'os'
 sysPath = require 'path'
 isBinary = require './is-binary'
+try
+  fsevents = require 'fsevents'
+  recursiveReaddir = require 'recursive-readdir'
+catch
+  fsevents = null
+  recursiveReaddir = null
 
 nodeVersion = process.versions.node.substring(0, 3)
+
+createFSEventsInstance = (path, callback) ->
+  watcher = new fsevents.FSEvents path
+  watcher.on 'fsevent', callback
+  watcher
+
+directoryEndRe = /[\\\/]$/
+
+isDarwin = os.platform() is 'darwin'
 
 # Helloo, I am coffeescript file.
 # Chokidar is written in coffee because it uses OOP.
@@ -25,37 +40,40 @@ nodeVersion = process.versions.node.substring(0, 3)
 #     .on('unlink', function(path) {console.log('File', path, 'was removed');})
 #
 exports.FSWatcher = class FSWatcher extends EventEmitter
-  constructor: (@options = {}) ->
+  constructor: (options = {}) ->
     super
     @watched = Object.create(null)
     @watchers = []
 
     # Set up default options.
-    @options.persistent ?= no
-    @options.ignoreInitial ?= no
-    @options.ignorePermissionErrors ?= no
-    @options.interval ?= 100
-    @options.binaryInterval ?= 300
-    @options.usePolling ?= os.platform() is 'darwin'
+    options.persistent ?= false
+    options.ignoreInitial ?= false
+    options.ignorePermissionErrors ?= false
+    options.interval ?= 100
+    options.binaryInterval ?= 300
+    options.usePolling ?= false
+    options.useFsEvents ?= not options.usePolling and isDarwin
 
-    @enableBinaryInterval = @options.binaryInterval isnt @options.interval
+    @enableBinaryInterval = options.binaryInterval isnt options.interval
 
-    @_ignored = do (ignored = @options.ignored) ->
+    @_isIgnored = do (ignored = options.ignored) ->
       switch toString.call ignored
         when '[object RegExp]' then (string) -> ignored.test string
         when '[object Function]' then ignored
-        else -> no
+        else -> false
+
+    @options = options
 
     # You’re frozen when your heart’s not open.
-    Object.freeze @options
+    Object.freeze options
 
   _getWatchedDir: (directory) ->
-    dir = directory.replace(/[\\\/]$/, '')
+    dir = directory.replace(directoryEndRe, '')
     @watched[dir] ?= []
 
-  _addToWatchedDir: (directory, file) ->
+  _addToWatchedDir: (directory, basename) ->
     watchedFiles = @_getWatchedDir directory
-    watchedFiles.push file
+    watchedFiles.push basename
 
   _removeFromWatchedDir: (directory, file) ->
     watchedFiles = @_getWatchedDir directory
@@ -112,22 +130,43 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     else
       @emit 'unlink', fullPath
 
+  _watchWithFsEvents: (path) ->
+    watcher = createFSEventsInstance path, (path, flags) =>
+      return if @_isIgnored path
+      info = fsevents.getInfo path, flags
+      emit = (event) =>
+        name = if info.type is 'file' then event else "#{event}Dir"
+        if event is 'add' or event is 'addDir'
+          @_addToWatchedDir sysPath.dirname(path), sysPath.basename(path)
+        else if event is 'unlink' or event is 'unlinkDir'
+          @_remove sysPath.dirname(path), sysPath.basename(path)
+          return # Do not “emit” event twice.
+        @emit name, path
+
+      switch info.event
+        when 'created' then emit 'add'
+        when 'modified' then emit 'change'
+        when 'deleted' then emit 'unlink'
+        when 'moved'
+          fs.stat path, (error, stats) =>
+            emit (if error or not stats then 'unlink' else 'add')
+    @watchers.push watcher
+
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
   # item     - string, path to file or directory.
   # callback - function that will be executed on fs change.
   #
   # Returns nothing.
-  _watch: (item, itemType, callback = (->)) ->
+  _watch: (item, callback = (->)) ->
     directory = sysPath.dirname(item)
     basename = sysPath.basename(item)
     parent = @_getWatchedDir directory
-    options = {persistent: @options.persistent}
-
     # Prevent memory leaks.
     return if parent.indexOf(basename) isnt -1
-
     @_addToWatchedDir directory, basename
+
+    options = {persistent: @options.persistent}
     if @options.usePolling
       options.interval = if @enableBinaryInterval and isBinary basename
         @options.binaryInterval
@@ -149,7 +188,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   #
   # Returns nothing.
   _handleFile: (file, stats, initialAdd = no) ->
-    @_watch file, 'file', (file, newStats) =>
+    @_watch file, (file, newStats) =>
       @emit 'change', file, newStats
     @emit 'add', file, stats unless initialAdd and @options.ignoreInitial
 
@@ -185,7 +224,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
             @_handle sysPath.join(directory, file), initialAdd
 
     read directory, initialAdd
-    @_watch directory, 'directory', (dir) -> read dir, no
+    @_watch directory, (dir) -> read dir, no
     @emit 'addDir', directory, stats unless initialAdd and @options.ignoreInitial
 
   # Private: Handle added file or directory.
@@ -196,7 +235,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # Returns nothing.
   _handle: (item, initialAdd) ->
     # Don't handle invalid files, dotfiles etc.
-    return if @_ignored item
+    return if @_isIgnored item
 
     # Get the canonicalized absolute pathname.
     fs.realpath item, (error, path) =>
@@ -208,7 +247,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
           return
 
-        return if @_ignored.length is 2 and @_ignored item, stats
+        return if @_isIgnored.length is 2 and @_isIgnored item, stats
 
         @_handleFile item, stats, initialAdd if stats.isFile()
         @_handleDir item, stats, initialAdd if stats.isDirectory()
@@ -218,6 +257,25 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     if (event is 'add' or event is 'addDir' or event is 'change' or
     event is 'unlink' or event is 'unlinkDir')
       super 'all', event, args...
+
+  _addToFsEvents: (files) ->
+    handle = (path) =>
+      @emit 'add', path
+    files.forEach (file) =>
+      unless @options.ignoreInitial
+        fs.stat file, (error, stats) =>
+          return @emit 'error', error if error?
+          if stats.isDirectory()
+            recursiveReaddir file, (error, dirFiles) =>
+              return @emit 'error', error if error?
+              dirFiles
+                .filter (path) =>
+                  not @_isIgnored path
+                .forEach handle
+          else
+            handle file
+      @_watchWithFsEvents file
+    this
 
   # Public: Adds directories / files for tracking.
   #
@@ -231,6 +289,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   add: (files) ->
     @_initialAdd ?= true
     files = [files] unless Array.isArray files
+    return @_addToFsEvents files if @options.useFsEvents
     files.forEach (file) => @_handle file, @_initialAdd
     @_initialAdd = false
     this
@@ -238,10 +297,16 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # Public: Remove all listeners from watched files.
   # Returns an instance of FSWatcher for chaning.
   close: =>
-    @watchers.forEach (watcher) -> watcher.close()
-    Object.keys(@watched).forEach (directory) =>
-      @watched[directory].forEach (file) =>
-        fs.unwatchFile sysPath.join(directory, file)
+    @watchers.forEach (watcher) =>
+      if @options.useFsEvents
+        watcher.stop()
+      else
+        watcher.close()
+
+    if @options.usePolling
+      Object.keys(@watched).forEach (directory) =>
+        @watched[directory].forEach (file) =>
+          fs.unwatchFile sysPath.join(directory, file)
     @watched = Object.create(null)
     @removeAllListeners()
     this
