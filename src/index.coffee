@@ -53,7 +53,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
-    @_ignored = do (ignored = @options.ignored) ->
+    @_isIgnored = do (ignored = @options.ignored) ->
       switch toString.call ignored
         when '[object RegExp]' then (string) -> ignored.test string
         when '[object Function]' then ignored
@@ -127,7 +127,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
   _watchWithFsEvents: (path) ->
     watcher = createFSEventsInstance path, (path, flags) =>
-      return if @_ignored path
+      return if @_isIgnored path
       info = fsevents.getInfo path, flags
       emit = (event) =>
         name = if info.type is 'file' then event else "#{event}Dir"
@@ -230,7 +230,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # Returns nothing.
   _handle: (item, initialAdd) ->
     # Don't handle invalid files, dotfiles etc.
-    return if @_ignored item
+    return if @_isIgnored item
 
     # Get the canonicalized absolute pathname.
     fs.realpath item, (error, path) =>
@@ -242,7 +242,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         if @options.ignorePermissionErrors and (not @_hasReadPermissions stats)
           return
 
-        return if @_ignored.length is 2 and @_ignored item, stats
+        return if @_isIgnored.length is 2 and @_isIgnored item, stats
 
         @_handleFile item, stats, initialAdd if stats.isFile()
         @_handleDir item, stats, initialAdd if stats.isDirectory()
@@ -265,7 +265,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
               return @emit 'error', error if error?
               dirFiles
                 .filter (path) =>
-                  not @_ignored path
+                  not @_isIgnored path
                 .forEach handle
           else
             handle file
