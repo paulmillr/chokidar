@@ -34,7 +34,7 @@ Then just require the package in your code:
 ```javascript
 var chokidar = require('chokidar');
 
-var watcher = chokidar.watch('file or dir', {ignored: /^\./, persistent: true});
+var watcher = chokidar.watch('file or dir', {ignored: /[\/\\]\./, persistent: true});
 
 watcher
   .on('add', function(path) {console.log('File', path, 'has been added');})
@@ -55,6 +55,12 @@ watcher.add(['new-file-2', 'new-file-3']);
 
 // Only needed if watching is persistent.
 watcher.close();
+
+// One-liner
+require('chokidar').watch('.', {ignored: /^\./}).on('all', function(event, path) {
+  console.log(event, path);
+});
+
 ```
 
 ## API

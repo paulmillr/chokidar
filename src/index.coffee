@@ -18,6 +18,8 @@ createFSEventsInstance = (path, callback) ->
   watcher.on 'fsevent', callback
   watcher
 
+directoryEndRe = /[\\\/]$/
+
 # Helloo, I am coffeescript file.
 # Chokidar is written in coffee because it uses OOP.
 # JS is fucking horrible with OOP. At least until ES6.
@@ -61,12 +63,12 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     Object.freeze @options
 
   _getWatchedDir: (directory) ->
-    dir = directory.replace(/[\\\/]$/, '')
+    dir = directory.replace(directoryEndRe, '')
     @watched[dir] ?= []
 
-  _addToWatchedDir: (directory, file) ->
+  _addToWatchedDir: (directory, basename) ->
     watchedFiles = @_getWatchedDir directory
-    watchedFiles.push file
+    watchedFiles.push basename
 
   _removeFromWatchedDir: (directory, file) ->
     watchedFiles = @_getWatchedDir directory
@@ -125,20 +127,24 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
   _watchWithFsEvents: (path) ->
     watcher = createFSEventsInstance path, (path, flags) =>
+      return if @_ignored path
       info = fsevents.getInfo path, flags
+      emit = (event) =>
+        name = if info.type is 'file' then event else "#{event}Dir"
+        if event is 'add' or event is 'addDir'
+          @_addToWatchedDir sysPath.dirname(path), sysPath.basename(path)
+        else if event is 'unlink' or event is 'unlinkDir'
+          @_remove sysPath.dirname(path), sysPath.basename(path)
+          return # Do not “emit” event twice.
+        @emit name, path
+
       switch info.event
-        when 'created'
-          @emit 'add', path
-        when 'modified'
-          @emit 'change', path
-        when 'deleted'
-          @emit 'unlink', path
+        when 'created' then emit 'add'
+        when 'modified' then emit 'change'
+        when 'deleted' then emit 'unlink'
         when 'moved'
           fs.stat path, (error, stats) =>
-            if error or not stats
-              @emit 'unlink', path
-            else
-              @emit 'add', path
+            emit (if error or not stats then 'unlink' else 'add')
     @watchers.push watcher
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
@@ -151,12 +157,11 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     directory = sysPath.dirname(item)
     basename = sysPath.basename(item)
     parent = @_getWatchedDir directory
-    options = {persistent: @options.persistent}
-
     # Prevent memory leaks.
     return if parent.indexOf(basename) isnt -1
-
     @_addToWatchedDir directory, basename
+
+    options = {persistent: @options.persistent}
     if @options.usePolling
       options.interval = if @enableBinaryInterval and isBinary basename
         @options.binaryInterval
@@ -178,7 +183,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   #
   # Returns nothing.
   _handleFile: (file, stats, initialAdd = no) ->
-    @_watch file, 'file', (file, newStats) =>
+    @_watch file, (file, newStats) =>
       @emit 'change', file, newStats
     @emit 'add', file, stats unless initialAdd and @options.ignoreInitial
 
@@ -214,7 +219,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
             @_handle sysPath.join(directory, file), initialAdd
 
     read directory, initialAdd
-    @_watch directory, 'directory', (dir) -> read dir, no
+    @_watch directory, (dir) -> read dir, no
     @emit 'addDir', directory, stats unless initialAdd and @options.ignoreInitial
 
   # Private: Handle added file or directory.
@@ -258,7 +263,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
           if stats.isDirectory()
             recursiveReaddir file, (error, dirFiles) =>
               return @emit 'error', error if error?
-              dirFiles.forEach handle
+              dirFiles
+                .filter (path) =>
+                  not @_ignored path
+                .forEach handle
           else
             handle file
       @_watchWithFsEvents file
