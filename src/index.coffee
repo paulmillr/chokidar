@@ -21,6 +21,8 @@ createFSEventsInstance = (path, callback) ->
 
 directoryEndRe = /[\\\/]$/
 
+isDarwin = os.platform() is 'darwin'
+
 # Helloo, I am coffeescript file.
 # Chokidar is written in coffee because it uses OOP.
 # JS is fucking horrible with OOP. At least until ES6.
@@ -49,8 +51,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.ignorePermissionErrors ?= no
     @options.interval ?= 100
     @options.binaryInterval ?= 300
-    @options.usePolling ?= os.platform() is 'darwin'
-    @options.useFsEvents ?= yes
+    @options.usePolling ?= yes
+    @options.useFsEvents ?= @options.usePolling and isDarwin
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 
@@ -301,7 +303,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     Object.keys(@watched).forEach (directory) =>
       @watched[directory].forEach (file) =>
-        fs.unwatchFile sysPath.join(directory, file)
+        unless @options.useFsEvents
+          fs.unwatchFile sysPath.join(directory, file)
     @watched = Object.create(null)
     @removeAllListeners()
     this
