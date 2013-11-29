@@ -156,7 +156,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # callback - function that will be executed on fs change.
   #
   # Returns nothing.
-  _watch: (item, itemType, callback = (->)) ->
+  _watch: (item, callback = (->)) ->
     directory = sysPath.dirname(item)
     basename = sysPath.basename(item)
     parent = @_getWatchedDir directory
