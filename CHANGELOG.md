@@ -1,3 +1,9 @@
+# Chokidar 0.8.0 (29 November 2013)
+* Added ultra-fast low-CPU OS X file watching with FSEvents.
+  It is enabled by default.
+* Added `addDir` and `unlinkDir` events.
+* Polling is now disabled by default on all platforms.
+
 # Chokidar 0.7.1 (18 November 2013)
 * `Watcher#close` now also removes all event listeners.
 
