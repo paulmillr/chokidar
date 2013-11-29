@@ -34,7 +34,7 @@ Then just require the package in your code:
 ```javascript
 var chokidar = require('chokidar');
 
-var watcher = chokidar.watch('file or dir', {ignored: /^\./, persistent: true});
+var watcher = chokidar.watch('file or dir', {ignored: /[\/\\]\./, persistent: true});
 
 watcher
   .on('add', function(path) {console.log('File', path, 'has been added');})
@@ -55,6 +55,12 @@ watcher.add(['new-file-2', 'new-file-3']);
 
 // Only needed if watching is persistent.
 watcher.close();
+
+// One-liner
+require('chokidar').watch('.', {ignored: /^\./}).on('all', function(event, path) {
+  console.log(event, path);
+});
+
 ```
 
 ## API
@@ -74,9 +80,11 @@ watcher.close();
     * `options.interval` (default: `100`). Interval of file system polling.
     * `options.binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
-    * `options.usePolling` (default: `true`). Whether to use fs.watchFile
+    * `options.usePolling` (default: `false`). Whether to use fs.watchFile
     (backed by polling), or fs.watch. If polling leads to high CPU utilization,
     consider setting this to `false`.
+    On OS X chokidar uses internal FSEvents API for watching files
+    instead of `fs.watch`.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
