@@ -51,8 +51,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @options.ignorePermissionErrors ?= no
     @options.interval ?= 100
     @options.binaryInterval ?= 300
-    @options.usePolling ?= yes
-    @options.useFsEvents ?= @options.usePolling and isDarwin
+    @options.usePolling ?= no
+    @options.useFsEvents ?= not @options.usePolling and isDarwin
 
     @enableBinaryInterval = @options.binaryInterval isnt @options.interval
 

@@ -80,9 +80,11 @@ require('chokidar').watch('.', {ignored: /^\./}).on('all', function(event, path)
     * `options.interval` (default: `100`). Interval of file system polling.
     * `options.binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
-    * `options.usePolling` (default: `true`). Whether to use fs.watchFile
+    * `options.usePolling` (default: `false`). Whether to use fs.watchFile
     (backed by polling), or fs.watch. If polling leads to high CPU utilization,
     consider setting this to `false`.
+    On OS X chokidar uses internal FSEvents API for watching files
+    instead of `fs.watch`.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
