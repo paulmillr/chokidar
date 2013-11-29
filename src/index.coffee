@@ -4,12 +4,13 @@
 fs = require 'fs'
 os = require 'os'
 sysPath = require 'path'
-recursiveReaddir = require 'recursive-readdir'
 isBinary = require './is-binary'
 try
   fsevents = require 'fsevents'
+  recursiveReaddir = require 'recursive-readdir'
 catch
   fsevents = null
+  recursiveReaddir = null
 
 nodeVersion = process.versions.node.substring(0, 3)
 

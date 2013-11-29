@@ -31,7 +31,7 @@
     "test": "node setup.js test",
     "postinstall": "node setup.js postinstall"
   },
-  "dependencies": {
+  "optionalDependencies": {
     "recursive-readdir": "0.0.2",
     "fsevents": "0.1.6"
   },
