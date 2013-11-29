@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "recursive-readdir": "0.0.2",
-    "fsevents": "git://github.com/paulmillr/fsevents.git#791eac9fe36c17c6a6fbae23d768735cd7f66d00"
+    "fsevents": "0.1.6"
   },
   "devDependencies": {
     "mocha": "~1.7.3",
