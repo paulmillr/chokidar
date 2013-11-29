@@ -2,14 +2,13 @@ chokidar = require '..'
 isBinary = require '../lib/is-binary'
 fs = require 'fs'
 sysPath = require 'path'
-rimraf = require 'rimraf'
 
 getFixturePath = (subPath) ->
   sysPath.join __dirname, 'fixtures', subPath
 
 fixturesPath = getFixturePath ''
 delay = (fn) ->
-  setTimeout fn, 200
+  setTimeout fn, 205
 
 describe 'chokidar', ->
   it 'should expose public API methods', ->
@@ -20,22 +19,27 @@ describe 'chokidar', ->
     options = {}
 
     beforeEach (done) ->
-      try rimraf.sync getFixturePath ''
-      fs.mkdirSync getFixturePath ''
-      fs.writeFileSync (getFixturePath 'change.txt'), 'b'
-      fs.writeFileSync (getFixturePath 'unlink.txt'), 'b'
-      fs.mkdirSync (getFixturePath 'subdir')
-      setTimeout =>
-        @watcher = chokidar.watch fixturesPath, options
-        setTimeout done, 300
-      , 1500
+      @watcher = chokidar.watch fixturesPath, options
+      delay ->
+        done()
 
     afterEach (done) ->
       @watcher.close()
       delete @watcher
-      rimraf.sync getFixturePath ''
       delay ->
         done()
+
+    before ->
+      try fs.unlinkSync (getFixturePath 'add.txt'), 'b'
+      fs.writeFileSync (getFixturePath 'change.txt'), 'b'
+      fs.writeFileSync (getFixturePath 'unlink.txt'), 'b'
+      try fs.unlinkSync (getFixturePath 'subdir/add.txt'), 'b'
+      try fs.rmdirSync (getFixturePath 'subdir'), 'b'
+
+    after ->
+      try fs.unlinkSync (getFixturePath 'add.txt'), 'a'
+      fs.writeFileSync (getFixturePath 'change.txt'), 'a'
+      fs.writeFileSync (getFixturePath 'unlink.txt'), 'a'
 
     it 'should produce an instance of chokidar.FSWatcher', ->
       @watcher.should.be.an.instanceof chokidar.FSWatcher
@@ -60,7 +64,21 @@ describe 'chokidar', ->
           spy.should.have.been.calledWith testPath
           done()
 
-    it.only 'should emit `change` event when file was changed', (done) ->
+    it 'should emit `addDir` event when directory was added', (done) ->
+      spy = sinon.spy()
+      testDir = getFixturePath 'subdir'
+
+      @watcher.on 'addDir', spy
+
+      delay =>
+        spy.should.not.have.been.called
+        fs.mkdirSync testDir, 0o755
+        delay =>
+          spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testDir
+          done()
+
+    it 'should emit `change` event when file was changed', (done) ->
       spy = sinon.spy()
       testPath = getFixturePath 'change.txt'
 
@@ -78,37 +96,33 @@ describe 'chokidar', ->
       spy = sinon.spy()
       testPath = getFixturePath 'unlink.txt'
 
-      @watcher.on 'unlink', ->
-        console.error 124
-        spy testPath
-      console.error 13515, fs.existsSync testPath
+      @watcher.on 'unlink', spy
 
       delay =>
         spy.should.not.have.been.called
         fs.unlinkSync testPath
-        console.error 13515, fs.existsSync testPath
         delay =>
           spy.should.have.been.calledOnce
           spy.should.have.been.calledWith testPath
           done()
 
-    # it 'should not emit `unlink` event when a empty directory was removed', (done) ->
-    #   spy = sinon.spy()
-    #   testDir = getFixturePath 'subdir'
+    it 'should emit `unlinkDir` event when a directory was removed', (done) ->
+      spy = sinon.spy()
+      testDir = getFixturePath 'subdir'
 
-    #   @watcher.on 'unlink', spy
+      @watcher.on 'unlinkDir', spy
 
-    #   delay =>
-    #     fs.mkdirSync testDir, 0o755
-    #     fs.rmdirSync testDir
-    #     delay =>
-    #       spy.should.not.have.been.called
-    #       done()
+      delay =>
+        fs.rmdirSync testDir
+        delay =>
+          spy.should.have.been.calledOnce
+          spy.should.have.been.calledWith testDir
+          done()
 
-    # it 'should survive ENOENT for missing subdirectories', ->
-    #   testDir = getFixturePath 'subdir'
+    it 'should survive ENOENT for missing subdirectories', ->
+      testDir = getFixturePath 'subdir'
 
-    #   @watcher.add testDir
+      @watcher.add testDir
 
     it 'should notice when a file appears in a new directory', (done) ->
       spy = sinon.spy()
@@ -120,6 +134,7 @@ describe 'chokidar', ->
 
       delay =>
         spy.should.not.have.been.callled
+        fs.mkdirSync testDir, 0o755
         fs.writeFileSync testPath, 'hello'
         delay =>
           spy.should.have.been.calledOnce
@@ -164,6 +179,7 @@ describe 'chokidar', ->
 
         delay =>
           spy.should.not.have.been.called
+          fs.mkdirSync testDir, 0o755
           watcher.add testDir
 
           fs.writeFileSync testPath, 'hello'
