@@ -98,7 +98,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     @_removeFromWatchedDir directory, item
 
     # Recursively remove children directories / files.
-    nestedDirectoryChildren.forEach (nestedItem) ->
+    nestedDirectoryChildren.forEach (nestedItem) =>
       @_remove fullPath, nestedItem
 
     fs.unwatchFile fullPath if @options.usePolling
@@ -107,8 +107,10 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     # or a bogus entry to a file, in either case we have to remove it
     delete @watched[fullPath]
 
-    # Only emit events for files
-    @emit 'unlink', fullPath unless isDirectory
+    if isDirectory
+      @emit 'unlinkDir', fullPath
+    else
+      @emit 'unlink', fullPath
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
@@ -157,7 +159,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # directory - string, fs path.
   #
   # Returns nothing.
-  _handleDir: (directory, initialAdd) ->
+  _handleDir: (directory, stats, initialAdd) ->
     read = (directory, initialAdd) =>
       fs.readdir directory, (error, current) =>
         return @emit 'error', error if error?
@@ -184,6 +186,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
 
     read directory, initialAdd
     @_watch directory, 'directory', (dir) -> read dir, no
+    @emit 'addDir', directory, stats unless initialAdd and @options.ignoreInitial
 
   # Private: Handle added file or directory.
   # Delegates call to _handleFile / _handleDir after checks.
@@ -208,11 +211,13 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
         return if @_ignored.length is 2 and @_ignored item, stats
 
         @_handleFile item, stats, initialAdd if stats.isFile()
-        @_handleDir item, initialAdd if stats.isDirectory()
+        @_handleDir item, stats, initialAdd if stats.isDirectory()
 
   emit: (event, args...) ->
-    super
-    super 'all', event, args... if event in ['add', 'change', 'unlink']
+    super event, args...
+    if (event is 'add' or event is 'addDir' or event is 'change' or
+    event is 'unlink' or event is 'unlinkDir')
+      super 'all', event, args...
 
   # Public: Adds directories / files for tracking.
   #
