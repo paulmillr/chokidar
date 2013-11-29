@@ -40,30 +40,32 @@ isDarwin = os.platform() is 'darwin'
 #     .on('unlink', function(path) {console.log('File', path, 'was removed');})
 #
 exports.FSWatcher = class FSWatcher extends EventEmitter
-  constructor: (@options = {}) ->
+  constructor: (options = {}) ->
     super
     @watched = Object.create(null)
     @watchers = []
 
     # Set up default options.
-    @options.persistent ?= no
-    @options.ignoreInitial ?= no
-    @options.ignorePermissionErrors ?= no
-    @options.interval ?= 100
-    @options.binaryInterval ?= 300
-    @options.usePolling ?= no
-    @options.useFsEvents ?= not @options.usePolling and isDarwin
+    options.persistent ?= no
+    options.ignoreInitial ?= no
+    options.ignorePermissionErrors ?= no
+    options.interval ?= 100
+    options.binaryInterval ?= 300
+    options.usePolling ?= no
+    options.useFsEvents ?= not options.usePolling and isDarwin
 
-    @enableBinaryInterval = @options.binaryInterval isnt @options.interval
+    @enableBinaryInterval = options.binaryInterval isnt options.interval
 
-    @_isIgnored = do (ignored = @options.ignored) ->
+    @_isIgnored = do (ignored = options.ignored) ->
       switch toString.call ignored
         when '[object RegExp]' then (string) -> ignored.test string
         when '[object Function]' then ignored
         else -> no
 
+    @options = options
+
     # You’re frozen when your heart’s not open.
-    Object.freeze @options
+    Object.freeze options
 
   _getWatchedDir: (directory) ->
     dir = directory.replace(directoryEndRe, '')
