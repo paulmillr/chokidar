@@ -1,6 +1,7 @@
 var exec = require('child_process').exec;
 var sysPath = require('path');
 var fs = require('fs');
+var platform = require('os').platform();
 
 // Cross-platform node.js postinstall & test script for coffeescript projects.
 
@@ -57,6 +58,9 @@ switch (mode) {
       if (exists) return;
       execute(getBinaryPath('coffee'), '-o lib/ src/');
     });
+    if (platform === 'darwin') {
+      execute('npm', 'install --save-optional fsevents@0.1.6 recursive-readdir@0.0.2');
+    }
     break;
 
   // Run tests.
