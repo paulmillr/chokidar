@@ -31,12 +31,16 @@
     "test": "node setup.js test",
     "postinstall": "node setup.js postinstall"
   },
-  "dependencies": {},
+  "optionalDependencies": {
+    "recursive-readdir": "0.0.2",
+    "fsevents": "0.1.6"
+  },
   "devDependencies": {
     "mocha": "~1.7.3",
     "chai": "~1.4.0",
     "sinon": "~1.5.2",
     "sinon-chai": "2.2.0",
-    "coffee-script": "~1.6.0"
+    "coffee-script": "~1.6.0",
+    "rimraf": "~2.2.2"
   }
 }

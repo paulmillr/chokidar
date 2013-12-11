@@ -5,10 +5,22 @@ fs = require 'fs'
 os = require 'os'
 sysPath = require 'path'
 isBinary = require './is-binary'
+try
+  fsevents = require 'fsevents'
+  recursiveReaddir = require 'recursive-readdir'
+catch
+  fsevents = null
+  recursiveReaddir = null
 
 nodeVersion = process.versions.node.substring(0, 3)
 
+createFSEventsInstance = (path, callback) ->
+  watcher = new fsevents.FSEvents path
+  watcher.on 'fsevent', callback
+  watcher
+
 directoryEndRe = /[\\\/]$/
+
 isDarwin = os.platform() is 'darwin'
 
 # Helloo, I am coffeescript file.
@@ -39,7 +51,8 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     options.ignorePermissionErrors ?= false
     options.interval ?= 100
     options.binaryInterval ?= 300
-    options.usePolling ?= isDarwin  # Use polling only on OS X.
+    options.usePolling ?= false
+    options.useFsEvents ?= not options.usePolling and isDarwin
 
     @enableBinaryInterval = options.binaryInterval isnt options.interval
 
@@ -116,6 +129,28 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
       @emit 'unlinkDir', fullPath
     else
       @emit 'unlink', fullPath
+
+  _watchWithFsEvents: (path) ->
+    watcher = createFSEventsInstance path, (path, flags) =>
+      return if @_isIgnored path
+      info = fsevents.getInfo path, flags
+      emit = (event) =>
+        name = if info.type is 'file' then event else "#{event}Dir"
+        if event is 'add' or event is 'addDir'
+          @_addToWatchedDir sysPath.dirname(path), sysPath.basename(path)
+        else if event is 'unlink' or event is 'unlinkDir'
+          @_remove sysPath.dirname(path), sysPath.basename(path)
+          return # Do not “emit” event twice.
+        @emit name, path
+
+      switch info.event
+        when 'created' then emit 'add'
+        when 'modified' then emit 'change'
+        when 'deleted' then emit 'unlink'
+        when 'moved'
+          fs.stat path, (error, stats) =>
+            emit (if error or not stats then 'unlink' else 'add')
+    @watchers.push watcher
 
   # Private: Watch file for changes with fs.watchFile or fs.watch.
   #
@@ -223,6 +258,25 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
     event is 'unlink' or event is 'unlinkDir')
       super 'all', event, args...
 
+  _addToFsEvents: (files) ->
+    handle = (path) =>
+      @emit 'add', path
+    files.forEach (file) =>
+      unless @options.ignoreInitial
+        fs.stat file, (error, stats) =>
+          return @emit 'error', error if error?
+          if stats.isDirectory()
+            recursiveReaddir file, (error, dirFiles) =>
+              return @emit 'error', error if error?
+              dirFiles
+                .filter (path) =>
+                  not @_isIgnored path
+                .forEach handle
+          else
+            handle file
+      @_watchWithFsEvents file
+    this
+
   # Public: Adds directories / files for tracking.
   #
   # * files - array of strings (file paths).
@@ -235,6 +289,7 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   add: (files) ->
     @_initialAdd ?= true
     files = [files] unless Array.isArray files
+    return @_addToFsEvents files if @options.useFsEvents
     files.forEach (file) => @_handle file, @_initialAdd
     @_initialAdd = false
     this
@@ -242,7 +297,12 @@ exports.FSWatcher = class FSWatcher extends EventEmitter
   # Public: Remove all listeners from watched files.
   # Returns an instance of FSWatcher for chaning.
   close: =>
-    @watchers.forEach (watcher) -> watcher.close()
+    @watchers.forEach (watcher) =>
+      if @options.useFsEvents
+        watcher.stop()
+      else
+        watcher.close()
+
     if @options.usePolling
       Object.keys(@watched).forEach (directory) =>
         @watched[directory].forEach (file) =>
