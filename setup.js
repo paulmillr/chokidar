@@ -27,6 +27,8 @@ var execute = function(path, params, callback) {
   });
 };
 
+// Don't toggle postinstall anymore so that fsevents can be installed conditionally
+/*
 var togglePostinstall = function(add) {
   var pkg = require('./package.json');
 
@@ -39,17 +41,18 @@ var togglePostinstall = function(add) {
 
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 };
+*/
 
 switch (mode) {
   // Remove `.postinstall` script to prevent stupid npm bugs.
   case 'prepublish':
-    togglePostinstall(false);
+    //togglePostinstall(false);
     execute(getBinaryPath('coffee'), '-o lib/ src/');
     break;
 
   // Bring back `.postinstall` script.
   case 'postpublish':
-    togglePostinstall(true);
+    //togglePostinstall(true);
     break;
 
   // Compile coffeescript for git users.
