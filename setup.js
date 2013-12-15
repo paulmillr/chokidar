@@ -1,6 +1,7 @@
 var exec = require('child_process').exec;
 var sysPath = require('path');
 var fs = require('fs');
+var platform = require('os').platform();
 
 // Cross-platform node.js postinstall & test script for coffeescript projects.
 
@@ -26,6 +27,8 @@ var execute = function(path, params, callback) {
   });
 };
 
+// Don't toggle postinstall anymore so that fsevents can be installed conditionally
+/*
 var togglePostinstall = function(add) {
   var pkg = require('./package.json');
 
@@ -38,17 +41,18 @@ var togglePostinstall = function(add) {
 
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 };
+*/
 
 switch (mode) {
   // Remove `.postinstall` script to prevent stupid npm bugs.
   case 'prepublish':
-    togglePostinstall(false);
+    //togglePostinstall(false);
     execute(getBinaryPath('coffee'), '-o lib/ src/');
     break;
 
   // Bring back `.postinstall` script.
   case 'postpublish':
-    togglePostinstall(true);
+    //togglePostinstall(true);
     break;
 
   // Compile coffeescript for git users.
@@ -57,6 +61,9 @@ switch (mode) {
       if (exists) return;
       execute(getBinaryPath('coffee'), '-o lib/ src/');
     });
+    if (platform === 'darwin') {
+      execute('npm', 'install --save-optional fsevents@0.1.6 recursive-readdir@0.0.2');
+    }
     break;
 
   // Run tests.
