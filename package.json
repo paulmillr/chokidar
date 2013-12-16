@@ -25,8 +25,6 @@
     }
   ],
   "scripts": {
-    "prepublish": "node setup.js prepublish",
-    "postpublish": "node setup.js postpublish",
     "test": "./node_modules/.bin/mocha",
     "postinstall": "node setup.js postinstall"
   },
@@ -37,9 +35,5 @@
     "sinon-chai": "2.2.0",
     "coffee-script": "~1.6.0",
     "rimraf": "~2.2.2"
-  },
-  "optionalDependencies": {
-    "recursive-readdir": "0.0.2",
-    "fsevents": "~0.1.6"
   }
 }
