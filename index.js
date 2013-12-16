@@ -17,8 +17,8 @@ var createFSEventsInstance = function(path, callback) {
 };
 var nodeVersion = process.versions.node.substring(0, 3);
 var directoryEndRe = /[\\\/]$/;
-var isDarwin = os.platform() === 'darwin';
-var canUseFsEvents = isDarwin && fsevents;
+var platform = os.platform();
+var canUseFsEvents = platform === 'darwin' && fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
@@ -70,7 +70,7 @@ function FSWatcher(_opts) {
   if (opts.ignoreInitial == null) opts.ignoreInitial = false;
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
-  if (opts.usePolling == null) opts.usePolling = false;
+  if (opts.usePolling == null) opts.usePolling = platform !== 'win32';
   if (opts.useFsEvents == null) {
     opts.useFsEvents = !opts.usePolling && canUseFsEvents;
   } else {

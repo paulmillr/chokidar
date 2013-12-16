@@ -32,4 +32,4 @@ publish
 *.sublime-project
 *.sublime-workspace
 
-test/fixtures/subdir/
+test-fixtures
