@@ -1,3 +1,9 @@
+# Chokidar 0.8.1 (16 December 2013)
+* Optional deps are now truly optional on windows and
+  linux.
+* Rewritten in JS, again.
+* Fixed some FSEvents-related bugs.
+
 # Chokidar 0.8.0 (29 November 2013)
 * Added ultra-fast low-CPU OS X file watching with FSEvents.
   It is enabled by default.
