@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "test": "./node_modules/.bin/mocha",
-    "postinstall": "node setup.js postinstall"
+    "postinstall": "node setup-deps.js"
   },
   "devDependencies": {
     "mocha": "~1.7.3",
