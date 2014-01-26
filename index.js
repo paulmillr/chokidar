@@ -70,12 +70,12 @@ function FSWatcher(_opts) {
   if (opts.ignoreInitial == null) opts.ignoreInitial = false;
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
+  if (opts.usePolling == null) opts.usePolling = platform !== 'win32';
   if (opts.useFsEvents == null) {
     opts.useFsEvents = !opts.usePolling && canUseFsEvents;
   } else {
     if (!canUseFsEvents) opts.useFsEvents = false;
   }
-  if (opts.usePolling == null) opts.usePolling = platform !== 'win32';
   if (opts.ignorePermissionErrors == null) {
     opts.ignorePermissionErrors = false;
   }
