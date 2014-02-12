@@ -11,5 +11,5 @@ var execute = function(path, params, callback) {
 };
 
 if (require('os').platform() === 'darwin') {
-  execute('npm', 'install fsevents@0.1.6 recursive-readdir@0.0.2');
+  execute('npm', 'install fsevents@0.2.0 recursive-readdir@0.0.2');
 }
