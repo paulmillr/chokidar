@@ -281,10 +281,10 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // directory - string, fs path.
 
 // Returns nothing.
-FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
+FSWatcher.prototype._handleDir = function(directory, stats, initialAdd, readyCallback) {
   var read,
     _this = this;
-  read = function(directory, initialAdd) {
+  read = function(directory, initialAdd, readyCallback) {
     return fs.readdir(directory, function(error, current) {
       var previous;
       if (error != null) {
@@ -305,17 +305,20 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
         return _this._remove(directory, file);
       });
 
+      var c = 0;
       // Files that present in current directory snapshot
       // but absent in previous are added to watch list and
       // emit `add` event.
       current.filter(function(file) {
         return previous.indexOf(file) === -1;
-      }).forEach(function(file) {
-        _this._handle(sysPath.join(directory, file), initialAdd);
+      }).forEach(function(file, i, arr) {
+        _this._handle(sysPath.join(directory, file), initialAdd, function() {
+          if (++c === arr.length && readyCallback) readyCallback();
+        });
       });
     });
   };
-  read(directory, initialAdd);
+  read(directory, initialAdd, readyCallback);
   this._watch(directory, function(dir) {
     return read(dir, false);
   });
@@ -330,13 +333,15 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
 // item - string, path to file or directory.
 
 // Returns nothing.
-FSWatcher.prototype._handle = function(item, initialAdd) {
+FSWatcher.prototype._handle = function(item, initialAdd, readyCallback) {
   var _this = this;
   if (this._isIgnored(item)) {
+    readyCallback();
     return;
   }
   return fs.realpath(item, function(error, path) {
     if (error && error.code === 'ENOENT') {
+      readyCallback();
       return;
     }
     if (error != null) {
@@ -347,16 +352,19 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
         return _this.emit('error', error);
       }
       if (_this.options.ignorePermissionErrors && (!_this._hasReadPermissions(stats))) {
+        readyCallback();
         return;
       }
       if (_this._isIgnored.length === 2 && _this._isIgnored(item, stats)) {
+        readyCallback();
         return;
       }
       if (stats.isFile()) {
         _this._handleFile(item, stats, initialAdd);
+        readyCallback();
       }
       if (stats.isDirectory()) {
-        return _this._handleDir(item, stats, initialAdd);
+        return _this._handleDir(item, stats, initialAdd, readyCallback);
       }
     });
   });
@@ -371,32 +379,40 @@ FSWatcher.prototype.emit = function() {
   }
 };
 
-FSWatcher.prototype._addToFsEvents = function(files) {
+FSWatcher.prototype._addToFsEvents = function(files, readyCallback) {
   var handle,
-    _this = this;
+    _this = this,
+    c = 0,
+    fileCount = files.length;
+
   handle = function(path) {
-    return _this.emit('add', path);
+    if (_this.options.ignoreInitial) {
+      _this.emit('add', path);
+    }
+    if (++c === fileCount) {
+      readyCallback();
+    }
   };
   files.forEach(function(file) {
-    if (!_this.options.ignoreInitial) {
-      fs.stat(file, function(error, stats) {
-        if (error != null) {
-          return _this.emit('error', error);
-        }
-        if (stats.isDirectory()) {
-          return recursiveReaddir(file, function(error, dirFiles) {
-            if (error != null) {
-              return _this.emit('error', error);
-            }
-            return dirFiles.filter(function(path) {
-              return !_this._isIgnored(path);
-            }).forEach(handle);
+    fs.stat(file, function(error, stats) {
+      if (error != null) {
+        return _this.emit('error', error);
+      }
+      if (stats.isDirectory()) {
+        return recursiveReaddir(file, function(error, dirFiles) {
+          if (error != null) {
+            return _this.emit('error', error);
+          }
+          var dirFiles = dirFiles.filter(function(path) {
+            return !_this._isIgnored(path);
           });
-        } else {
-          return handle(file);
-        }
-      });
-    }
+          fileCount += dirFiles.length - 1;
+          dirFiles.forEach(handle);
+        });
+      } else {
+        return handle(file);
+      }
+    });
     return _this._watchWithFsEvents(file);
   });
   return this;
@@ -416,10 +432,13 @@ FSWatcher.prototype.add = function(files) {
   if (this._initialAdd == null) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
-  if (this.options.useFsEvents) return this._addToFsEvents(files);
+  if (this.options.useFsEvents) return this._addToFsEvents(files, this.emit.bind(this, 'ready'));
 
+  var c = 0;
   files.forEach(function(file) {
-    return _this._handle(file, _this._initialAdd);
+    _this._handle(file, _this._initialAdd, function() {
+      if (++c === files.length) _this.emit('ready');
+    });
   });
   this._initialAdd = false;
   return this;

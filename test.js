@@ -1,6 +1,6 @@
 'use strict';
 
-var chai, chokidar, delay, expect, fixturesPath, fs, getFixturePath, isBinary, should, sinon, sysPath;
+var chai, chokidar, delay, expect, fixturesPath, fs, getFixturePath, isBinary, should, sinon, sysPath, os;
 
 chai = require('chai');
 
@@ -17,6 +17,8 @@ chokidar = require('./');
 fs = require('fs');
 
 sysPath = require('path');
+
+os = require('os');
 
 getFixturePath = function(subPath) {
   return sysPath.join(__dirname, 'test-fixtures', subPath);
@@ -182,7 +184,7 @@ describe('chokidar', function() {
       });
     });
   });
-  return describe('watch options', function() {
+  describe('watch options', function() {
     return describe('ignoreInitial', function() {
       var options;
       options = {
@@ -277,6 +279,43 @@ describe('chokidar', function() {
           return done();
         });
       });
+    });
+  });
+  describe('ready event', function() {
+    var tmpdir = os.tmpdir();
+    var testdir = sysPath.join(tmpdir, 'chokidar_test');
+    var subdir = sysPath.join(testdir, 'test_sub')
+    beforeEach(function() {
+      try {
+        fs.mkdirSync(testdir);
+      } catch (e) {
+        //ignore.
+      }
+      try {
+        fs.mkdirSync(subdir);
+      } catch (e) {
+        //ignore.
+      }
+      for (var i = 0; i < 50; i++) {
+        fs.writeFileSync(sysPath.join(testdir, i + ''), 'test_' + i);
+      }
+      for (var i = 0; i < 50; i++) {
+        fs.writeFileSync(sysPath.join(subdir, i + ''), 'test_sub_' + i);
+      }
+    });
+
+    afterEach(function() {
+      this.watcher.close();
+    });
+
+    it('should emit `ready` event when finished watching', function(done) {
+      this.watcher = chokidar.watch(testdir);
+      this.watcher.on('ready', done);
+    });
+
+    it('should emit `ready` with fsEvents', function(done) {
+      this.watcher = chokidar.watch(testdir, {usePolling: false});
+      this.watcher.on('ready', done);
     });
   });
 });
