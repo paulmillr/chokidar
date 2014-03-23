@@ -34,6 +34,8 @@
     "sinon": "~1.5.2",
     "sinon-chai": "2.2.0",
     "coffee-script": "~1.6.0",
-    "rimraf": "~2.2.2"
+    "rimraf": "~2.2.2",
+    "fsevents": "0.2.0",
+    "recursive-readdir": "0.0.2"
   }
 }

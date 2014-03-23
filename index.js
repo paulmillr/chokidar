@@ -3,11 +3,12 @@ var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
 var os = require('os');
 var sysPath = require('path');
+
 var fsevents, recursiveReaddir;
-try {
+if (os.platform() === 'darwin') {
   fsevents = require('fsevents');
   recursiveReaddir = require('recursive-readdir');
-} catch (error) {}
+}
 
 var __slice = [].slice;
 var createFSEventsInstance = function(path, callback) {
