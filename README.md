@@ -6,8 +6,9 @@ A neat wrapper around node.js fs.watch / fs.watchFile.
 ## Why?
 Node.js `fs.watch`:
 
-* Doesn't report filenames on mac.
-* Doesn't report events at all when using editors like Sublime on mac.
+* Doesn't report filenames on OS X.
+* Doesn't report events at all when using editors like Sublime on OS X.
+* Doesn't use FSEvents for **fast low-CPU watching on OS X** (no other fs watch module does this!).
 * Sometimes reports events twice.
 * Has only one non-useful event: `rename`.
 * Has [a lot of other issues](https://github.com/joyent/node/search?q=fs.watch&type=Issues)
