@@ -1,3 +1,7 @@
+# Chokidar 0.8.2 (26 March 2014)
+* Fixed npm issues related to fsevents dep.
+* Updated fsevents to 0.2.
+
 # Chokidar 0.8.1 (16 December 2013)
 * Optional deps are now truly optional on windows and
   linux.
