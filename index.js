@@ -245,6 +245,17 @@ FSWatcher.prototype._watch = function(item, callback) {
     watcher = fs.watch(item, options, function(event, path) {
       callback(item);
     });
+    // Workaround for the "Windows rough edge" regarding the deletion of directories
+    // (https://github.com/joyent/node/issues/4337)
+    if (platform === 'win32') {
+        watcher.on("error", function (err) {
+            fs.exists(item, function (exists) {
+                if (exists) {
+                    throw err;
+                }
+            });
+        });
+    }
     this.watchers.push(watcher);
   }
 };
