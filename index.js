@@ -249,6 +249,9 @@ FSWatcher.prototype._watch = function(item, callback) {
     // (https://github.com/joyent/node/issues/4337)
     if (platform === 'win32') {
       watcher.on("error", function (err) {
+        if (err.code !== 'EPERM') {
+          throw err;
+        }
         fs.exists(item, function (exists) {
           if (exists) {
             throw err;
