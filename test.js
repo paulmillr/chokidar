@@ -38,15 +38,15 @@ describe('chokidar', function() {
     options = {};
     beforeEach(function(done) {
       this.watcher = chokidar.watch(fixturesPath, options);
-      return delay(function() {
-        return done();
+      delay(function() {
+        done();
       });
     });
     afterEach(function(done) {
       this.watcher.close();
       delete this.watcher;
-      return delay(function() {
-        return done();
+      delay(function() {
+        done();
       });
     });
     before(function() {
@@ -84,51 +84,50 @@ describe('chokidar', function() {
       spy = sinon.spy();
       testPath = getFixturePath('add.txt');
       this.watcher.on('add', spy);
-      return delay(function() {
+      delay(function() {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'hello');
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
-          return done();
+          done();
         });
       });
     });
 
 
-    it('should emit single `add` event for single file added', function(done) {
-	    var spy, spy2, testPath, testPath2,
-		_this = this;
-	    spy = sinon.spy();
-	    spy2 = sinon.spy();
+    it.skip('should emit single `add` event for single file added', function(done) {
+      var spy, spy2, testPath, testPath2, _this = this;
+      spy = sinon.spy();
+      spy2 = sinon.spy();
 
-	    testPath = getFixturePath('add.txt');
-	    testPath2 = getFixturePath('add2.txt');
+      testPath = getFixturePath('add.txt');
+      testPath2 = getFixturePath('add2.txt');
 
-	    this.watcher.on('add', spy);
-	    return delay(function() {
-		    spy.should.not.have.been.called;
-		    fs.writeFileSync(testPath, 'hello');
+      this.watcher.on('add', spy);
+      delay(function() {
+        spy.should.not.have.been.called;
+        fs.writeFileSync(testPath, 'hello');
 
-		    return delay(function() {
-			    spy.should.have.been.calledOnce;
-			    spy.should.have.been.calledWith(testPath);
+        delay(function() {
+          spy.should.have.been.calledOnce;
+          spy.should.have.been.calledWith(testPath);
 
-			    this.watcher.on('add', spy2);
-			    return delay(function(){
+          this.watcher.on('add', spy2);
+          delay(function(){
 
-				    spy2.should.not.have.been.called;
-				    fs.writeFileSync(testPath2, 'hello');
+            spy2.should.not.have.been.called;
+            fs.writeFileSync(testPath2, 'hello');
 
-				    return delay(function(){
-					    spy2.should.have.been.calledOnce;
-					    spy2.should.have.been.calledWith(testPath2);
-					    return done();
-					});
-				});
-			});
-		});
-	});
+            delay(function(){
+              spy2.should.have.been.calledOnce;
+              spy2.should.have.been.calledWith(testPath2);
+              done();
+            });
+          });
+        });
+      });
+    });
 
 
     it('should emit `addDir` event when directory was added', function(done) {
@@ -137,13 +136,13 @@ describe('chokidar', function() {
       spy = sinon.spy();
       testDir = getFixturePath('subdir');
       this.watcher.on('addDir', spy);
-      return delay(function() {
+      delay(function() {
         spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
-          return done();
+          done();
         });
       });
     });
@@ -153,13 +152,13 @@ describe('chokidar', function() {
       spy = sinon.spy();
       testPath = getFixturePath('change.txt');
       this.watcher.on('change', spy);
-      return delay(function() {
+      delay(function() {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'c');
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
-          return done();
+          done();
         });
       });
     });
@@ -169,13 +168,13 @@ describe('chokidar', function() {
       spy = sinon.spy();
       testPath = getFixturePath('unlink.txt');
       this.watcher.on('unlink', spy);
-      return delay(function() {
+      delay(function() {
         spy.should.not.have.been.called;
         fs.unlinkSync(testPath);
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
-          return done();
+          done();
         });
       });
     });
@@ -185,12 +184,12 @@ describe('chokidar', function() {
       spy = sinon.spy();
       testDir = getFixturePath('subdir');
       this.watcher.on('unlinkDir', spy);
-      return delay(function() {
+      delay(function() {
         fs.rmdirSync(testDir);
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
-          return done();
+          done();
         });
       });
     });
@@ -207,14 +206,14 @@ describe('chokidar', function() {
       testPath = getFixturePath('subdir/add.txt');
       this.watcher.on('add', spy);
       this.watcher.add(testDir);
-      return delay(function() {
+      delay(function() {
         spy.should.not.have.been.callled;
         fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testPath, 'hello');
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
-          return done();
+          done();
         });
       });
     });
@@ -238,7 +237,7 @@ describe('chokidar', function() {
         try {
           fs.rmdirSync(getFixturePath('subdir'));
         } catch (_error) {}
-        return done();
+        done();
       });
       after(function(done) {
         try {
@@ -253,7 +252,7 @@ describe('chokidar', function() {
         try {
           fs.rmdirSync(getFixturePath('subdir'));
         } catch (_error) {}
-        return done();
+        done();
       });
       it('should ignore inital add events', function(done) {
         var spy, watcher,
@@ -261,10 +260,10 @@ describe('chokidar', function() {
         spy = sinon.spy();
         watcher = chokidar.watch(fixturesPath, options);
         watcher.on('add', spy);
-        return delay(function() {
+        delay(function() {
           spy.should.not.have.been.called;
           watcher.close();
-          return done();
+          done();
         });
       });
       it('should notice when a file appears in an empty directory', function(done) {
@@ -275,15 +274,15 @@ describe('chokidar', function() {
         testPath = getFixturePath('subdir/add.txt');
         watcher = chokidar.watch(fixturesPath, options);
         watcher.on('add', spy);
-        return delay(function() {
+        delay(function() {
           spy.should.not.have.been.called;
           fs.mkdirSync(testDir, 0x1ed);
           watcher.add(testDir);
           fs.writeFileSync(testPath, 'hello');
-          return delay(function() {
+          delay(function() {
             spy.should.have.been.calledOnce;
             spy.should.have.been.calledWith(testPath);
-            return done();
+            done();
           });
         });
       });
@@ -308,10 +307,10 @@ describe('chokidar', function() {
         fs.writeFileSync(testDir + '/add.txt', '');
         fs.mkdirSync(testDir + '/dir', 0x1ed);
         fs.writeFileSync(testDir + '/dir/ignored.txt', '');
-        return delay(function() {
+        delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(sysPath.join(testDir, 'add.txt'));
-          return done();
+          done();
         });
       });
     });
