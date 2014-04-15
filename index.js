@@ -3,23 +3,15 @@ var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
 var os = require('os');
 var sysPath = require('path');
+
 var fsevents, recursiveReaddir;
 try {
   fsevents = require('fsevents');
   recursiveReaddir = require('recursive-readdir');
 } catch (error) {}
 
-var __slice = [].slice;
-var createFSEventsInstance = function(path, callback) {
-  var watcher = new fsevents.FSEvents(path);
-  watcher.on('fsevent', callback);
-  return watcher;
-};
-var nodeVersion = process.versions.node.substring(0, 3);
-var directoryEndRe = /[\\\/]$/;
-var platform = os.platform();
-var canUseFsEvents = platform === 'darwin' && fsevents;
-var isWindows = platform === 'win32';
+var isWindows = os.platform() === 'win32';
+var canUseFsEvents = os.platform() === 'darwin' && fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
@@ -71,7 +63,7 @@ function FSWatcher(_opts) {
   if (opts.ignoreInitial == null) opts.ignoreInitial = false;
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
-  if (opts.usePolling == null) opts.usePolling = platform !== 'win32';
+  if (opts.usePolling == null) opts.usePolling = !isWindows;
   if (opts.useFsEvents == null) {
     opts.useFsEvents = !opts.usePolling && canUseFsEvents;
   } else {
@@ -109,6 +101,7 @@ FSWatcher.prototype = Object.create(EventEmitter.prototype);
 // Directory helpers
 // -----------------
 
+var directoryEndRe = /[\\\/]$/;
 FSWatcher.prototype._getWatchedDir = function(directory) {
   var _base;
   var dir = directory.replace(directoryEndRe, '');
@@ -155,22 +148,20 @@ FSWatcher.prototype._remove = function(directory, item) {
   // if what is being deleted is a directory, get that directory's paths
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
-  var fullPath, isDirectory, nestedDirectoryChildren,
-    _this = this;
-  fullPath = sysPath.join(directory, item);
-  isDirectory = this.watched[fullPath];
+  var fullPath = sysPath.join(directory, item);
+  var isDirectory = this.watched[fullPath];
 
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
-  nestedDirectoryChildren = this._getWatchedDir(fullPath).slice();
+  var nestedDirectoryChildren = this._getWatchedDir(fullPath).slice();
 
   // Remove directory / file from watched list.
   this._removeFromWatchedDir(directory, item);
 
   // Recursively remove children directories / files.
   nestedDirectoryChildren.forEach(function(nestedItem) {
-    return _this._remove(fullPath, nestedItem);
-  });
+    return this._remove(fullPath, nestedItem);
+  }, this);
 
   if (this.options.usePolling) fs.unwatchFile(fullPath);
 
@@ -179,6 +170,13 @@ FSWatcher.prototype._remove = function(directory, item) {
   delete this.watched[fullPath];
   var eventName = isDirectory ? 'unlinkDir' : 'unlink';
   this.emit(eventName, fullPath);
+};
+
+// FS Events helper.
+var createFSEventsInstance = function(path, callback) {
+  var watcher = new fsevents.FSEvents(path);
+  watcher.on('fsevent', callback);
+  return watcher;
 };
 
 FSWatcher.prototype._watchWithFsEvents = function(path) {
@@ -224,9 +222,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
 // Returns nothing.
 FSWatcher.prototype._watch = function(item, callback) {
   var basename, directory, options, parent, watcher;
-  if (callback == null) {
-    callback = (function() {});
-  }
+  if (callback == null) callback = Function.prototype; // empty function
   directory = sysPath.dirname(item);
   basename = sysPath.basename(item);
   parent = this._getWatchedDir(directory);
@@ -236,7 +232,8 @@ FSWatcher.prototype._watch = function(item, callback) {
   options = {persistent: this.options.persistent};
 
   if (this.options.usePolling) {
-    options.interval = this.enableBinaryInterval && isBinaryPath(basename) ? this.options.binaryInterval : this.options.interval;
+    options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
+      this.options.binaryInterval : this.options.interval;
     fs.watchFile(item, options, function(curr, prev) {
       if (curr.mtime.getTime() > prev.mtime.getTime()) {
         callback(item, curr);
@@ -256,6 +253,7 @@ FSWatcher.prototype._emitError = function(error) {
   var emit = (function() {
     this.emit('error', error);
   }).bind(this);
+
   if (isWindows && error.code === 'EPERM') {
     fs.exists(item, function(exists) {
       if (exists) emit();
@@ -353,12 +351,13 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
   });
 };
 
-FSWatcher.prototype.emit = function() {
-  var args, event;
-  event = arguments[0], args = 2 <= arguments.length ? __slice.call(arguments, 1) : [];
-  EventEmitter.prototype.emit.apply(this, [event].concat(__slice.call(args)));
-  if (event === 'add' || event === 'addDir' || event === 'change' || event === 'unlink' || event === 'unlinkDir') {
-    return EventEmitter.prototype.emit.apply(this, ['all', event].concat(__slice.call(args)));
+FSWatcher.prototype.emit = function(event, arg1) {
+  var data = arguments.length === 2 ? [arg1] : [].slice.call(arguments, 1);
+  var args = [event].concat(data);
+  EventEmitter.prototype.emit.apply(this, args);
+  if (event === 'add' || event === 'addDir' || event === 'change' ||
+      event === 'unlink' || event === 'unlinkDir') {
+    EventEmitter.prototype.emit.apply(this, ['all'].concat(args));
   }
 };
 
