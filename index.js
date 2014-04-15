@@ -19,6 +19,7 @@ var nodeVersion = process.versions.node.substring(0, 3);
 var directoryEndRe = /[\\\/]$/;
 var platform = os.platform();
 var canUseFsEvents = platform === 'darwin' && fsevents;
+var isWindows = platform === 'win32';
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
@@ -249,6 +250,21 @@ FSWatcher.prototype._watch = function(item, callback) {
   }
 };
 
+// Workaround for the "Windows rough edge" regarding the deletion of directories
+// (https://github.com/joyent/node/issues/4337)
+FSWatcher.prototype._emitError = function(error) {
+  var emit = (function() {
+    this.emit('error', error);
+  }).bind(this);
+  if (isWindows && error.code === 'EPERM') {
+    fs.exists(item, function(exists) {
+      if (exists) emit();
+    });
+  } else {
+    emit();
+  }
+};
+
 // Private: Emit `change` event once and watch file to emit it in the future
 // once the file is changed.
 
@@ -278,7 +294,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
   var _this = this;
   var read = function(directory, initialAdd) {
     return fs.readdir(directory, function(error, current) {
-      if (error != null) return _this.emit('error', error);
+      if (error != null) return _this._emitError(error);
       if (!current) return;
 
       var previous = _this._getWatchedDir(directory);
@@ -322,9 +338,9 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
   if (this._isIgnored(item)) return;
   return fs.realpath(item, function(error, path) {
     if (error && error.code === 'ENOENT') return;
-    if (error != null) return _this.emit('error', error);
+    if (error != null) return _this._emitError(error);
     fs.stat(path, function(error, stats) {
-      if (error != null) return _this.emit('error', error);
+      if (error != null) return _this._emitError(error);
       if (_this.options.ignorePermissionErrors && (!_this._hasReadPermissions(stats))) {
         return;
       }
@@ -354,11 +370,11 @@ FSWatcher.prototype._addToFsEvents = function(files) {
   files.forEach(function(file) {
     if (!_this.options.ignoreInitial) {
       fs.stat(file, function(error, stats) {
-        if (error != null) return _this.emit('error', error);
+        if (error != null) return _this._emitError(error);
 
         if (stats.isDirectory()) {
           recursiveReaddir(file, function(error, dirFiles) {
-            if (error != null) return _this.emit('error', error);
+            if (error != null) return _this._emitError(error);
             dirFiles.filter(function(path) {
               return !_this._isIgnored(path);
             }).forEach(handle);

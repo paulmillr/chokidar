@@ -273,7 +273,7 @@ describe('chokidar', function() {
         fs.writeFileSync(testDir + '/dir/ignored.txt', '');
         return delay(function() {
           spy.should.have.been.calledOnce;
-          spy.should.have.been.calledWith(testDir + '/add.txt');
+          spy.should.have.been.calledWith(sysPath.join(testDir, 'add.txt'));
           return done();
         });
       });
