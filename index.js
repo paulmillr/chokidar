@@ -101,11 +101,11 @@ FSWatcher.prototype = Object.create(EventEmitter.prototype);
 // Directory helpers
 // -----------------
 
-var directoryEndRe = /[\\\/]$/;
+var directoryEndRegex = /[\\\/]$/;
 FSWatcher.prototype._getWatchedDir = function(directory) {
-  var _base;
-  var dir = directory.replace(directoryEndRe, '');
-  return (_base = this.watched)[dir] != null ? (_base = this.watched)[dir] : _base[dir] = [];
+  var dir = directory.replace(directoryEndRegex, '');
+  if (this.watched[dir] == null) { this.watched[dir] = []; }
+  return this.watched[dir];
 };
 
 FSWatcher.prototype._addToWatchedDir = function(directory, basename) {
