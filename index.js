@@ -11,7 +11,7 @@ try {
 } catch (error) {}
 
 var isWindows = os.platform() === 'win32';
-var canUseFsEvents = os.platform() === 'darwin' && fsevents;
+var canUseFsEvents = os.platform() === 'darwin' && !!fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
