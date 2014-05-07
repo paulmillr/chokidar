@@ -24,16 +24,15 @@ _binExts.forEach(function(extension) {
   return binExts[extension] = true;
 });
 
-var isBinary = function(extension) {
+function isBinary(extension) {
   if (extension === '') return false;
   return !!binExts[extension];
 }
 
-var isBinaryPath = function(path) {
+exports.isBinaryPath = isBinaryPath;
+function isBinaryPath(path) {
   return isBinary(sysPath.extname(path).slice(1));
 };
-
-exports.isBinaryPath = isBinaryPath;
 
 // Main code.
 //
@@ -49,6 +48,7 @@ exports.isBinaryPath = isBinaryPath;
 //     .on('change', function(path) {console.log('File', path, 'was changed');})
 //     .on('unlink', function(path) {console.log('File', path, 'was removed');})
 //
+exports.FSWatcher = FSWatcher;
 function FSWatcher(_opts) {
   if (_opts == null) _opts = {};
   var opts = {};
@@ -432,8 +432,6 @@ FSWatcher.prototype.close = function() {
   this.removeAllListeners();
   return this;
 };
-
-exports.FSWatcher = FSWatcher;
 
 exports.watch = function(files, options) {
   return new FSWatcher(options).add(files);
