@@ -336,6 +336,7 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
     if (error && error.code === 'ENOENT') return;
     if (error != null) return _this._emitError(error);
     fs.stat(path, function(error, stats) {
+      if (error && error.code === 'ENOENT') return;
       if (error != null) return _this._emitError(error);
       if (_this.options.ignorePermissionErrors && (!_this._hasReadPermissions(stats))) {
         return;
