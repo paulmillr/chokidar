@@ -273,7 +273,7 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   var _this = this;
   if (initialAdd == null) initialAdd = false;
   this._watch(file, function(file, newStats) {
-    if (newStats.mtime.getTime() === 0) {
+    if (newStats && newStats.mtime.getTime() === 0) {
       if (!fs.existsSync(file)) {
         // Fix issues where mtime is null but file is still present
         _this._remove(sysPath.dirname(file), sysPath.basename(file));
@@ -327,7 +327,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
   read(directory, initialAdd);
   this._watch(directory, function(dir, stats) {
     // Current directory is removed, do nothing
-    if (stats.mtime.getTime() === 0) {
+    if (stats && stats.mtime.getTime() === 0) {
       return;
     }
     return read(dir, false);
