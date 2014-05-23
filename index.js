@@ -329,6 +329,8 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       if (error != null) return _this._emitError(error);
       if (!current) return;
 
+      // Normalize the direcotry name on Windows
+      directory = sysPath.join(directory, '');
       var previous = _this._getWatchedDir(directory);
 
       // Files that absent in current directory snapshot
