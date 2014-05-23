@@ -274,7 +274,8 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   if (initialAdd == null) initialAdd = false;
   this._watch(file, function(file, newStats) {
     if (newStats.mtime.getTime() === 0) {
-      return _this.emit('unlink', file, stats);
+      _this._remove(sysPath.dirname(file), sysPath.basename(file));
+      return;
     }
     return _this.emit('change', file, newStats);
   });
@@ -295,7 +296,6 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     return fs.readdir(directory, function(error, current) {
       if (error != null) return _this._emitError(error);
       if (!current) return;
-
       // Normalize the direcotry name on Windows
       directory = sysPath.join(directory, '');
       var previous = _this._getWatchedDir(directory);
@@ -321,9 +321,9 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
   };
   read(directory, initialAdd);
   this._watch(directory, function(dir, stats) {
-    // Current directory is removed
+    // Current directory is removed, do nothing
     if (stats.mtime.getTime() === 0) {
-      return _this.emit('unlinkDir', dir, stats);
+      return;
     }
     return read(dir, false);
   });
