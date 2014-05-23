@@ -233,7 +233,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
     fs.watchFile(item, options, function(curr, prev) {
-      if (curr.mtime.getTime() > prev.mtime.getTime()) {
+      if (curr.mtime.getTime() > prev.mtime.getTime() || curr.mtime.getTime() === 0) {
         callback(item, curr);
       }
     });
@@ -273,6 +273,9 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   var _this = this;
   if (initialAdd == null) initialAdd = false;
   this._watch(file, function(file, newStats) {
+    if (newStats.mtime.getTime() === 0) {
+      return _this.emit('unlink', file, stats);
+    }
     return _this.emit('change', file, newStats);
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
@@ -315,7 +318,11 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     });
   };
   read(directory, initialAdd);
-  this._watch(directory, function(dir) {
+  this._watch(directory, function(dir, stats) {
+    // Current directory is removed
+    if (stats.mtime.getTime() === 0) {
+      return _this.emit('unlinkDir', dir, stats);
+    }
     return read(dir, false);
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
