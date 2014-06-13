@@ -55,6 +55,7 @@ function FSWatcher(_opts) {
   EventEmitter.call(this);
   this.watched = Object.create(null);
   this.watchers = [];
+  this.closed = false;
 
   // Set up default options.
   if (opts.persistent == null) opts.persistent = false;
@@ -332,10 +333,14 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
 FSWatcher.prototype._handle = function(item, initialAdd) {
   var _this = this;
   if (this._isIgnored(item)) return;
+  if (_this.closed) return;
+
   return fs.realpath(item, function(error, path) {
+    if (_this.closed) return;
     if (error && error.code === 'ENOENT') return;
     if (error != null) return _this._emitError(error);
     fs.stat(path, function(error, stats) {
+      if (_this.closed) return;
       if (error && error.code === 'ENOENT') return;
       if (error != null) return _this._emitError(error);
       if (_this.options.ignorePermissionErrors && (!_this._hasReadPermissions(stats))) {
@@ -412,8 +417,14 @@ FSWatcher.prototype.add = function(files) {
 // Public: Remove all listeners from watched files.
 // Returns an instance of FSWatcher for chaning.
 FSWatcher.prototype.close = function() {
+  if(this.closed) {
+    return this;
+  }
+
   var useFsEvents = this.options.useFsEvents;
   var method = useFsEvents ? 'stop' : 'close';
+
+  this.closed = true;
   this.watchers.forEach(function(watcher) {
     watcher[method]();
   });
