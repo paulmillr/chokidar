@@ -33,6 +33,42 @@ describe('chokidar', function() {
     chokidar.FSWatcher.should.be.a('function');
     return chokidar.watch.should.be.a('function');
   });
+
+  describe('close', function() {
+    before(function() {
+      try {
+        fs.unlinkSync(getFixturePath('add.txt'));
+      } catch(err) {}
+    });
+
+    after(function() {
+      this.watcher.close();
+      try {
+        fs.unlinkSync(getFixturePath('add.txt'));
+      } catch(err) {}
+    });
+
+    it('should ignore further events on close', function(done) {
+      this.watcher = chokidar.watch(fixturesPath, {});
+
+      var spy, watcher = this.watcher;
+
+      spy = sinon.spy();
+      watcher.once('add', function() {
+        watcher.once('add', function() {
+          watcher.close().on('add', spy);
+
+          delay(function() {
+            spy.should.not.have.been.called;
+            done();
+          });
+        });
+      });
+
+      fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
+    });
+  });
+
   describe('watch', function() {
     var options;
     options = {};
