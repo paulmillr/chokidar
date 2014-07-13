@@ -62,7 +62,7 @@ function FSWatcher(_opts) {
   if (opts.ignoreInitial == null) opts.ignoreInitial = false;
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
-  if (opts.usePolling == null) opts.usePolling = !isWindows;
+  if (opts.usePolling == null) opts.usePolling = (!isWindows && !canUseFsEvents);
   if (opts.useFsEvents == null) {
     opts.useFsEvents = !opts.usePolling && canUseFsEvents;
   } else {
