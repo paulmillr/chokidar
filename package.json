@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile.",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "keywords": [
     "fs",
     "watch",
