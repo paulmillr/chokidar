@@ -1,3 +1,6 @@
-require('./').watch('lib', {ignored: /[\/\\]\./}).on('all', function(event, path) {
+require('./').watch('.', {
+  ignored: /node_modules|\.git/,
+  persistent: true
+}).on('all', function(event, path) {
   console.log(event, path);
 });

@@ -62,15 +62,18 @@ function FSWatcher(_opts) {
   if (opts.ignoreInitial == null) opts.ignoreInitial = false;
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
-  if (opts.usePolling == null) opts.usePolling = (!isWindows && !canUseFsEvents);
-  if (opts.useFsEvents == null) {
-    opts.useFsEvents = !opts.usePolling && canUseFsEvents;
-  } else {
-    if (!canUseFsEvents) opts.useFsEvents = false;
-  }
-  if (opts.ignorePermissionErrors == null) {
-    opts.ignorePermissionErrors = false;
-  }
+
+  // Use polling on Mac and Linux.
+  // Disable polling on Windows.
+  if (opts.usePolling == null) opts.usePolling = !isWindows;
+
+  // Enable fsevents on OS X when polling is disabled.
+  // Which is basically super fast watcher.
+  if (opts.useFsEvents == null) opts.useFsEvents = !opts.usePolling;
+  // If we can't use fs events, disable it in any case.
+  if (!canUseFsEvents) opts.useFsEvents = false;
+
+  if (opts.ignorePermissionErrors == null) opts.ignorePermissionErrors = false;
 
   this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
@@ -173,8 +176,9 @@ FSWatcher.prototype._remove = function(directory, item) {
 
 // FS Events helper.
 var createFSEventsInstance = function(path, callback) {
-  var watcher = new fsevents.FSEvents(path);
+  var watcher = new fsevents(path);
   watcher.on('fsevent', callback);
+  watcher.start();
   return watcher;
 };
 
@@ -206,7 +210,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
         return emit('unlink');
       case 'moved':
         return fs.stat(path, function(error, stats) {
-          return emit((error || !stats ? 'unlink' : 'add'));
+          return emit(error || !stats ? 'unlink' : 'add');
         });
     }
   });
@@ -378,9 +382,11 @@ FSWatcher.prototype._addToFsEvents = function(files) {
         if (stats.isDirectory()) {
           recursiveReaddir(file, function(error, dirFiles) {
             if (error != null) return _this._emitError(error);
-            dirFiles.filter(function(path) {
+            dirFiles
+            .filter(function(path) {
               return !_this._isIgnored(path);
-            }).forEach(handle);
+            })
+            .forEach(handle);
           });
         } else {
           handle(file);
