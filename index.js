@@ -55,21 +55,25 @@ function FSWatcher(_opts) {
   EventEmitter.call(this);
   this.watched = Object.create(null);
   this.watchers = [];
+  this.closed = false;
 
   // Set up default options.
   if (opts.persistent == null) opts.persistent = false;
   if (opts.ignoreInitial == null) opts.ignoreInitial = false;
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
+
+  // Use polling on Mac and Linux.
+  // Disable polling on Windows.
   if (opts.usePolling == null) opts.usePolling = !isWindows;
-  if (opts.useFsEvents == null) {
-    opts.useFsEvents = !opts.usePolling && canUseFsEvents;
-  } else {
-    if (!canUseFsEvents) opts.useFsEvents = false;
-  }
-  if (opts.ignorePermissionErrors == null) {
-    opts.ignorePermissionErrors = false;
-  }
+
+  // Enable fsevents on OS X when polling is disabled.
+  // Which is basically super fast watcher.
+  if (opts.useFsEvents == null) opts.useFsEvents = !opts.usePolling;
+  // If we can't use fs events, disable it in any case.
+  if (!canUseFsEvents) opts.useFsEvents = false;
+
+  if (opts.ignorePermissionErrors == null) opts.ignorePermissionErrors = false;
 
   this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
@@ -172,8 +176,9 @@ FSWatcher.prototype._remove = function(directory, item) {
 
 // FS Events helper.
 var createFSEventsInstance = function(path, callback) {
-  var watcher = new fsevents.FSEvents(path);
+  var watcher = new fsevents(path);
   watcher.on('fsevent', callback);
+  watcher.start();
   return watcher;
 };
 
@@ -205,7 +210,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
         return emit('unlink');
       case 'moved':
         return fs.stat(path, function(error, stats) {
-          return emit((error || !stats ? 'unlink' : 'add'));
+          return emit(error || !stats ? 'unlink' : 'add');
         });
     }
   });
@@ -349,10 +354,14 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
 FSWatcher.prototype._handle = function(item, initialAdd) {
   var _this = this;
   if (this._isIgnored(item)) return;
+  if (_this.closed) return;
+
   return fs.realpath(item, function(error, path) {
+    if (_this.closed) return;
     if (error && error.code === 'ENOENT') return;
     if (error != null) return _this._emitError(error);
     fs.stat(path, function(error, stats) {
+      if (_this.closed) return;
       if (error && error.code === 'ENOENT') return;
       if (error != null) return _this._emitError(error);
       if (_this.options.ignorePermissionErrors && (!_this._hasReadPermissions(stats))) {
@@ -390,9 +399,11 @@ FSWatcher.prototype._addToFsEvents = function(files) {
         if (stats.isDirectory()) {
           recursiveReaddir(file, function(error, dirFiles) {
             if (error != null) return _this._emitError(error);
-            dirFiles.filter(function(path) {
+            dirFiles
+            .filter(function(path) {
               return !_this._isIgnored(path);
-            }).forEach(handle);
+            })
+            .forEach(handle);
           });
         } else {
           handle(file);
@@ -429,8 +440,14 @@ FSWatcher.prototype.add = function(files) {
 // Public: Remove all listeners from watched files.
 // Returns an instance of FSWatcher for chaning.
 FSWatcher.prototype.close = function() {
+  if(this.closed) {
+    return this;
+  }
+
   var useFsEvents = this.options.useFsEvents;
   var method = useFsEvents ? 'stop' : 'close';
+
+  this.closed = true;
   this.watchers.forEach(function(watcher) {
     watcher[method]();
   });
