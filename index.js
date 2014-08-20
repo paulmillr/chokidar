@@ -370,7 +370,7 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
       if (_this._isIgnored.length === 2 && _this._isIgnored(item, stats)) {
         return;
       }
-      if (stats.isFile()) _this._handleFile(item, stats, initialAdd);
+      if (stats.isFile() || stats.isCharacterDevice()) _this._handleFile(item, stats, initialAdd);
       if (stats.isDirectory()) _this._handleDir(item, stats, initialAdd);
     });
   });
