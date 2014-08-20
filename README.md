@@ -85,7 +85,7 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
     * `options.interval` (default: `100`). Interval of file system polling.
     * `options.binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
-    * `options.usePolling` (default: `false` on Linux and Windows, `true` on OS X). Whether to use fs.watchFile
+    * `options.usePolling` (default: `false` on Windows, `true` on Linux and OS X). Whether to use fs.watchFile
     (backed by polling), or fs.watch. If polling leads to high CPU utilization,
     consider setting this to `false`.
 
