@@ -244,7 +244,25 @@ FSWatcher.prototype._watch = function(item, callback) {
     });
   } else {
     watcher = fs.watch(item, options, function(event, path) {
-      callback(item);
+      if (!path) {
+        callback(item);
+        return;
+      }
+
+      var self = this;
+
+      // Ignore the event if it's currently being throttled
+      if (!self.throttling) {
+        self.throttling = {};
+      }
+      if (self.throttling[path]) {
+        return;
+      }
+      self.throttling[path] = true;
+      setTimeout(function() {
+        delete self.throttling[path];
+        callback(item);
+      }, 0);
     });
     this.watchers.push(watcher);
   }
