@@ -244,9 +244,12 @@ FSWatcher.prototype._watch = function(item, callback) {
     });
   } else {
     watcher = fs.watch(item, options, function(event, path) {
+      if (!isWindows) {
+        return callback(item);
+      }
+
       if (!path) {
-        callback(item);
-        return;
+        return callback(item);
       }
 
       var self = this;
