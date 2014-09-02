@@ -238,7 +238,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
     fs.watchFile(item, options, function(curr, prev) {
-      if (curr.mtime.getTime() > prev.mtime.getTime()) {
+      if (curr.mtime.getTime() > prev.mtime.getTime() || curr.mtime.getTime() === 0) {
         callback(item, curr);
       }
     });
@@ -278,7 +278,19 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   var _this = this;
   if (initialAdd == null) initialAdd = false;
   this._watch(file, function(file, newStats) {
-    return _this.emit('change', file, newStats);
+    if (newStats && newStats.mtime.getTime() === 0) {
+      fs.exists(file, function(exists) {
+        // Fix issues where mtime is null but file is still present
+        if (!exists) {
+          _this._remove(sysPath.dirname(file), sysPath.basename(file));
+          return;
+        } else {
+          return _this.emit('change', file, newStats);
+        }
+      });
+    } else {
+      return _this.emit('change', file, newStats);
+    }
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
     return this.emit('add', file, stats);
@@ -297,7 +309,8 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     return fs.readdir(directory, function(error, current) {
       if (error != null) return _this._emitError(error);
       if (!current) return;
-
+      // Normalize the direcotry name on Windows
+      directory = sysPath.join(directory, '');
       var previous = _this._getWatchedDir(directory);
 
       // Files that absent in current directory snapshot
@@ -320,7 +333,11 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     });
   };
   read(directory, initialAdd);
-  this._watch(directory, function(dir) {
+  this._watch(directory, function(dir, stats) {
+    // Current directory is removed, do nothing
+    if (stats && stats.mtime.getTime() === 0) {
+      return;
+    }
     return read(dir, false);
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
