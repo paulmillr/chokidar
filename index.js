@@ -229,7 +229,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
 
 // Returns nothing.
 FSWatcher.prototype._watch = function(item, callback) {
-  var basename, directory, options, parent, watcher, absolutePath;
+  var basename, directory, options, parent, watcher, absolutePath, listener;
   if (callback == null) callback = Function.prototype; // empty function
   directory = sysPath.dirname(item);
   basename = sysPath.basename(item);
@@ -243,12 +243,12 @@ FSWatcher.prototype._watch = function(item, callback) {
   if (this.options.usePolling) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
-    this.callbacks[absolutePath] = function(curr, prev) {
+    listener = this.callbacks[absolutePath] = function(curr, prev) {
       if (curr.mtime.getTime() > prev.mtime.getTime()) {
         callback(item, curr);
       }
     };
-    fs.watchFile(absolutePath, options, this.callbacks[absolutePath]);
+    fs.watchFile(absolutePath, options, listener);
   } else {
     watcher = fs.watch(item, options, function(event, path) {
       if (!isWindows) {
