@@ -56,6 +56,7 @@ function FSWatcher(_opts) {
   this.watched = Object.create(null);
   this.watchers = [];
   this.closed = false;
+  this.callbacks = Object.create(null);
 
   // Set up default options.
   if (opts.persistent == null) opts.persistent = false;
@@ -151,6 +152,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
   var fullPath = sysPath.join(directory, item);
+  var absolutePath = sysPath.resolve(fullPath);
   var isDirectory = this.watched[fullPath];
 
   // This will create a new entry in the watched object in either case
@@ -165,7 +167,10 @@ FSWatcher.prototype._remove = function(directory, item) {
     return this._remove(fullPath, nestedItem);
   }, this);
 
-  if (this.options.usePolling) fs.unwatchFile(fullPath);
+  if (this.options.usePolling) {
+    fs.unwatchFile(absolutePath, this.callbacks[absolutePath]);
+    delete this.callbacks[absolutePath];
+  }
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
@@ -224,11 +229,12 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
 
 // Returns nothing.
 FSWatcher.prototype._watch = function(item, callback) {
-  var basename, directory, options, parent, watcher;
+  var basename, directory, options, parent, watcher, absolutePath;
   if (callback == null) callback = Function.prototype; // empty function
   directory = sysPath.dirname(item);
   basename = sysPath.basename(item);
   parent = this._getWatchedDir(directory);
+  absolutePath = sysPath.resolve(item);
   if (parent.indexOf(basename) !== -1) return;
 
   this._addToWatchedDir(directory, basename);
@@ -237,11 +243,12 @@ FSWatcher.prototype._watch = function(item, callback) {
   if (this.options.usePolling) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
-    fs.watchFile(item, options, function(curr, prev) {
+    this.callbacks[absolutePath] = function(curr, prev) {
       if (curr.mtime.getTime() > prev.mtime.getTime()) {
         callback(item, curr);
       }
-    });
+    };
+    fs.watchFile(absolutePath, options, this.callbacks[absolutePath]);
   } else {
     watcher = fs.watch(item, options, function(event, path) {
       if (!isWindows) {
@@ -444,6 +451,7 @@ FSWatcher.prototype.add = function(files) {
 // Public: Remove all listeners from watched files.
 // Returns an instance of FSWatcher for chaning.
 FSWatcher.prototype.close = function() {
+  var callbacks = this.callbacks;
   if(this.closed) {
     return this;
   }
@@ -460,7 +468,9 @@ FSWatcher.prototype.close = function() {
     var watched = this.watched;
     Object.keys(watched).forEach(function(directory) {
       return watched[directory].forEach(function(file) {
-        return fs.unwatchFile(sysPath.join(directory, file));
+        var absolutePath = sysPath.resolve(directory, file)
+        fs.unwatchFile(absolutePath, callbacks[absolutePath]);
+        delete callbacks[absolutePath];
       });
     });
   }
