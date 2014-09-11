@@ -56,7 +56,7 @@ function FSWatcher(_opts) {
   this.watched = Object.create(null);
   this.watchers = [];
   this.closed = false;
-  this.callbacks = Object.create(null);
+  this.listeners = Object.create(null);
 
   // Set up default options.
   if (opts.persistent == null) opts.persistent = false;
@@ -168,8 +168,8 @@ FSWatcher.prototype._remove = function(directory, item) {
   }, this);
 
   if (this.options.usePolling) {
-    fs.unwatchFile(absolutePath, this.callbacks[absolutePath]);
-    delete this.callbacks[absolutePath];
+    fs.unwatchFile(absolutePath, this.listeners[absolutePath]);
+    delete this.listeners[absolutePath];
   }
 
   // The Entry will either be a directory that just got removed
@@ -243,7 +243,7 @@ FSWatcher.prototype._watch = function(item, callback) {
   if (this.options.usePolling) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
-    listener = this.callbacks[absolutePath] = function(curr, prev) {
+    listener = this.listeners[absolutePath] = function(curr, prev) {
       if (curr.mtime.getTime() > prev.mtime.getTime()) {
         callback(item, curr);
       }
@@ -451,7 +451,7 @@ FSWatcher.prototype.add = function(files) {
 // Public: Remove all listeners from watched files.
 // Returns an instance of FSWatcher for chaning.
 FSWatcher.prototype.close = function() {
-  var callbacks = this.callbacks;
+  var listeners = this.listeners;
   if(this.closed) {
     return this;
   }
@@ -469,8 +469,8 @@ FSWatcher.prototype.close = function() {
     Object.keys(watched).forEach(function(directory) {
       return watched[directory].forEach(function(file) {
         var absolutePath = sysPath.resolve(directory, file)
-        fs.unwatchFile(absolutePath, callbacks[absolutePath]);
-        delete callbacks[absolutePath];
+        fs.unwatchFile(absolutePath, listeners[absolutePath]);
+        delete listeners[absolutePath];
       });
     });
   }
