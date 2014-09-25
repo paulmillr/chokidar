@@ -1,3 +1,9 @@
+# Chokidar 0.9.0 (25 September 2014)
+* Updated fsevents to 0.3
+* Update per-system defaults
+* Fix issues with closing chokidar instance
+* Fix duplicate change events on win32
+
 # Chokidar 0.8.2 (26 March 2014)
 * Fixed npm issues related to fsevents dep.
 * Updated fsevents to 0.2.
