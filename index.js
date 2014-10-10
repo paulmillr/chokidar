@@ -274,6 +274,7 @@ FSWatcher.prototype._watch = function(item, callback) {
         callback(item);
       }, 0);
     });
+    watcher.on('error', this._emitError);
     this.watchers.push(watcher);
   }
 };
