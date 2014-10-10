@@ -274,25 +274,24 @@ FSWatcher.prototype._watch = function(item, callback) {
         callback(item);
       }, 0);
     });
-    watcher.on('error', this._emitError);
+    var _emitError = this._emitError;
+    watcher.on('error', function(error) {
+      // Workaround for the "Windows rough edge" regarding the deletion of directories
+      // (https://github.com/joyent/node/issues/4337)
+      if (isWindows && error.code === 'EPERM') {
+        fs.exists(item, function(exists) {
+          if (exists) _emitError(error);
+        });
+      } else {
+        _emitError(error);
+      }
+    });
     this.watchers.push(watcher);
   }
 };
 
-// Workaround for the "Windows rough edge" regarding the deletion of directories
-// (https://github.com/joyent/node/issues/4337)
 FSWatcher.prototype._emitError = function(error) {
-  var emit = (function() {
-    this.emit('error', error);
-  }).bind(this);
-
-  if (isWindows && error.code === 'EPERM') {
-    fs.exists(item, function(exists) {
-      if (exists) emit();
-    });
-  } else {
-    emit();
-  }
+  this.emit('error', error);
 };
 
 // Private: Emit `change` event once and watch file to emit it in the future
