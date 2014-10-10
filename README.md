@@ -94,8 +94,8 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 * `.add(file / files)`: Add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
 * `.on(event, callback)`: Listen for an FS event.
-Available events: `add`, `change`, `unlink`, `error`.
-Additionally `all` is available which gets emitted for every `add`, `change` and `unlink`.
+Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`,  `error`.
+Additionally `all` is available which gets emitted for every non-`error` event.
 * `.close()`: Removes all listeners from watched files.
 
 ## License
