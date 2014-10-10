@@ -363,7 +363,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
   read(directory, initialAdd);
   this._watch(directory, function(dir, stats) {
     // Current directory is removed, do nothing
-    if (stats.mtime.getTime() === 0) {
+    if (stats && stats.mtime.getTime() === 0) {
       return;
     }
     return read(dir, false);
