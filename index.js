@@ -450,7 +450,7 @@ FSWatcher.prototype._addToFsEvents = function(files) {
 
 //   add ['app', 'vendor']
 
-// Returns an instance of FSWatcher for chaning.
+// Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(files) {
   if (this._initialAdd == null) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
@@ -465,7 +465,7 @@ FSWatcher.prototype.add = function(files) {
 };
 
 // Public: Remove all listeners from watched files.
-// Returns an instance of FSWatcher for chaning.
+// Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.close = function() {
   var listeners = this.listeners;
   if(this.closed) {
