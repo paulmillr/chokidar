@@ -25,7 +25,7 @@ getFixturePath = function(subPath) {
 fixturesPath = getFixturePath('');
 
 delay = function(fn) {
-  return setTimeout(fn, 205);
+  return setTimeout(fn, 250);
 };
 
 describe('chokidar', function() {
