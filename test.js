@@ -34,6 +34,14 @@ describe('chokidar', function() {
     chokidar.watch.should.be.a('function');
   });
 
+  describe('polling', runTests.bind(this, {usePolling: true}));
+  describe('non-polling', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+  describe('fsevents', runTests.bind(this, {useFsEvents: true}));
+});
+
+function runTests (_opts) {
+  if (!_opts) _opts = {};
+
   describe('close', function() {
     before(function() {
       try {
@@ -49,7 +57,7 @@ describe('chokidar', function() {
     });
 
     it('should ignore further events on close', function(done) {
-      this.watcher = chokidar.watch(fixturesPath, {});
+      this.watcher = chokidar.watch(fixturesPath, _opts);
 
       var watcher = this.watcher;
       var spy = sinon.spy();
@@ -76,6 +84,9 @@ describe('chokidar', function() {
     var options;
     options = {};
     beforeEach(function(done) {
+      Object.keys(_opts).forEach(function(k) {
+        options[k] = _opts[k];
+      });
       this.watcher = chokidar.watch(fixturesPath, options);
       delay(function() {
         done();
@@ -354,7 +365,7 @@ describe('chokidar', function() {
       });
     });
   });
-});
+}
 
 describe('is-binary', function() {
   var isBinary = chokidar.isBinaryPath;
