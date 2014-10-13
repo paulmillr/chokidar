@@ -63,15 +63,15 @@ function FSWatcher(_opts) {
   if (opts.interval == null) opts.interval = 100;
   if (opts.binaryInterval == null) opts.binaryInterval = 300;
 
-  // Use polling on Mac and Linux.
-  // Disable polling on Windows.
-  if (opts.usePolling == null) opts.usePolling = !isWindows;
-
   // Enable fsevents on OS X when polling is disabled.
   // Which is basically super fast watcher.
   if (opts.useFsEvents == null) opts.useFsEvents = !opts.usePolling;
   // If we can't use fs events, disable it in any case.
   if (!canUseFsEvents) opts.useFsEvents = false;
+
+  // Use polling by default on Linux and Mac (if not using fsevents).
+  // Disable polling on Windows.
+  if (opts.usePolling == null && !opts.useFsEvents) opts.usePolling = !isWindows;
 
   if (opts.ignorePermissionErrors == null) opts.ignorePermissionErrors = false;
 
