@@ -229,38 +229,42 @@ function runTests (options) {
     });
   });
   describe('watch options', function() {
+    before(function(done) {
+      try {
+        fs.unlinkSync(getFixturePath('subdir/add.txt'));
+      } catch (_error) {}
+      try {
+        fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));
+      } catch (_error) {}
+      try {
+        fs.rmdirSync(getFixturePath('subdir/dir'));
+      } catch (_error) {}
+      try {
+        fs.rmdirSync(getFixturePath('subdir'));
+      } catch (_error) {}
+      done();
+    });
+    after(function(done) {
+      try {
+        fs.unlinkSync(getFixturePath('subdir/add.txt'));
+      } catch (_error) {}
+      try {
+        fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));
+      } catch (_error) {}
+      try {
+        fs.rmdirSync(getFixturePath('subdir/dir'));
+      } catch (_error) {}
+      try {
+        fs.rmdirSync(getFixturePath('subdir'));
+      } catch (_error) {}
+      done();
+    });
     describe('ignoreInitial', function() {
-      before(function(done) {
+      before(function() {
         options.ignoreInitial = true;
-        try {
-          fs.unlinkSync(getFixturePath('subdir/add.txt'));
-        } catch (_error) {}
-        try {
-          fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));
-        } catch (_error) {}
-        try {
-          fs.rmdirSync(getFixturePath('subdir/dir'));
-        } catch (_error) {}
-        try {
-          fs.rmdirSync(getFixturePath('subdir'));
-        } catch (_error) {}
-        done();
       });
-      after(function(done) {
+      after(function() {
         delete options.ignoreInitial;
-        try {
-          fs.unlinkSync(getFixturePath('subdir/add.txt'));
-        } catch (_error) {}
-        try {
-          fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));
-        } catch (_error) {}
-        try {
-          fs.rmdirSync(getFixturePath('subdir/dir'));
-        } catch (_error) {}
-        try {
-          fs.rmdirSync(getFixturePath('subdir'));
-        } catch (_error) {}
-        done();
       });
       it('should ignore inital add events', function(done) {
         var spy, watcher,
@@ -294,6 +298,12 @@ function runTests (options) {
           });
         });
       });
+    });
+
+    describe('ignored', function() {
+      after(function() {
+        delete options.ignored;
+      });
       it('should check ignore after stating', function(done) {
         var ignoredFn, spy, testDir, watcher,
           _this = this;
@@ -305,9 +315,8 @@ function runTests (options) {
           }
           return stats.isDirectory();
         };
-        watcher = chokidar.watch(testDir, {
-          ignored: ignoredFn
-        });
+        options.ignored = ignoredFn;
+        watcher = chokidar.watch(testDir, options);
         watcher.on('add', spy);
         try {
           fs.mkdirSync(testDir, 0x1ed);
