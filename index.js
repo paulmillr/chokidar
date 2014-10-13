@@ -56,7 +56,6 @@ function FSWatcher(_opts) {
   this.watched = Object.create(null);
   this.watchers = [];
   this.closed = false;
-  this.listeners = Object.create(null);
 
   // Set up default options.
   if (opts.persistent == null) opts.persistent = false;
