@@ -154,6 +154,14 @@ FSWatcher.prototype._remove = function(directory, item) {
   var absolutePath = sysPath.resolve(fullPath);
   var isDirectory = this.watched[fullPath];
 
+  // prevent duplicate handling in case of arriving here nearly simultaneously
+  // via multiple paths (such as _handleFile and _handleDir)
+  var _removing = this._removing = this._removing || {};
+  if (_removing[fullPath]) return;
+  _removing[fullPath] = setTimeout(function() {
+    delete _removing[fullPath];
+  }, 5);
+
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
   var nestedDirectoryChildren = this._getWatchedDir(fullPath).slice();
