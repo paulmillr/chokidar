@@ -39,8 +39,8 @@ describe('chokidar', function() {
   describe('fsevents', runTests.bind(this, {useFsEvents: true}));
 });
 
-function runTests (_opts) {
-  if (!_opts) _opts = {};
+function runTests (options) {
+  if (!options) options = {};
 
   describe('close', function() {
     before(function() {
@@ -57,7 +57,7 @@ function runTests (_opts) {
     });
 
     it('should ignore further events on close', function(done) {
-      this.watcher = chokidar.watch(fixturesPath, _opts);
+      this.watcher = chokidar.watch(fixturesPath, options);
 
       var watcher = this.watcher;
       var spy = sinon.spy();
@@ -81,12 +81,7 @@ function runTests (_opts) {
   });
 
   describe('watch', function() {
-    var options;
-    options = {};
     beforeEach(function(done) {
-      Object.keys(_opts).forEach(function(k) {
-        options[k] = _opts[k];
-      });
       this.watcher = chokidar.watch(fixturesPath, options);
       delay(function() {
         done();
@@ -270,11 +265,8 @@ function runTests (_opts) {
   });
   describe('watch options', function() {
     describe('ignoreInitial', function() {
-      var options;
-      options = {
-        ignoreInitial: true
-      };
       before(function(done) {
+        options.ignoreInitial = true;
         try {
           fs.unlinkSync(getFixturePath('subdir/add.txt'));
         } catch (_error) {}
@@ -290,6 +282,7 @@ function runTests (_opts) {
         done();
       });
       after(function(done) {
+        delete options.ignoreInitial;
         try {
           fs.unlinkSync(getFixturePath('subdir/add.txt'));
         } catch (_error) {}
