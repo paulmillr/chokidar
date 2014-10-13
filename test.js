@@ -140,41 +140,6 @@ function runTests (options) {
       });
     });
 
-
-    it.skip('should emit single `add` event for single file added', function(done) {
-      var spy, spy2, testPath, testPath2, _this = this;
-      spy = sinon.spy();
-      spy2 = sinon.spy();
-
-      testPath = getFixturePath('add.txt');
-      testPath2 = getFixturePath('add2.txt');
-
-      this.watcher.on('add', spy);
-      delay(function() {
-        spy.should.not.have.been.called;
-        fs.writeFileSync(testPath, 'hello');
-
-        delay(function() {
-          spy.should.have.been.calledOnce;
-          spy.should.have.been.calledWith(testPath);
-
-          this.watcher.on('add', spy2);
-          delay(function(){
-
-            spy2.should.not.have.been.called;
-            fs.writeFileSync(testPath2, 'hello');
-
-            delay(function(){
-              spy2.should.have.been.calledOnce;
-              spy2.should.have.been.calledWith(testPath2);
-              done();
-            });
-          });
-        });
-      });
-    });
-
-
     it('should emit `addDir` event when directory was added', function(done) {
       var spy, testDir,
         _this = this;
