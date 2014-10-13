@@ -83,29 +83,26 @@ function runTests (options) {
   describe('watch', function() {
     beforeEach(function(done) {
       this.watcher = chokidar.watch(fixturesPath, options);
-      delay(function() {
-        done();
-      });
+      delay(done);
     });
     afterEach(function(done) {
       this.watcher.close();
       delete this.watcher;
-      delay(function() {
-        done();
-      });
+      delay(done);
     });
-    before(function() {
+    before(function(done) {
       try {
         fs.unlinkSync(getFixturePath('add.txt'));
       } catch (_error) {}
-      fs.writeFileSync(getFixturePath('change.txt'), 'b');
-      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
       try {
         fs.unlinkSync(getFixturePath('subdir/add.txt'));
       } catch (_error) {}
       try {
         fs.rmdirSync(getFixturePath('subdir'));
       } catch (_error) {}
+      fs.writeFileSync(getFixturePath('change.txt'), 'b');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+      delay(done);
     });
     after(function() {
       try {
@@ -229,7 +226,7 @@ function runTests (options) {
     });
   });
   describe('watch options', function() {
-    before(function(done) {
+    function clean (done) {
       try {
         fs.unlinkSync(getFixturePath('subdir/add.txt'));
       } catch (_error) {}
@@ -242,23 +239,10 @@ function runTests (options) {
       try {
         fs.rmdirSync(getFixturePath('subdir'));
       } catch (_error) {}
-      done();
-    });
-    after(function(done) {
-      try {
-        fs.unlinkSync(getFixturePath('subdir/add.txt'));
-      } catch (_error) {}
-      try {
-        fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));
-      } catch (_error) {}
-      try {
-        fs.rmdirSync(getFixturePath('subdir/dir'));
-      } catch (_error) {}
-      try {
-        fs.rmdirSync(getFixturePath('subdir'));
-      } catch (_error) {}
-      done();
-    });
+      delay(done);
+    }
+    beforeEach(clean);
+    after(clean);
     describe('ignoreInitial', function() {
       before(function() {
         options.ignoreInitial = true;
