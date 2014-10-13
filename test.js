@@ -31,7 +31,7 @@ delay = function(fn) {
 describe('chokidar', function() {
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
-    return chokidar.watch.should.be.a('function');
+    chokidar.watch.should.be.a('function');
   });
 
   describe('close', function() {
@@ -95,7 +95,7 @@ describe('chokidar', function() {
         fs.unlinkSync(getFixturePath('subdir/add.txt'), 'b');
       } catch (_error) {}
       try {
-        return fs.rmdirSync(getFixturePath('subdir'), 'b');
+        fs.rmdirSync(getFixturePath('subdir'), 'b');
       } catch (_error) {}
     });
     after(function() {
@@ -103,16 +103,16 @@ describe('chokidar', function() {
         fs.unlinkSync(getFixturePath('add.txt'), 'a');
       } catch (_error) {}
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
-      return fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
-      return this.watcher.should.be.an["instanceof"](chokidar.FSWatcher);
+      this.watcher.should.be.an["instanceof"](chokidar.FSWatcher);
     });
     it('should expose public API methods', function() {
       this.watcher.on.should.be.a('function');
       this.watcher.emit.should.be.a('function');
       this.watcher.add.should.be.a('function');
-      return this.watcher.close.should.be.a('function');
+      this.watcher.close.should.be.a('function');
     });
     it('should emit `add` event when file was added', function(done) {
       var spy, testPath,
@@ -232,9 +232,9 @@ describe('chokidar', function() {
     it('should survive ENOENT for missing subdirectories', function() {
       var testDir;
       testDir = getFixturePath('subdir');
-      return this.watcher.add(testDir);
+      this.watcher.add(testDir);
     });
-    return it('should notice when a file appears in a new directory', function(done) {
+    it('should notice when a file appears in a new directory', function(done) {
       var spy, testDir, testPath,
         _this = this;
       spy = sinon.spy();
@@ -254,8 +254,8 @@ describe('chokidar', function() {
       });
     });
   });
-  return describe('watch options', function() {
-    return describe('ignoreInitial', function() {
+  describe('watch options', function() {
+    describe('ignoreInitial', function() {
       var options;
       options = {
         ignoreInitial: true
@@ -322,7 +322,7 @@ describe('chokidar', function() {
           });
         });
       });
-      return it('should check ignore after stating', function(done) {
+      it('should check ignore after stating', function(done) {
         var ignoredFn, spy, testDir, watcher,
           _this = this;
         testDir = getFixturePath('subdir');
@@ -356,13 +356,13 @@ describe('chokidar', function() {
 describe('is-binary', function() {
   var isBinary = chokidar.isBinaryPath;
   it('should be a function', function() {
-    return isBinary.should.be.a('function');
+    isBinary.should.be.a('function');
   });
-  return it('should correctly determine binary files', function() {
+  it('should correctly determine binary files', function() {
     isBinary('a.jpg').should.equal(true);
     isBinary('a.jpeg').should.equal(true);
     isBinary('a.zip').should.equal(true);
     isBinary('ajpg').should.equal(false);
-    return isBinary('a.txt').should.equal(false);
+    isBinary('a.txt').should.equal(false);
   });
 });
