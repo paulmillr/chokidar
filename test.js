@@ -51,21 +51,24 @@ describe('chokidar', function() {
     it('should ignore further events on close', function(done) {
       this.watcher = chokidar.watch(fixturesPath, {});
 
-      var spy, watcher = this.watcher;
-
-      spy = sinon.spy();
+      var watcher = this.watcher;
+      var spy = sinon.spy();
       watcher.once('add', function() {
         watcher.once('add', function() {
-          watcher.close().on('add', spy);
-
+          watcher.close();
           delay(function() {
-            spy.should.not.have.been.called;
-            done();
+            watcher.on('add', spy);
+            fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
+            delay(function() {
+              spy.should.not.have.been.called;
+              done();
+            });
           });
         });
       });
 
       fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
+      fs.unlinkSync(getFixturePath('add.txt'));
     });
   });
 
