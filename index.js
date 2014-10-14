@@ -221,6 +221,26 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
       _this.emit(eventName, path);
     }
 
+    // correct for wrong events emitted
+    function addOrChange() {
+      emit(watchedDir.indexOf(item) !== -1 ? 'change' : 'add');
+    }
+    var wrongEventFlags = [69888, 70400, 71424, 131328, 131840];
+    if (wrongEventFlags.indexOf(flags) !== -1) {
+      if (info.event === 'deleted') {
+        fs.stat(path, function(error, stats) {
+          if (stats) {
+            addOrChange();
+          } else {
+            emit('unlink');
+          }
+        });
+      } else {
+        addOrChange();
+      }
+      return;
+    }
+
     switch (info.event) {
       case 'created':
         return emit('add');
