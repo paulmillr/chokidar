@@ -437,10 +437,12 @@ FSWatcher.prototype._addToFsEvents = function(files) {
   files.forEach(function(file) {
     if (!_this.options.ignoreInitial) {
       fs.stat(file, function(error, stats) {
+        if (error && error.code === 'ENOENT') return;
         if (error != null) return _this._emitError(error);
 
         if (stats.isDirectory()) {
           recursiveReaddir(file, function(error, dirFiles) {
+            if (error && error.code === 'ENOENT') return;
             if (error != null) return _this._emitError(error);
             dirFiles
             .filter(function(path) {
