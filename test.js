@@ -1,32 +1,23 @@
 'use strict';
 
-var chai, chokidar, delay, expect, fixturesPath, fs, getFixturePath, isBinary, should, sinon, sysPath;
-
-chai = require('chai');
-
-expect = chai.expect;
-
-should = chai.should();
-
-sinon = require('sinon');
-
+var chokidar = require('./');
+var chai = require('chai');
+var expect = chai.expect;
+var should = chai.should();
+var sinon = require('sinon');
 chai.use(require('sinon-chai'));
+var fs = require('fs');
+var sysPath = require('path');
 
-chokidar = require('./');
-
-fs = require('fs');
-
-sysPath = require('path');
-
-getFixturePath = function(subPath) {
+function getFixturePath (subPath) {
   return sysPath.join(__dirname, 'test-fixtures', subPath);
-};
+}
 
-fixturesPath = getFixturePath('');
+var fixturesPath = getFixturePath('');
 
-delay = function(fn) {
+function delay (fn) {
   return setTimeout(fn, 250);
-};
+}
 
 describe('chokidar', function() {
   it('should expose public API methods', function() {
