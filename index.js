@@ -449,34 +449,32 @@ FSWatcher.prototype.emit = function(event, arg1) {
   }
 };
 
-FSWatcher.prototype._addToFsEvents = function(files) {
+FSWatcher.prototype._addToFsEvents = function(file) {
   var _this = this;
   var handle = function(path) {
-    return _this.emit('add', path);
+    _this.emit('add', path);
   };
-  files.forEach(function(file) {
-    if (!_this.options.ignoreInitial) {
-      fs.stat(file, function(error, stats) {
-        if (error && error.code === 'ENOENT') return;
-        if (error != null) return _this._emitError(error);
+  if (!_this.options.ignoreInitial) {
+    fs.stat(file, function(error, stats) {
+      if (error && error.code === 'ENOENT') return;
+      if (error != null) return _this._emitError(error);
 
-        if (stats.isDirectory()) {
-          recursiveReaddir(file, function(error, dirFiles) {
-            if (error && error.code === 'ENOENT') return;
-            if (error != null) return _this._emitError(error);
-            dirFiles
-            .filter(function(path) {
-              return !_this._isIgnored(path);
-            })
-            .forEach(handle);
-          });
-        } else {
-          handle(file);
-        }
-      });
-    }
-    _this._watchWithFsEvents(file);
-  });
+      if (stats.isDirectory()) {
+        recursiveReaddir(file, function(error, dirFiles) {
+          if (error && error.code === 'ENOENT') return;
+          if (error != null) return _this._emitError(error);
+          dirFiles
+          .filter(function(path) {
+            return !_this._isIgnored(path);
+          })
+          .forEach(handle);
+        });
+      } else {
+        handle(file);
+      }
+    });
+  }
+  _this._watchWithFsEvents(file);
   return this;
 };
 
@@ -493,11 +491,14 @@ FSWatcher.prototype.add = function(files) {
   if (this._initialAdd == null) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
-  if (this.options.useFsEvents) return this._addToFsEvents(files);
-
   files.forEach(function(file) {
-    return this._handle(file, this._initialAdd);
+    if (this.options.useFsEvents) {
+      this._addToFsEvents(file);
+    } else {
+      this._handle(file, this._initialAdd);
+    }
   }, this);
+
   this._initialAdd = false;
   return this;
 };
