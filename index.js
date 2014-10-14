@@ -197,22 +197,30 @@ var createFSEventsInstance = function(path, callback) {
 FSWatcher.prototype._watchWithFsEvents = function(path) {
   var _this = this;
   var watcher = createFSEventsInstance(path, function(path, flags) {
-    var emit, info;
-    if (_this._isIgnored(path)) {
-      return;
+    if (_this._isIgnored(path)) return;
+    var info = fsevents.getInfo(path, flags);
+
+    // ensure directories are tracked
+    var parent = sysPath.dirname(path);
+    var item = sysPath.basename(path);
+    var watchedDir;
+    if (info.type === 'directory') {
+      watchedDir = _this._getWatchedDir(path);
+    } else {
+      watchedDir = _this._getWatchedDir(parent);
     }
-    info = fsevents.getInfo(path, flags);
-    emit = function(event) {
-      var name;
-      name = info.type === 'file' ? event : "" + event + "Dir";
-      if (event === 'add' || event === 'addDir') {
-        _this._addToWatchedDir(sysPath.dirname(path), sysPath.basename(path));
-      } else if (event === 'unlink' || event === 'unlinkDir') {
-        _this._remove(sysPath.dirname(path), sysPath.basename(path));
+
+    function emit (event) {
+      if (event === 'add') {
+        _this._addToWatchedDir(parent, item);
+      } else if (event === 'unlink') {
+        _this._remove(parent, item);
         return; // Don't emit event twice.
       }
-      return _this.emit(name, path);
-    };
+      var eventName = info.type === 'file' ? event : event + 'Dir';
+      _this.emit(eventName, path);
+    }
+
     switch (info.event) {
       case 'created':
         return emit('add');
