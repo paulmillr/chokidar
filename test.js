@@ -48,9 +48,7 @@ function runTests (options) {
     });
 
     it('should ignore further events on close', function(done) {
-      this.watcher = chokidar.watch(fixturesPath, options);
-
-      var watcher = this.watcher;
+      var watcher = this.watcher = chokidar.watch(fixturesPath, options);
       var spy = sinon.spy();
       watcher.once('add', function() {
         watcher.once('add', function() {
@@ -112,10 +110,8 @@ function runTests (options) {
       this.watcher.close.should.be.a('function');
     });
     it('should emit `add` event when file was added', function(done) {
-      var spy, testPath,
-        _this = this;
-      spy = sinon.spy();
-      testPath = getFixturePath('add.txt');
+      var spy = sinon.spy();
+      var testPath = getFixturePath('add.txt');
       this.watcher.on('add', spy);
       delay(function() {
         spy.should.not.have.been.called;
@@ -129,10 +125,8 @@ function runTests (options) {
     });
 
     it('should emit `addDir` event when directory was added', function(done) {
-      var spy, testDir,
-        _this = this;
-      spy = sinon.spy();
-      testDir = getFixturePath('subdir');
+      var spy = sinon.spy();
+      var testDir = getFixturePath('subdir');
       this.watcher.on('addDir', spy);
       delay(function() {
         spy.should.not.have.been.called;
@@ -145,10 +139,8 @@ function runTests (options) {
       });
     });
     it('should emit `change` event when file was changed', function(done) {
-      var spy, testPath,
-        _this = this;
-      spy = sinon.spy();
-      testPath = getFixturePath('change.txt');
+      var spy = sinon.spy();
+      var testPath = getFixturePath('change.txt');
       this.watcher.on('change', spy);
       delay(function() {
         spy.should.not.have.been.called;
@@ -161,10 +153,8 @@ function runTests (options) {
       });
     });
     it('should emit `unlink` event when file was removed', function(done) {
-      var spy, testPath,
-        _this = this;
-      spy = sinon.spy();
-      testPath = getFixturePath('unlink.txt');
+      var spy = sinon.spy();
+      var testPath = getFixturePath('unlink.txt');
       this.watcher.on('unlink', spy);
       delay(function() {
         spy.should.not.have.been.called;
@@ -177,10 +167,8 @@ function runTests (options) {
       });
     });
     it('should emit `unlinkDir` event when a directory was removed', function(done) {
-      var spy, testDir,
-        _this = this;
-      spy = sinon.spy();
-      testDir = getFixturePath('subdir');
+      var spy = sinon.spy();
+      var testDir = getFixturePath('subdir');
       this.watcher.on('unlinkDir', spy);
       delay(function() {
         fs.rmdirSync(testDir);
@@ -197,11 +185,9 @@ function runTests (options) {
       this.watcher.add(testDir);
     });
     it('should notice when a file appears in a new directory', function(done) {
-      var spy, testDir, testPath,
-        _this = this;
-      spy = sinon.spy();
-      testDir = getFixturePath('subdir');
-      testPath = getFixturePath('subdir/add.txt');
+      var spy = sinon.spy();
+      var testDir = getFixturePath('subdir');
+      var testPath = getFixturePath('subdir/add.txt');
       this.watcher.on('add', spy);
       this.watcher.add(testDir);
       delay(function() {
@@ -242,10 +228,8 @@ function runTests (options) {
         delete options.ignoreInitial;
       });
       it('should ignore inital add events', function(done) {
-        var spy, watcher,
-          _this = this;
-        spy = sinon.spy();
-        watcher = chokidar.watch(fixturesPath, options);
+        var spy = sinon.spy();
+        var watcher = chokidar.watch(fixturesPath, options);
         watcher.on('add', spy);
         delay(function() {
           spy.should.not.have.been.called;
@@ -254,12 +238,10 @@ function runTests (options) {
         });
       });
       it('should notice when a file appears in an empty directory', function(done) {
-        var spy, testDir, testPath, watcher,
-          _this = this;
-        spy = sinon.spy();
-        testDir = getFixturePath('subdir');
-        testPath = getFixturePath('subdir/add.txt');
-        watcher = chokidar.watch(fixturesPath, options);
+        var spy = sinon.spy();
+        var testDir = getFixturePath('subdir');
+        var testPath = getFixturePath('subdir/add.txt');
+        var watcher = chokidar.watch(fixturesPath, options);
         watcher.on('add', spy);
         delay(function() {
           spy.should.not.have.been.called;
@@ -280,18 +262,16 @@ function runTests (options) {
         delete options.ignored;
       });
       it('should check ignore after stating', function(done) {
-        var ignoredFn, spy, testDir, watcher,
-          _this = this;
-        testDir = getFixturePath('subdir');
-        spy = sinon.spy();
-        ignoredFn = function(path, stats) {
+        var testDir = getFixturePath('subdir');
+        var spy = sinon.spy();
+        function ignoredFn(path, stats) {
           if (path === testDir || !stats) {
             return false;
           }
           return stats.isDirectory();
-        };
+        }
         options.ignored = ignoredFn;
-        watcher = chokidar.watch(testDir, options);
+        var watcher = chokidar.watch(testDir, options);
         watcher.on('add', spy);
         try {
           fs.mkdirSync(testDir, 0x1ed);
