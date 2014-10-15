@@ -439,14 +439,10 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
   });
 };
 
-FSWatcher.prototype.emit = function(event, arg1) {
-  var data = arguments.length === 2 ? [arg1] : [].slice.call(arguments, 1);
-  var args = [event].concat(data);
-  EventEmitter.prototype.emit.apply(this, args);
-  if (event === 'add' || event === 'addDir' || event === 'change' ||
-      event === 'unlink' || event === 'unlinkDir') {
-    EventEmitter.prototype.emit.apply(this, ['all'].concat(args));
-  }
+FSWatcher.prototype.emit = function(event) {
+  var realEmit = EventEmitter.prototype.emit;
+  realEmit.apply(this, arguments);
+  if (event !== 'error') realEmit.apply(this, ['all'].concat(arguments));
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
