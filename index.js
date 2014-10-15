@@ -96,6 +96,19 @@ function FSWatcher(_opts) {
 
 FSWatcher.prototype = Object.create(EventEmitter.prototype);
 
+// Common helpers
+// --------------
+FSWatcher.prototype._emit = function(event) {
+  var args = [].slice.apply(arguments);
+  this.emit.apply(this, args);
+  if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
+  return this;
+};
+
+FSWatcher.prototype._emitError = function(error) {
+  this.emit('error', error);
+};
+
 // Directory helpers
 // -----------------
 FSWatcher.prototype._getWatchedDir = function(directory) {
@@ -301,10 +314,6 @@ FSWatcher.prototype._watch = function(item, callback) {
   }
 };
 
-FSWatcher.prototype._emitError = function(error) {
-  this.emit('error', error);
-};
-
 // Private: Emit `change` event once and watch file to emit it in the future
 // once the file is changed.
 
@@ -413,13 +422,6 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
       }
     }.bind(this));
   }.bind(this));
-};
-
-FSWatcher.prototype._emit = function(event) {
-  var args = [].slice.apply(arguments);
-  this.emit.apply(this, args);
-  if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
-  return this;
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
