@@ -250,7 +250,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
         return emit('unlink');
       case 'moved':
         return fs.stat(path, function(error, stats) {
-          return emit(error || !stats ? 'unlink' : 'add');
+          emit(stats ? 'add' : 'unlink');
         });
     }
   });
