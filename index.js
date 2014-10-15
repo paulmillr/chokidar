@@ -174,7 +174,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   // or a bogus entry to a file, in either case we have to remove it
   delete this.watched[fullPath];
   var eventName = isDirectory ? 'unlinkDir' : 'unlink';
-  this.emit(eventName, fullPath);
+  this._emit(eventName, fullPath);
 };
 
 // FS Events helper.
@@ -203,7 +203,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
         return; // Don't emit event twice.
       }
       var eventName = info.type === 'file' ? event : event + 'Dir';
-      _this.emit(eventName, path);
+      _this._emit(eventName, path);
     }
 
     // correct for wrong events emitted
@@ -324,15 +324,15 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
         if (!exists) {
           _this._remove(sysPath.dirname(file), sysPath.basename(file));
         } else {
-          _this.emit('change', file, newStats);
+          _this._emit('change', file, newStats);
         }
       });
     } else {
-      _this.emit('change', file, newStats);
+      _this._emit('change', file, newStats);
     }
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
-    this.emit('add', file, stats);
+    this._emit('add', file, stats);
   }
 };
 
@@ -384,7 +384,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     read(dir, false);
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
-    this.emit('addDir', directory, stats);
+    this._emit('addDir', directory, stats);
   }
 };
 
@@ -420,18 +420,17 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
   });
 };
 
-FSWatcher.prototype.emit = function(event) {
-  var realEmit = EventEmitter.prototype.emit;
+FSWatcher.prototype._emit = function(event) {
   var args = [].slice.apply(arguments);
-  realEmit.apply(this, args);
-  if (event !== 'error') realEmit.apply(this, ['all'].concat(args));
+  this.emit.apply(this, args);
+  if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   return this;
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
   var _this = this;
   var handle = function(path) {
-    _this.emit('add', path);
+    _this._emit('add', path);
   };
   if (!_this.options.ignoreInitial) {
     fs.stat(file, function(error, stats) {
