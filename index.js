@@ -184,27 +184,26 @@ function createFSEventsInstance(path, callback) {
 
 FSWatcher.prototype._watchWithFsEvents = function(path) {
   if (this._isIgnored(path)) return;
-  var _this = this;
   var watcher = createFSEventsInstance(path, function(path, flags) {
     var info = fsevents.getInfo(path, flags);
 
     // ensure directories are tracked
     var parent = sysPath.dirname(path);
     var item = sysPath.basename(path);
-    var watchedDir = _this._getWatchedDir(
+    var watchedDir = this._getWatchedDir(
       info.type === 'directory' ? path : parent
     );
 
-    function handleEvent (event) {
+    var handleEvent = function handleEvent(event) {
       if (event === 'add') {
-        _this._addToWatchedDir(parent, item);
+        this._addToWatchedDir(parent, item);
       } else if (event === 'unlink') {
-        _this._remove(parent, item);
+        this._remove(parent, item);
         return; // Don't emit event twice.
       }
       var eventName = info.type === 'file' ? event : event + 'Dir';
-      _this._emit(eventName, path);
-    }
+      this._emit(eventName, path);
+    }.bind(this);
 
     // correct for wrong events emitted
     function addOrChange() {
@@ -238,7 +237,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
           handleEvent(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
         });
     }
-  });
+  }.bind(this));
   return this.watchers.push(watcher);
 };
 
@@ -315,22 +314,20 @@ FSWatcher.prototype._emitError = function(error) {
 
 // Returns nothing.
 FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
-  var _this = this;
-  if (!initialAdd) initialAdd = false;
   this._watch(file, function(file, newStats) {
     if (newStats && newStats.mtime.getTime() === 0) {
       fs.exists(file, function(exists) {
         // Fix issues where mtime is null but file is still present
         if (!exists) {
-          _this._remove(sysPath.dirname(file), sysPath.basename(file));
+          this._remove(sysPath.dirname(file), sysPath.basename(file));
         } else {
-          _this._emit('change', file, newStats);
+          this._emit('change', file, newStats);
         }
-      });
+      }.bind(this));
     } else {
-      _this._emit('change', file, newStats);
+      this._emit('change', file, newStats);
     }
-  });
+  }.bind(this));
   if (!(initialAdd && this.options.ignoreInitial)) {
     this._emit('add', file, stats);
   }
@@ -343,17 +340,16 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
-  var _this = this;
   if (!this._reading) this._reading = {};
-  function read(directory, initialAdd) {
-    if (_this._reading[directory]) return;
-    _this._reading[directory] = true;
+  var read = function read(directory, initialAdd) {
+    if (this._reading[directory]) return;
+    this._reading[directory] = true;
     fs.readdir(directory, function(error, current) {
-      if (error != null) return _this._emitError(error);
+      if (error != null) return this._emitError(error);
       if (!current) return;
       // Normalize the directory name on Windows
       directory = sysPath.join(directory, '');
-      var previous = _this._getWatchedDir(directory);
+      var previous = this._getWatchedDir(directory);
 
       // Files that absent in current directory snapshot
       // but present in previous emit `remove` event
@@ -361,8 +357,8 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       previous.filter(function(file) {
         return current.indexOf(file) === -1;
       }).forEach(function(file) {
-        _this._remove(directory, file);
-      });
+        this._remove(directory, file);
+      }, this);
 
       // Files that present in current directory snapshot
       // but absent in previous are added to watch list and
@@ -370,12 +366,12 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       current.filter(function(file) {
         return previous.indexOf(file) === -1;
       }).forEach(function(file) {
-        _this._handle(sysPath.join(directory, file), initialAdd);
-      });
+        this._handle(sysPath.join(directory, file), initialAdd);
+      }, this);
 
-      delete _this._reading[directory]
-    });
-  }
+      delete this._reading[directory]
+    }.bind(this));
+  }.bind(this);
   read(directory, initialAdd);
   this._watch(directory, function(dir, stats) {
     // Current directory is removed, do nothing
@@ -395,29 +391,28 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
 
 // Returns nothing.
 FSWatcher.prototype._handle = function(item, initialAdd) {
-  var _this = this;
-  if (this._isIgnored(item) || _this.closed) return;
+  if (this._isIgnored(item) || this.closed) return;
 
   fs.realpath(item, function(error, path) {
-    if (_this.closed || error && error.code === 'ENOENT') return;
-    if (error) return _this._emitError(error);
+    if (this.closed || error && error.code === 'ENOENT') return;
+    if (error) return this._emitError(error);
     fs.stat(path, function(error, stats) {
-      if (_this.closed || error && error.code === 'ENOENT') return;
-      if (error) return _this._emitError(error);
+      if (this.closed || error && error.code === 'ENOENT') return;
+      if (error) return this._emitError(error);
       if ((
-        _this.options.ignorePermissionErrors &&
-        !_this._hasReadPermissions(stats)
+        this.options.ignorePermissionErrors &&
+        !this._hasReadPermissions(stats)
       ) || (
-        _this._isIgnored.length === 2 &&
-        _this._isIgnored(item, stats)
+        this._isIgnored.length === 2 &&
+        this._isIgnored(item, stats)
       )) return;
       if (stats.isFile() || stats.isCharacterDevice()) {
-        _this._handleFile(item, stats, initialAdd);
+        this._handleFile(item, stats, initialAdd);
       } else if (stats.isDirectory()) {
-        _this._handleDir(item, stats, initialAdd);
+        this._handleDir(item, stats, initialAdd);
       }
-    });
-  });
+    }.bind(this));
+  }.bind(this));
 };
 
 FSWatcher.prototype._emit = function(event) {
@@ -479,7 +474,7 @@ FSWatcher.prototype.add = function(files) {
 // Public: Remove all listeners from watched files.
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.close = function() {
-  if(this.closed) return this;
+  if (this.closed) return this;
   var listeners = this.listeners;
   var watched = this.watched;
   var useFsEvents = this.options.useFsEvents;
