@@ -441,8 +441,9 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
 
 FSWatcher.prototype.emit = function(event) {
   var realEmit = EventEmitter.prototype.emit;
-  realEmit.apply(this, arguments);
-  if (event !== 'error') realEmit.apply(this, ['all'].concat(arguments));
+  var args = [].slice.apply(arguments);
+  realEmit.apply(this, args);
+  if (event !== 'error') realEmit.apply(this, ['all'].concat(args));
   return this;
 };
 
