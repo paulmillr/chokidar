@@ -428,29 +428,26 @@ FSWatcher.prototype._emit = function(event) {
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
-  var _this = this;
-  var handle = function(path) {
-    _this._emit('add', path);
-  };
-  if (!_this.options.ignoreInitial) {
+  var emitAdd = this._emit.bind(this, 'add');
+  if (!this.options.ignoreInitial) {
     fs.stat(file, function(error, stats) {
       if (error && error.code === 'ENOENT') return;
-      if (error != null) return _this._emitError(error);
+      if (error != null) return this._emitError(error);
 
       if (stats.isDirectory()) {
         recursiveReaddir(file, function(error, dirFiles) {
           if (error && error.code === 'ENOENT') return;
-          if (error != null) return _this._emitError(error);
+          if (error != null) return this._emitError(error);
           dirFiles.filter(function(path) {
-            return !_this._isIgnored(path);
-          }).forEach(handle);
-        });
+            return !this._isIgnored(path);
+          }.bind(this)).forEach(emitAdd);
+        }.bind(this));
       } else {
-        handle(file);
+        emitAdd(file);
       }
-    });
+    }.bind(this));
   }
-  _this._watchWithFsEvents(file);
+  this._watchWithFsEvents(file);
   return this;
 };
 
