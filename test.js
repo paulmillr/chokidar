@@ -179,6 +179,27 @@ function runTests (options) {
         });
       });
     });
+    it('should emit `unlink` and `add` events when a file is renamed', function(done) {
+      var unlinkSpy = sinon.spy();
+      var addSpy = sinon.spy();
+      var testPath = getFixturePath('change.txt');
+      var newPath = getFixturePath('moved.txt');
+      this.watcher.on('unlink', unlinkSpy);
+      this.watcher.on('add', addSpy);
+      delay(function() {
+        unlinkSpy.should.not.have.been.called;
+        addSpy.should.not.have.been.called;
+        fs.renameSync(testPath, newPath);
+        delay(function() {
+          unlinkSpy.should.have.been.calledOnce;
+          unlinkSpy.should.have.been.calledWith(testPath);
+          addSpy.should.have.been.calledOnce;
+          addSpy.should.have.been.calledWith(newPath);
+          fs.renameSync(newPath, testPath);
+          done();
+        });
+      });
+    });
     it('should survive ENOENT for missing subdirectories', function() {
       var testDir;
       testDir = getFixturePath('subdir');
