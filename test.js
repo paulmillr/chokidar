@@ -268,9 +268,7 @@ function runTests (options) {
         var testDir = getFixturePath('subdir');
         var spy = sinon.spy();
         function ignoredFn(path, stats) {
-          if (path === testDir || !stats) {
-            return false;
-          }
+          if (path === testDir || !stats) return false;
           return stats.isDirectory();
         }
         options.ignored = ignoredFn;
