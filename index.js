@@ -443,6 +443,7 @@ FSWatcher.prototype.emit = function(event) {
   var realEmit = EventEmitter.prototype.emit;
   realEmit.apply(this, arguments);
   if (event !== 'error') realEmit.apply(this, ['all'].concat(arguments));
+  return this;
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
