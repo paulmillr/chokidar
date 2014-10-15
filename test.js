@@ -180,8 +180,8 @@ function runTests (options) {
       });
     });
     it('should emit `unlink` and `add` events when a file is renamed', function(done) {
-      var unlinkSpy = sinon.spy();
-      var addSpy = sinon.spy();
+      var unlinkSpy = sinon.spy(function unlink(){});
+      var addSpy = sinon.spy(function add(){});
       var testPath = getFixturePath('change.txt');
       var newPath = getFixturePath('moved.txt');
       this.watcher.on('unlink', unlinkSpy);
