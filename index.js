@@ -344,7 +344,10 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
   var _this = this;
+  if (!this._reading) this._reading = {};
   function read(directory, initialAdd) {
+    if (_this._reading[directory]) return;
+    _this._reading[directory] = true;
     fs.readdir(directory, function(error, current) {
       if (error != null) return _this._emitError(error);
       if (!current) return;
@@ -369,12 +372,15 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       }).forEach(function(file) {
         _this._handle(sysPath.join(directory, file), initialAdd);
       });
+
+      delete _this._reading[directory]
     });
-  };
+  }
   read(directory, initialAdd);
   this._watch(directory, function(dir, stats) {
     // Current directory is removed, do nothing
     if (stats && stats.mtime.getTime() === 0) return;
+
     read(dir, false);
   });
   if (!(initialAdd && this.options.ignoreInitial)) {
