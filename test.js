@@ -77,6 +77,7 @@ function runTests (options) {
     });
     before(function(done) {
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('moved.txt'));} catch(err) {}
       try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
       try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
       fs.writeFileSync(getFixturePath('change.txt'), 'b');
@@ -85,6 +86,7 @@ function runTests (options) {
     });
     after(function() {
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('moved.txt'));} catch(err) {}
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
     });
