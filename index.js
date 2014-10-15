@@ -54,6 +54,7 @@ function FSWatcher(_opts) {
   this.watched = Object.create(null);
   this.watchers = [];
   this.closed = false;
+  this._throttled = Object.create(null);
 
   // Set up default options.
   if (opts.persistent == null) opts.persistent = false;
@@ -109,6 +110,20 @@ FSWatcher.prototype._emitError = function(error) {
   this.emit('error', error);
 };
 
+FSWatcher.prototype._throttle = function(action, path, timeout) {
+  if (!(action in this._throttled)) {
+    this._throttled[action] = Object.create(null);
+  }
+  var throttled = this._throttled[action];
+  if (path in throttled) return false;
+  function clear() {
+    delete throttled[path];
+    clearTimeout(timeoutObject);
+  }
+  var timeoutObject = setTimeout(clear, timeout);
+  return throttled[path] = {timeoutObject: timeoutObject, clear: clear};
+};
+
 // Directory helpers
 // -----------------
 FSWatcher.prototype._getWatchedDir = function(directory) {
@@ -160,11 +175,7 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
-  var _removing = this._removing = this._removing || {};
-  if (_removing[fullPath]) return;
-  _removing[fullPath] = setTimeout(function() {
-    delete _removing[fullPath];
-  }, 5);
+  if (!this._throttle('remove', fullPath, 5)) return;
 
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
@@ -281,23 +292,10 @@ FSWatcher.prototype._watch = function(item, callback) {
     fs.watchFile(absolutePath, options, listener);
   } else {
     var watcher = fs.watch(item, options, function(event, path) {
-      if (!isWindows || !path) return callback(item);
-
-      var self = this;
-
-      // Ignore the event if it's currently being throttled
-      if (!self.throttling) {
-        self.throttling = {};
-      }
-      if (self.throttling[path]) {
-        return;
-      }
-      self.throttling[path] = true;
-      setTimeout(function() {
-        delete self.throttling[path];
-        callback(item);
-      }, 0);
-    });
+      if (!path) return callback(item);
+      if (!this._throttle('watch', path, 0)) return;
+      callback(item);
+    }.bind(this));
     var _emitError = this._emitError;
     watcher.on('error', function(error) {
       // Workaround for the "Windows rough edge" regarding the deletion of directories
@@ -349,11 +347,11 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
-  if (!this._reading) this._reading = {};
   var read = function read(directory, initialAdd) {
-    if (this._reading[directory]) return;
-    this._reading[directory] = true;
+    var throttler = this._throttle('readdir', directory, 1000);
+    if (!throttler) return;
     fs.readdir(directory, function(error, current) {
+      throttler.clear();
       if (error != null) return this._emitError(error);
       if (!current) return;
       // Normalize the directory name on Windows
@@ -377,8 +375,6 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       }).forEach(function(file) {
         this._handle(sysPath.join(directory, file), initialAdd);
       }, this);
-
-      delete this._reading[directory]
     }.bind(this));
   }.bind(this);
   read(directory, initialAdd);
