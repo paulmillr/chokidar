@@ -195,7 +195,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
       info.type === 'directory' ? path : parent
     );
 
-    function emit (event) {
+    function handleEvent (event) {
       if (event === 'add') {
         _this._addToWatchedDir(parent, item);
       } else if (event === 'unlink') {
@@ -208,7 +208,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
 
     // correct for wrong events emitted
     function addOrChange() {
-      emit(watchedDir.indexOf(item) !== -1 ? 'change' : 'add');
+      handleEvent(watchedDir.indexOf(item) !== -1 ? 'change' : 'add');
     }
     var wrongEventFlags = [69888, 70400, 71424, 131328, 131840];
     if (wrongEventFlags.indexOf(flags) !== -1) {
@@ -217,7 +217,7 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
           if (stats) {
             addOrChange();
           } else {
-            emit('unlink');
+            handleEvent('unlink');
           }
         });
       } else {
@@ -228,14 +228,14 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
 
     switch (info.event) {
       case 'created':
-        return emit('add');
+        return handleEvent('add');
       case 'modified':
-        return emit('change');
+        return handleEvent('change');
       case 'deleted':
-        return emit('unlink');
+        return handleEvent('unlink');
       case 'moved':
         return fs.stat(path, function(error, stats) {
-          emit(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
+          handleEvent(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
         });
     }
   });
