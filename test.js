@@ -35,16 +35,12 @@ function runTests (options) {
 
   describe('close', function() {
     before(function() {
-      try {
-        fs.unlinkSync(getFixturePath('add.txt'));
-      } catch(err) {}
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
     });
 
     after(function() {
       this.watcher.close();
-      try {
-        fs.unlinkSync(getFixturePath('add.txt'));
-      } catch(err) {}
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
     });
 
     it('should ignore further events on close', function(done) {
@@ -80,23 +76,15 @@ function runTests (options) {
       delay(done);
     });
     before(function(done) {
-      try {
-        fs.unlinkSync(getFixturePath('add.txt'));
-      } catch(err) {}
-      try {
-        fs.unlinkSync(getFixturePath('subdir/add.txt'));
-      } catch(err) {}
-      try {
-        fs.rmdirSync(getFixturePath('subdir'));
-      } catch(err) {}
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
+      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
       fs.writeFileSync(getFixturePath('change.txt'), 'b');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
       delay(done);
     });
     after(function() {
-      try {
-        fs.unlinkSync(getFixturePath('add.txt'));
-      } catch(err) {}
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
     });
@@ -225,18 +213,10 @@ function runTests (options) {
   });
   describe('watch options', function() {
     function clean (done) {
-      try {
-        fs.unlinkSync(getFixturePath('subdir/add.txt'));
-      } catch(err) {}
-      try {
-        fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));
-      } catch(err) {}
-      try {
-        fs.rmdirSync(getFixturePath('subdir/dir'));
-      } catch(err) {}
-      try {
-        fs.rmdirSync(getFixturePath('subdir'));
-      } catch(err) {}
+      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));} catch(err) {}
+      try {fs.rmdirSync(getFixturePath('subdir/dir'));} catch(err) {}
+      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
       delay(done);
     }
     beforeEach(clean);
@@ -294,9 +274,7 @@ function runTests (options) {
         options.ignored = ignoredFn;
         var watcher = chokidar.watch(testDir, options);
         watcher.on('add', spy);
-        try {
-          fs.mkdirSync(testDir, 0x1ed);
-        } catch(err) {}
+        try {fs.mkdirSync(testDir, 0x1ed);} catch(err) {}
         fs.writeFileSync(testDir + '/add.txt', '');
         fs.mkdirSync(testDir + '/dir', 0x1ed);
         fs.writeFileSync(testDir + '/dir/ignored.txt', '');
