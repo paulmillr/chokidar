@@ -339,6 +339,7 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
     }
   }.bind(this));
   if (!(initialAdd && this.options.ignoreInitial)) {
+    if (!this._throttle('add', file, 0)) return;
     this._emit('add', file, stats);
   }
 };
