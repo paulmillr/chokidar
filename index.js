@@ -33,11 +33,12 @@ function isBinaryPath(path) {
 
 exports.isBinaryPath = isBinaryPath;
 
-// Main code.
-//
+// Public: Main class.
 // Watches files & directories for changes.
 //
-// Emitted events: `add`, `change`, `unlink`, `error`.
+// * _opts - object, chokidar options hash
+//
+// Emitted events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `all`, `error`.
 //
 // Examples
 //
@@ -46,6 +47,7 @@ exports.isBinaryPath = isBinaryPath;
 //     .on('add', function(path) {console.log('File', path, 'was added');})
 //     .on('change', function(path) {console.log('File', path, 'was changed');})
 //     .on('unlink', function(path) {console.log('File', path, 'was removed');})
+//     .on('all', function(event, path) {console.log(path, ' emitted ', event);})
 //
 function FSWatcher(_opts) {
   var opts = {};
@@ -150,7 +152,7 @@ FSWatcher.prototype._removeFromWatchedDir = function(directory, file) {
 // Private: Check for read permissions
 // Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
 //
-// stats - fs.Stats object
+// * stats - object, result of fs.stat
 //
 // Returns Boolean
 FSWatcher.prototype._hasReadPermissions = function(stats) {
@@ -161,8 +163,8 @@ FSWatcher.prototype._hasReadPermissions = function(stats) {
 // files and directories, and via recursion, for
 // files and directories within directories that are unlinked
 //
-// directory - string, directory within which the following item is located
-// item      - string, base path of item/directory
+// * directory - string, directory within which the following item is located
+// * item      - string, base path of item/directory
 //
 // Returns nothing.
 FSWatcher.prototype._remove = function(directory, item) {
@@ -267,8 +269,8 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
 
 // Private: Watch file for changes with fs.watchFile or fs.watch.
 
-// item     - string, path to file or directory.
-// callback - function that will be executed on fs change.
+// * item     - string, path to file or directory.
+// * callback - function that will be executed on fs change.
 
 // Returns nothing.
 FSWatcher.prototype._watch = function(item, callback) {
@@ -315,9 +317,9 @@ FSWatcher.prototype._watch = function(item, callback) {
 // Private: Emit `change` event once and watch file to emit it in the future
 // once the file is changed.
 
-// file       - string, fs path.
-// stats      - object, result of executing stat(1) on file.
-// initialAdd - boolean, was the file added at the launch?
+// * file       - string, fs path.
+// * stats      - object, result of fs.stat
+// * initialAdd - boolean, was the file added at watch instantiation?
 
 // Returns nothing.
 FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
@@ -343,7 +345,9 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // Private: Read directory to add / remove files from `@watched` list
 // and re-read it on change.
 
-// directory - string, fs path.
+// * directory  - string, fs path.
+// * stats      - object, result of fs.stat
+// * initialAdd - boolean, was the file added at watch instantiation?
 
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
@@ -392,7 +396,8 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
 // Private: Handle added file or directory.
 // Delegates call to _handleFile / _handleDir after checks.
 
-// item - string, path to file or directory.
+// * item - string, path to file or directory.
+// * initialAdd - boolean, was the file added at watch instantiation?
 
 // Returns nothing.
 FSWatcher.prototype._handle = function(item, initialAdd) {
@@ -446,11 +451,7 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 
 // Public: Adds directories / files for tracking.
 
-// * files - array of strings (file paths).
-
-// Examples
-
-//   add ['app', 'vendor']
+// * files - array of strings (file or directory paths).
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(files) {
@@ -470,6 +471,7 @@ FSWatcher.prototype.add = function(files) {
 };
 
 // Public: Remove all listeners from watched files.
+
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.close = function() {
   if (this.closed) return this;
