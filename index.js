@@ -52,29 +52,29 @@ exports.isBinaryPath = isBinaryPath;
 function FSWatcher(_opts) {
   var opts = {};
   // in case _opts that is passed in is a frozen object
-  if (_opts != null) for (var opt in _opts) opts[opt] = _opts[opt];
+  if (_opts) for (var opt in _opts) opts[opt] = _opts[opt];
   this.watched = Object.create(null);
   this.watchers = [];
   this.closed = false;
   this._throttled = Object.create(null);
 
   // Set up default options.
-  if (opts.persistent == null) opts.persistent = false;
-  if (opts.ignoreInitial == null) opts.ignoreInitial = false;
-  if (opts.ignorePermissionErrors == null) opts.ignorePermissionErrors = false;
-  if (opts.interval == null) opts.interval = 100;
-  if (opts.binaryInterval == null) opts.binaryInterval = 300;
+  if (!('persistent' in opts)) opts.persistent = false;
+  if (!('ignoreInitial' in opts)) opts.ignoreInitial = false;
+  if (!('ignorePermissionErrors' in opts)) opts.ignorePermissionErrors = false;
+  if (!('interval' in opts)) opts.interval = 100;
+  if (!('binaryInterval' in opts)) opts.binaryInterval = 300;
   this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
   // Enable fsevents on OS X when polling is disabled.
   // Which is basically super fast watcher.
-  if (opts.useFsEvents == null) opts.useFsEvents = !opts.usePolling;
+  if (!('useFsEvents' in opts)) opts.useFsEvents = !opts.usePolling;
   // If we can't use fs events, disable it in any case.
   if (!canUseFsEvents) opts.useFsEvents = false;
 
   // Use polling by default on Linux and Mac (if not using fsevents).
   // Disable polling on Windows.
-  if (opts.usePolling == null && !opts.useFsEvents) opts.usePolling = !isWindows;
+  if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWindows;
 
   this._isIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
@@ -356,7 +356,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     if (!throttler) return;
     fs.readdir(directory, function(error, current) {
       throttler.clear();
-      if (error != null) return this._emitError(error);
+      if (error) return this._emitError(error);
       if (!current) return;
       // Normalize the directory name on Windows
       directory = sysPath.join(directory, '');
@@ -430,12 +430,12 @@ FSWatcher.prototype._addToFsEvents = function(file) {
   if (!this.options.ignoreInitial) {
     fs.stat(file, function(error, stats) {
       if (error && error.code === 'ENOENT') return;
-      if (error != null) return this._emitError(error);
+      if (error) return this._emitError(error);
 
       if (stats.isDirectory()) {
         recursiveReaddir(file, function(error, dirFiles) {
           if (error && error.code === 'ENOENT') return;
-          if (error != null) return this._emitError(error);
+          if (error) return this._emitError(error);
           dirFiles.filter(function(path) {
             return !this._isIgnored(path);
           }.bind(this)).forEach(emitAdd);
@@ -455,7 +455,7 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(files) {
-  if (this._initialAdd == null) this._initialAdd = true;
+  if (!('_initialAdd' in this)) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
   files.forEach(function(file) {
