@@ -236,9 +236,9 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
     function addOrChange() {
       handleEvent(watchedDir.indexOf(item) !== -1 ? 'change' : 'add');
     }
-    var wrongEventFlags = [69888, 70400, 71424, 131328, 131840];
+    var wrongEventFlags = [69888, 70400, 71424, 72704, 131328, 131840];
     if (wrongEventFlags.indexOf(flags) !== -1) {
-      if (info.event === 'deleted') {
+      if (info.event === 'deleted' || info.event === 'moved') {
         fs.stat(path, function(error, stats) {
           if (stats) {
             addOrChange();
@@ -427,7 +427,10 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
-  var emitAdd = this._emit.bind(this, 'add');
+  var emitAdd = function(path) {
+    this._addToWatchedDir(sysPath.dirname(path), sysPath.basename(path));
+    this._emit('add', path);
+  }.bind(this);
   if (!this.options.ignoreInitial) {
     fs.stat(file, function(error, stats) {
       if (error && error.code === 'ENOENT') return;
@@ -439,7 +442,7 @@ FSWatcher.prototype._addToFsEvents = function(file) {
           if (error) return this._emitError(error);
           dirFiles.filter(function(path) {
             return !this._isIgnored(path);
-          }.bind(this)).forEach(emitAdd);
+          }, this).forEach(emitAdd);
         }.bind(this));
       } else {
         emitAdd(file);
