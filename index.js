@@ -78,16 +78,16 @@ function FSWatcher(_opts) {
 
   this._isIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
-      case '[object RegExp]':
-        return function(string) {
-          return ignored.test(string);
-        };
-      case '[object Function]':
-        return ignored;
-      default:
-        return function() {
-          return false;
-        };
+    case '[object RegExp]':
+      return function(string) {
+        return ignored.test(string);
+      };
+    case '[object Function]':
+      return ignored;
+    default:
+      return function() {
+        return false;
+      };
     }
   })(opts.ignored);
 
@@ -123,7 +123,8 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
     clearTimeout(timeoutObject);
   }
   var timeoutObject = setTimeout(clear, timeout);
-  return throttled[path] = {timeoutObject: timeoutObject, clear: clear};
+  throttled[path] = {timeoutObject: timeoutObject, clear: clear};
+  return throttled[path];
 };
 
 // Directory helpers
@@ -156,7 +157,7 @@ FSWatcher.prototype._removeFromWatchedDir = function(directory, file) {
 //
 // Returns Boolean
 FSWatcher.prototype._hasReadPermissions = function(stats) {
-  return Boolean(4 & parseInt((stats.mode & 0x1ff).toString(8)[0]));
+  return Boolean(4 & parseInt((stats.mode & 0x1ff).toString(8)[0], 10));
 };
 
 // Private: Handles emitting unlink events for
@@ -252,16 +253,16 @@ FSWatcher.prototype._watchWithFsEvents = function(path) {
     }
 
     switch (info.event) {
-      case 'created':
-        return handleEvent('add');
-      case 'modified':
-        return handleEvent('change');
-      case 'deleted':
-        return handleEvent('unlink');
-      case 'moved':
-        return fs.stat(path, function(error, stats) {
-          handleEvent(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
-        });
+    case 'created':
+      return handleEvent('add');
+    case 'modified':
+      return handleEvent('change');
+    case 'deleted':
+      return handleEvent('unlink');
+    case 'moved':
+      return fs.stat(path, function(error, stats) {
+        handleEvent(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
+      });
     }
   }.bind(this));
   return this.watchers.push(watcher);
@@ -488,7 +489,7 @@ FSWatcher.prototype.close = function() {
   if (this.options.usePolling) {
     Object.keys(watched).forEach(function(directory) {
       watched[directory].forEach(function(file) {
-        var absolutePath = sysPath.resolve(directory, file)
+        var absolutePath = sysPath.resolve(directory, file);
         fs.unwatchFile(absolutePath, listeners[absolutePath]);
         delete listeners[absolutePath];
       });
