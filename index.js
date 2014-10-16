@@ -357,6 +357,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     if (!throttler) return;
     fs.readdir(directory, function(error, current) {
       throttler.clear();
+      if (error && error.code === 'ENOENT') return;
       if (error) return this._emitError(error);
       if (!current) return;
       // Normalize the directory name on Windows
