@@ -1,0 +1,6 @@
+{
+  "node": true,
+  "curly": false,
+  "bitwise": false,
+  "predef": ["toString"]
+}
