@@ -108,8 +108,9 @@ FSWatcher.prototype._emit = function(event) {
   return this;
 };
 
-FSWatcher.prototype._emitError = function(error) {
-  this.emit('error', error);
+FSWatcher.prototype._handleError = function(error) {
+  if (error && error.code !== 'ENOENT') this.emit('error', error);
+  return error || this.closed;
 };
 
 FSWatcher.prototype._throttle = function(action, path, timeout) {
@@ -297,16 +298,16 @@ FSWatcher.prototype._watch = function(item, callback) {
     var watcher = fs.watch(item, options, function(event, path) {
       callback(item);
     });
-    var _emitError = this._emitError;
+    var _handleError = this._handleError;
     watcher.on('error', function(error) {
       // Workaround for the "Windows rough edge" regarding the deletion of directories
       // (https://github.com/joyent/node/issues/4337)
       if (isWindows && error.code === 'EPERM') {
         fs.exists(item, function(exists) {
-          if (exists) _emitError(error);
+          if (exists) _handleError(error);
         });
       } else {
-        _emitError(error);
+        _handleError(error);
       }
     });
     this.watchers.push(watcher);
@@ -357,9 +358,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
     if (!throttler) return;
     fs.readdir(directory, function(error, current) {
       throttler.clear();
-      if (error && error.code === 'ENOENT') return;
-      if (error) return this._emitError(error);
-      if (!current) return;
+      if (this._handleError(error) || !current) return;
       // Normalize the directory name on Windows
       directory = sysPath.join(directory, '');
       var previous = this._getWatchedDir(directory);
@@ -406,11 +405,9 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
   if (this._isIgnored(item) || this.closed) return;
 
   fs.realpath(item, function(error, path) {
-    if (this.closed || error && error.code === 'ENOENT') return;
-    if (error) return this._emitError(error);
+    if (this._handleError(error)) return;
     fs.stat(path, function(error, stats) {
-      if (this.closed || error && error.code === 'ENOENT') return;
-      if (error) return this._emitError(error);
+      if (this._handleError(error)) return;
       if ((
         this.options.ignorePermissionErrors &&
         !this._hasReadPermissions(stats)
@@ -434,8 +431,7 @@ FSWatcher.prototype._addToFsEvents = function(file) {
   }.bind(this);
   if (!this.options.ignoreInitial) {
     fs.stat(file, function(error, stats) {
-      if (error && error.code === 'ENOENT') return;
-      if (error) return this._emitError(error);
+      if (this._handleError(error)) return;
 
       if (stats.isDirectory()) {
         this._emit('addDir', file, stats);
