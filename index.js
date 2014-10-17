@@ -145,7 +145,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // Directory helpers
 // -----------------
 FSWatcher.prototype._getWatchedDir = function(directory) {
-  var dir = directory.replace(/[\\\/]$/, '');
+  var dir = sysPath.resolve(directory);
   if (!(dir in this.watched)) this.watched[dir] = [];
   return this.watched[dir];
 };
@@ -224,11 +224,11 @@ function createFSEventsInstance(path, callback) {
   return (new fsevents(path)).on('fsevent', callback).start();
 }
 
-FSWatcher.prototype._watchWithFsEvents = function(path) {
-  if (this._isIgnored(path)) return;
-  var watcher = createFSEventsInstance(path, function(path, flags) {
-    var info = fsevents.getInfo(path, flags);
-
+FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
+  if (this._isIgnored(watchPath)) return;
+  var watcher = createFSEventsInstance(watchPath, function(fullPath, flags) {
+    var info = fsevents.getInfo(fullPath, flags);
+    var path = sysPath.join(watchPath, sysPath.relative(watchPath, fullPath));
     // ensure directories are tracked
     var parent = sysPath.dirname(path);
     var item = sysPath.basename(path);
@@ -451,7 +451,8 @@ FSWatcher.prototype._addToFsEvents = function(file) {
         this._emit('addDir', file, stats);
         readdirp({root: file, entryType: 'both'})
           .on('data', function(entry) {
-            if (!this._isIgnored(entry.path)) emitAdd(entry.path, entry.stat);
+            if (this._isIgnored(entry.path)) return;
+            emitAdd(sysPath.join(file, entry.path), entry.stat);
           }.bind(this));
       } else {
         emitAdd(file, stats);
