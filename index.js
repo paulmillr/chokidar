@@ -295,10 +295,8 @@ FSWatcher.prototype._watch = function(item, callback) {
     fs.watchFile(absolutePath, options, listener);
   } else {
     var watcher = fs.watch(item, options, function(event, path) {
-      if (!path) return callback(item);
-      if (!this._throttle('watch', path, 0)) return;
       callback(item);
-    }.bind(this));
+    });
     var _emitError = this._emitError;
     watcher.on('error', function(error) {
       // Workaround for the "Windows rough edge" regarding the deletion of directories
@@ -325,6 +323,7 @@ FSWatcher.prototype._watch = function(item, callback) {
 // Returns nothing.
 FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   this._watch(file, function(file, newStats) {
+    if (!this._throttle('watch', file, 5)) return;
     if (newStats && newStats.mtime.getTime() === 0) {
       fs.exists(file, function(exists) {
         // Fix issues where mtime is null but file is still present
