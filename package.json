@@ -38,6 +38,6 @@
   },
   "optionalDependencies": {
     "fsevents": "0.3.0",
-    "recursive-readdir": "0.0.2"
+    "readdirp": "~1.1.0"
   }
 }

@@ -4,10 +4,10 @@ var fs = require('fs');
 var os = require('os');
 var sysPath = require('path');
 
-var fsevents, recursiveReaddir;
+var fsevents, readdirp;
 try {
   fsevents = require('fsevents');
-  recursiveReaddir = require('recursive-readdir');
+  readdirp = require('readdirp');
 } catch (error) {}
 
 var isWindows = os.platform() === 'win32';
@@ -428,9 +428,9 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
 };
 
 FSWatcher.prototype._addToFsEvents = function(file) {
-  var emitAdd = function(path) {
+  var emitAdd = function(path, stats) {
     this._addToWatchedDir(sysPath.dirname(path), sysPath.basename(path));
-    this._emit('add', path);
+    this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
   }.bind(this);
   if (!this.options.ignoreInitial) {
     fs.stat(file, function(error, stats) {
@@ -438,15 +438,13 @@ FSWatcher.prototype._addToFsEvents = function(file) {
       if (error) return this._emitError(error);
 
       if (stats.isDirectory()) {
-        recursiveReaddir(file, function(error, dirFiles) {
-          if (error && error.code === 'ENOENT') return;
-          if (error) return this._emitError(error);
-          dirFiles.filter(function(path) {
-            return !this._isIgnored(path);
-          }, this).forEach(emitAdd);
-        }.bind(this));
+        this._emit('addDir', file, stats);
+        readdirp({root: file, entryType: 'both'})
+          .on('data', function(entry) {
+            if (!this._isIgnored(entry.path)) emitAdd(entry.path, entry.stat);
+          }.bind(this));
       } else {
-        emitAdd(file);
+        emitAdd(file, stats);
       }
     }.bind(this));
   }
