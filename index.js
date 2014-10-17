@@ -381,7 +381,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       // but present in previous emit `remove` event
       // and are removed from @watched[directory].
       previous.filter(function(file) {
-        return current.indexOf(file) === -1;
+        return file !== directory && current.indexOf(file) === -1;
       }).forEach(function(file) {
         this._remove(directory, file);
       }, this);
