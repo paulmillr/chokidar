@@ -113,7 +113,6 @@ function runTests (options) {
         });
       });
     });
-
     it('should emit `addDir` event when directory was added', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
@@ -223,7 +222,7 @@ function runTests (options) {
     }
     beforeEach(clean);
     after(clean);
-    describe('ignoreInitial', function() {
+    describe('ignoreInitial:true', function() {
       before(function() {
         options.ignoreInitial = true;
       });
@@ -260,7 +259,43 @@ function runTests (options) {
         });
       });
     });
-
+    describe('ignoreInitial:false', function() {
+      var watcher;
+      before(function() {
+        options.ignoreInitial = false;
+      });
+      after(function() {
+        watcher.close();
+        delete options.ignoreInitial;
+      });
+      it('should emit `add` events for preexisting files', function(done) {
+        var spy = sinon.spy();
+        watcher = chokidar.watch(fixturesPath, options).on('add', spy);
+        delay(function() {
+          spy.should.have.been.calledThrice;
+          done();
+        });
+      });
+      it('should emit `addDir` event for watched dir', function(done) {
+        var spy = sinon.spy();
+        watcher = chokidar.watch(fixturesPath, options).on('addDir', spy);
+        delay(function() {
+          spy.should.have.been.calledOnce;
+          spy.should.have.been.calledWith(fixturesPath);
+          done();
+        });
+      });
+      it('should emit `addDir` events for preexisting dirs', function(done) {
+        var spy = sinon.spy();
+        fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+        fs.mkdirSync(getFixturePath('subdir/dir'), 0x1ed);
+        watcher = chokidar.watch(fixturesPath, options).on('addDir', spy);
+        delay(function() {
+          spy.should.have.been.calledThrice;
+          done();
+        });
+      });
+    });
     describe('ignored', function() {
       after(function() {
         delete options.ignored;
