@@ -10,14 +10,27 @@ try {
   readdirp = require('readdirp');
 } catch (error) {}
 
-var isWindows = os.platform() === 'win32';
+var isWin32 = os.platform() === 'win32';
 var canUseFsEvents = os.platform() === 'darwin' && !!fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
 
 // Binary file handling code.
-var _binExts = ['adp', 'au', 'mid', 'mp4a', 'mpga', 'oga', 's3m', 'sil', 'eol', 'dra', 'dts', 'dtshd', 'lvp', 'pya', 'ecelp4800', 'ecelp7470', 'ecelp9600', 'rip', 'weba', 'aac', 'aif', 'caf', 'flac', 'mka', 'm3u', 'wax', 'wma', 'wav', 'xm', 'flac', '3gp', '3g2', 'h261', 'h263', 'h264', 'jpgv', 'jpm', 'mj2', 'mp4', 'mpeg', 'ogv', 'qt', 'uvh', 'uvm', 'uvp', 'uvs', 'dvb', 'fvt', 'mxu', 'pyv', 'uvu', 'viv', 'webm', 'f4v', 'fli', 'flv', 'm4v', 'mkv', 'mng', 'asf', 'vob', 'wm', 'wmv', 'wmx', 'wvx', 'movie', 'smv', 'ts', 'bmp', 'cgm', 'g3', 'gif', 'ief', 'jpg', 'jpeg', 'ktx', 'png', 'btif', 'sgi', 'svg', 'tiff', 'psd', 'uvi', 'sub', 'djvu', 'dwg', 'dxf', 'fbs', 'fpx', 'fst', 'mmr', 'rlc', 'mdi', 'wdp', 'npx', 'wbmp', 'xif', 'webp', '3ds', 'ras', 'cmx', 'fh', 'ico', 'pcx', 'pic', 'pnm', 'pbm', 'pgm', 'ppm', 'rgb', 'tga', 'xbm', 'xpm', 'xwd', 'zip', 'rar', 'tar', 'bz2', 'eot', 'ttf', 'woff'];
+var _binExts = [
+  'adp', 'au', 'mid', 'mp4a', 'mpga', 'oga', 's3m', 'sil', 'eol', 'dra', 'dts',
+  'dtshd', 'lvp', 'pya', 'ecelp4800', 'ecelp7470', 'ecelp9600', 'rip', 'weba',
+  'aac', 'aif', 'caf', 'flac', 'mka', 'm3u', 'wax', 'wma', 'wav', 'xm', 'flac',
+  '3gp', '3g2', 'h261', 'h263', 'h264', 'jpgv', 'jpm', 'mj2', 'mp4', 'mpeg',
+  'ogv', 'qt', 'uvh', 'uvm', 'uvp', 'uvs', 'dvb', 'fvt', 'mxu', 'pyv', 'uvu',
+  'viv', 'webm', 'f4v', 'fli', 'flv', 'm4v', 'mkv', 'mng', 'asf', 'vob', 'wm',
+  'wmv', 'wmx', 'wvx', 'movie', 'smv', 'ts', 'bmp', 'cgm', 'g3', 'gif', 'ief',
+  'jpg', 'jpeg', 'ktx', 'png', 'btif', 'sgi', 'svg', 'tiff', 'psd', 'uvi',
+  'sub', 'djvu', 'dwg', 'dxf', 'fbs', 'fpx', 'fst', 'mmr', 'rlc', 'mdi', 'wdp',
+  'npx', 'wbmp', 'xif', 'webp', '3ds', 'ras', 'cmx', 'fh', 'ico', 'pcx', 'pic',
+  'pnm', 'pbm', 'pgm', 'ppm', 'rgb', 'tga', 'xbm', 'xpm', 'xwd', 'zip', 'rar',
+  'tar', 'bz2', 'eot', 'ttf', 'woff'
+];
 
 var binExts = Object.create(null);
 _binExts.forEach(function(ext) { binExts[ext] = true; });
@@ -38,16 +51,17 @@ exports.isBinaryPath = isBinaryPath;
 //
 // * _opts - object, chokidar options hash
 //
-// Emitted events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `all`, `error`.
+// Emitted events:
+// `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `all`, `error`
 //
 // Examples
 //
-//   var watcher = new FSWatcher()
-//     .add(directories)
-//     .on('add', function(path) {console.log('File', path, 'was added');})
-//     .on('change', function(path) {console.log('File', path, 'was changed');})
-//     .on('unlink', function(path) {console.log('File', path, 'was removed');})
-//     .on('all', function(event, path) {console.log(path, ' emitted ', event);})
+//  var watcher = new FSWatcher()
+//    .add(directories)
+//    .on('add', function(path) {console.log('File', path, 'was added');})
+//    .on('change', function(path) {console.log('File', path, 'was changed');})
+//    .on('unlink', function(path) {console.log('File', path, 'was removed');})
+//    .on('all', function(event, path) {console.log(path, ' emitted ', event);})
 //
 function FSWatcher(_opts) {
   var opts = {};
@@ -74,7 +88,7 @@ function FSWatcher(_opts) {
 
   // Use polling by default on Linux and Mac (if not using fsevents).
   // Disable polling on Windows.
-  if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWindows;
+  if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWin32;
 
   this._isIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
@@ -289,7 +303,8 @@ FSWatcher.prototype._watch = function(item, callback) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
     var listener = this.listeners[absolutePath] = function(curr, prev) {
-      if (curr.mtime.getTime() > prev.mtime.getTime() || curr.mtime.getTime() === 0) {
+      var currmtime = curr.mtime.getTime();
+      if (currmtime > prev.mtime.getTime() || currmtime === 0) {
         callback(item, curr);
       }
     };
@@ -300,9 +315,8 @@ FSWatcher.prototype._watch = function(item, callback) {
     });
     var _handleError = this._handleError;
     watcher.on('error', function(error) {
-      // Workaround for the "Windows rough edge" regarding the deletion of directories
-      // (https://github.com/joyent/node/issues/4337)
-      if (isWindows && error.code === 'EPERM') {
+      // Workaround for https://github.com/joyent/node/issues/4337
+      if (isWin32 && error.code === 'EPERM') {
         fs.exists(item, function(exists) {
           if (exists) _handleError(error);
         });
