@@ -289,10 +289,12 @@ function runTests (options) {
         var spy = sinon.spy();
         fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
         fs.mkdirSync(getFixturePath('subdir/dir'), 0x1ed);
-        watcher = chokidar.watch(fixturesPath, options).on('addDir', spy);
         delay(function() {
-          spy.should.have.been.calledThrice;
-          done();
+          watcher = chokidar.watch(fixturesPath, options).on('addDir', spy);
+          delay(function(){
+            spy.should.have.been.calledThrice;
+            done();
+          })
         });
       });
     });
