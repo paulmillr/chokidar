@@ -19,6 +19,17 @@ function delay (fn) {
   return setTimeout(fn, 250);
 }
 
+before(function(done) {
+  try {fs.mkdirSync(fixturesPath, 0x1ed);} catch(err) {}
+  delay(done);
+});
+
+after(function() {
+  try {fs.unlinkSync(getFixturePath('change.txt'));} catch(err) {}
+  try {fs.unlinkSync(getFixturePath('unlink.txt'));} catch(err) {}
+  try {fs.rmdirSync(fixturesPath, 0x1ed);} catch(err) {}
+});
+
 describe('chokidar', function() {
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
@@ -32,38 +43,6 @@ describe('chokidar', function() {
 
 function runTests (options) {
   if (!options) options = {};
-
-  describe('close', function() {
-    before(function() {
-      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-    });
-
-    after(function() {
-      this.watcher.close();
-      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-    });
-
-    it('should ignore further events on close', function(done) {
-      var watcher = this.watcher = chokidar.watch(fixturesPath, options);
-      var spy = sinon.spy();
-      watcher.once('add', function() {
-        watcher.once('add', function() {
-          watcher.close();
-          delay(function() {
-            watcher.on('add', spy);
-            fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
-            delay(function() {
-              spy.should.not.have.been.called;
-              done();
-            });
-          });
-        });
-      });
-
-      fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
-      fs.unlinkSync(getFixturePath('add.txt'));
-    });
-  });
 
   describe('watch', function() {
     beforeEach(function(done) {
@@ -272,7 +251,7 @@ function runTests (options) {
         var spy = sinon.spy();
         watcher = chokidar.watch(fixturesPath, options).on('add', spy);
         delay(function() {
-          spy.should.have.been.calledThrice;
+          spy.should.have.been.calledTwice;
           done();
         });
       });
@@ -323,6 +302,38 @@ function runTests (options) {
           done();
         });
       });
+    });
+  });
+
+  describe('close', function() {
+    before(function() {
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+    });
+
+    after(function() {
+      this.watcher.close();
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+    });
+
+    it('should ignore further events on close', function(done) {
+      var watcher = this.watcher = chokidar.watch(fixturesPath, options);
+      var spy = sinon.spy();
+      watcher.once('add', function() {
+        watcher.once('add', function() {
+          watcher.close();
+          delay(function() {
+            watcher.on('add', spy);
+            fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
+            delay(function() {
+              spy.should.not.have.been.called;
+              done();
+            });
+          });
+        });
+      });
+
+      fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
+      fs.unlinkSync(getFixturePath('add.txt'));
     });
   });
 }
