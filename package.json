@@ -28,6 +28,7 @@
   "scripts": {
     "test": "./node_modules/.bin/mocha"
   },
+  "files": ["index.js"],
   "devDependencies": {
     "mocha": "~1.7.3",
     "chai": "~1.4.0",
