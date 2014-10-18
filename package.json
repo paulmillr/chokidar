@@ -1,14 +1,15 @@
 {
   "name": "chokidar",
-  "description": "A neat wrapper around node.js fs.watch / fs.watchFile.",
   "version": "0.9.0",
+  "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
   "keywords": [
     "fs",
     "watch",
     "watchFile",
     "watcher",
     "watching",
-    "file"
+    "file",
+    "fsevents"
   ],
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (http://paulmillr.com)",
@@ -26,7 +27,7 @@
     }
   ],
   "scripts": {
-    "test": "./node_modules/.bin/mocha"
+    "test": "mocha"
   },
   "files": ["index.js"],
   "devDependencies": {
