@@ -1,3 +1,10 @@
+# Chokidar 0.10.0 (18 October 2014)
+* Many stability and consistency improvements
+* Resolve many cases of duplicate or wrong events
+* Correct for fsevents inconsistencies
+* Standardize handling of errors and relative paths
+* Fix issues with watching `./`
+
 # Chokidar 0.9.0 (25 September 2014)
 * Updated fsevents to 0.3
 * Update per-system defaults
