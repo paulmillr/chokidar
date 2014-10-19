@@ -1,3 +1,6 @@
+# Chokidar 0.10.1 (19 October 2014)
+* Improve handling of text editor atomic writes
+
 # Chokidar 0.10.0 (18 October 2014)
 * Many stability and consistency improvements
 * Resolve many cases of duplicate or wrong events
