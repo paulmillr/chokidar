@@ -207,11 +207,6 @@ FSWatcher.prototype._remove = function(directory, item) {
     this._remove(fullPath, nestedItem);
   }, this);
 
-  if (this.options.usePolling) {
-    fs.unwatchFile(absolutePath, this.listeners[absolutePath]);
-    delete this.listeners[absolutePath];
-  }
-
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
   delete this.watched[fullPath];
@@ -501,16 +496,13 @@ FSWatcher.prototype.close = function() {
   this.watchers.forEach(function(watcher) {
     watcher[method]();
   });
-
-  if (this.options.usePolling) {
-    Object.keys(watched).forEach(function(directory) {
-      watched[directory].forEach(function(file) {
-        var absolutePath = sysPath.resolve(directory, file);
-        fs.unwatchFile(absolutePath, listeners[absolutePath]);
-        delete listeners[absolutePath];
-      });
+  Object.keys(watched).forEach(function(directory) {
+    watched[directory].forEach(function(file) {
+      var absolutePath = sysPath.resolve(directory, file);
+      fs.unwatchFile(absolutePath, listeners[absolutePath]);
+      delete listeners[absolutePath];
     });
-  }
+  });
   this.watched = Object.create(null);
 
   this.removeAllListeners();
