@@ -213,10 +213,6 @@ FSWatcher.prototype._remove = function(directory, item) {
     this._remove(fullPath, nestedItem);
   }, this);
 
-  if (this.options.usePolling) {
-    fs.unwatchFile(absolutePath, this.listeners[absolutePath]);
-    delete this.listeners[absolutePath];
-  }
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
   delete this.watched[fullPath];
@@ -245,7 +241,10 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       if (event === 'add') {
         this._addToWatchedDir(parent, item);
       } else if (event === 'unlink') {
-        this._remove(parent, item);
+        // suppress unlink events on never before seen files (from atomic write)
+        if (info.type === 'directory' || watchedDir.indexOf(item) !== -1) {
+          this._remove(parent, item);
+        }
         return; // Don't emit event twice.
       }
       var eventName = info.type === 'file' ? event : event + 'Dir';
@@ -281,7 +280,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       return handleEvent('unlink');
     case 'moved':
       return fs.stat(path, function(error, stats) {
-        handleEvent(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
+        stats ? addOrChange() : handleEvent('unlink');
       });
     }
   }.bind(this));
@@ -511,16 +510,13 @@ FSWatcher.prototype.close = function() {
   this.watchers.forEach(function(watcher) {
     watcher[method]();
   });
-
-  if (this.options.usePolling) {
-    Object.keys(watched).forEach(function(directory) {
-      watched[directory].forEach(function(file) {
-        var absolutePath = sysPath.resolve(directory, file);
-        fs.unwatchFile(absolutePath, listeners[absolutePath]);
-        delete listeners[absolutePath];
-      });
+  Object.keys(watched).forEach(function(directory) {
+    watched[directory].forEach(function(file) {
+      var absolutePath = sysPath.resolve(directory, file);
+      fs.unwatchFile(absolutePath, listeners[absolutePath]);
+      delete listeners[absolutePath];
     });
-  }
+  });
   this.watched = Object.create(null);
 
   this.removeAllListeners();
