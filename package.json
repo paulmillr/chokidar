@@ -29,7 +29,9 @@
   "scripts": {
     "test": "mocha"
   },
-  "files": ["index.js"],
+  "files": [
+    "index.js"
+  ],
   "devDependencies": {
     "mocha": "~1.7.3",
     "chai": "~1.4.0",
@@ -41,5 +43,8 @@
   "optionalDependencies": {
     "fsevents": "0.3.0",
     "readdirp": "~1.1.0"
+  },
+  "dependencies": {
+    "async-each": "~0.1.4"
   }
 }
