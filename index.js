@@ -240,7 +240,10 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       if (event === 'add') {
         this._addToWatchedDir(parent, item);
       } else if (event === 'unlink') {
-        this._remove(parent, item);
+        // suppress unlink events on never before seen files (from atomic write)
+        if (info.type === 'directory' || watchedDir.indexOf(item) !== -1) {
+          this._remove(parent, item);
+        }
         return; // Don't emit event twice.
       }
       var eventName = info.type === 'file' ? event : event + 'Dir';
@@ -276,7 +279,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       return handleEvent('unlink');
     case 'moved':
       return fs.stat(path, function(error, stats) {
-        handleEvent(stats ? flags === 72960 ? 'change' : 'add' : 'unlink');
+        stats ? addOrChange() : handleEvent('unlink');
       });
     }
   }.bind(this));
