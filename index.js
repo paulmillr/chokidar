@@ -243,7 +243,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
     function addOrChange() {
       handleEvent(watchedDir.has(item) ? 'change' : 'add');
     }
-    var wrongEventFlags = [69888, 70400, 71424, 72704, 131328, 131840];
+    var wrongEventFlags = [69888, 70400, 71424, 72704, 73472, 131328, 131840];
     if (wrongEventFlags.indexOf(flags) !== -1) {
       if (info.event === 'deleted' || info.event === 'moved') {
         fs.stat(path, function(error, stats) {
