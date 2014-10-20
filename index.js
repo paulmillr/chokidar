@@ -336,10 +336,13 @@ FSWatcher.prototype._watch = function(item, callback) {
 
 // Returns nothing.
 FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
+  var dirname = sysPath.dirname(file);
+  var basename = sysPath.basename(file);
+  var parent = this._getWatchedDir(dirname);
+  // if the file is already being watched, do nothing
+  if (parent.has(basename)) return;
   this._watch(file, function(file, newStats) {
     if (!this._throttle('watch', file, 5)) return;
-    var dirname = sysPath.dirname(file);
-    var basename = sysPath.basename(file);
     if (!newStats || newStats && newStats.mtime.getTime() === 0) {
       fs.exists(file, function(exists) {
         // Fix issues where mtime is null but file is still present
@@ -349,7 +352,8 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
           this._emit('change', file, newStats);
         }
       }.bind(this));
-    } else if (this._getWatchedDir(dirname).has(basename)) {
+    // add is about to be emitted if file not already tracked in parent
+    } else if (parent.has(basename)) {
       this._emit('change', file, newStats);
     }
   }.bind(this));
