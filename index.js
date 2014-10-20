@@ -146,20 +146,14 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // -----------------
 FSWatcher.prototype._getWatchedDir = function(directory) {
   var dir = sysPath.resolve(directory);
-  if (!(dir in this.watched)) this.watched[dir] = [];
+  if (!(dir in this.watched)) this.watched[dir] = {
+    _items: Object.create(null),
+    add: function(item) {this._items[item] = true;},
+    remove: function(item) {delete this._items[item];},
+    has: function(item) {return item in this._items;},
+    children: function() {return Object.keys(this._items);}
+  };
   return this.watched[dir];
-};
-
-FSWatcher.prototype._addToWatchedDir = function(directory, basename) {
-  var watchedFiles = this._getWatchedDir(directory);
-  watchedFiles.push(basename);
-};
-
-FSWatcher.prototype._removeFromWatchedDir = function(directory, file) {
-  var watchedFiles = this._getWatchedDir(directory);
-  watchedFiles.some(function(watchedFile, index) {
-    if (watchedFile === file) return watchedFiles.splice(index, 1);
-  });
 };
 
 // File helpers
@@ -197,15 +191,15 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
-  var nestedDirectoryChildren = this._getWatchedDir(fullPath).slice();
-
-  // Remove directory / file from watched list.
-  this._removeFromWatchedDir(directory, item);
+  var nestedDirectoryChildren = this._getWatchedDir(fullPath).children();
 
   // Recursively remove children directories / files.
   nestedDirectoryChildren.forEach(function(nestedItem) {
     this._remove(fullPath, nestedItem);
   }, this);
+
+  // Remove directory / file from watched list.
+  this._getWatchedDir(directory).remove(item);
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
@@ -233,10 +227,10 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 
     var handleEvent = function handleEvent(event) {
       if (event === 'add') {
-        this._addToWatchedDir(parent, item);
+        this._getWatchedDir(parent).add(item);
       } else if (event === 'unlink') {
         // suppress unlink events on never before seen files (from atomic write)
-        if (info.type === 'directory' || watchedDir.indexOf(item) !== -1) {
+        if (info.type === 'directory' || watchedDir.has(item)) {
           this._remove(parent, item);
         }
         return; // Don't emit event twice.
@@ -247,7 +241,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 
     // correct for wrong events emitted
     function addOrChange() {
-      handleEvent(watchedDir.indexOf(item) !== -1 ? 'change' : 'add');
+      handleEvent(watchedDir.has(item) ? 'change' : 'add');
     }
     var wrongEventFlags = [69888, 70400, 71424, 72704, 131328, 131840];
     if (wrongEventFlags.indexOf(flags) !== -1) {
@@ -291,10 +285,10 @@ FSWatcher.prototype._watch = function(item, callback) {
   var directory = sysPath.dirname(item);
   var basename = sysPath.basename(item);
   var parent = this._getWatchedDir(directory);
-  if (parent.indexOf(basename) !== -1) return;
+  if (parent.has(basename)) return;
+  parent.add(basename);
   var absolutePath = sysPath.resolve(item);
   var options = {persistent: this.options.persistent};
-  this._addToWatchedDir(directory, basename);
   if (!callback) callback = Function.prototype; // empty function
 
   if (this.options.usePolling) {
@@ -378,7 +372,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       // Files that absent in current directory snapshot
       // but present in previous emit `remove` event
       // and are removed from @watched[directory].
-      previous.filter(function(file) {
+      previous.children().filter(function(file) {
         return file !== directory && current.indexOf(file) === -1;
       }).forEach(function(file) {
         this._remove(directory, file);
@@ -388,7 +382,7 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       // but absent in previous are added to watch list and
       // emit `add` event.
       current.filter(function(file) {
-        return previous.indexOf(file) === -1;
+        return !previous.has(file);
       }).forEach(function(file) {
         this._handle(sysPath.join(directory, file), initialAdd);
       }, this);
@@ -438,7 +432,7 @@ FSWatcher.prototype._handle = function(item, initialAdd) {
 
 FSWatcher.prototype._addToFsEvents = function(file) {
   var emitAdd = function(path, stats) {
-    this._addToWatchedDir(sysPath.dirname(path), sysPath.basename(path));
+    this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
     this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
   }.bind(this);
   if (!this.options.ignoreInitial) {
@@ -497,7 +491,7 @@ FSWatcher.prototype.close = function() {
     watcher[method]();
   });
   Object.keys(watched).forEach(function(directory) {
-    watched[directory].forEach(function(file) {
+    watched[directory].children().forEach(function(file) {
       var absolutePath = sysPath.resolve(directory, file);
       fs.unwatchFile(absolutePath, listeners[absolutePath]);
       delete listeners[absolutePath];
