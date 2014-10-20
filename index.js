@@ -188,10 +188,11 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
-  if (!this._throttle('remove', fullPath, 5)) return;
+  if (!this._throttle('remove', fullPath, 10)) return;
 
   // if the only watched file is removed, watch for its return
-  if (!isDirectory && !this.options.useFsEvents && Object.keys(this.watched).length === 1) {
+  var watchedDirs = Object.keys(this.watched);
+  if (!isDirectory && !this.options.useFsEvents && watchedDirs.length === 1) {
     this.add(directory, item);
   }
 
@@ -337,16 +338,18 @@ FSWatcher.prototype._watch = function(item, callback) {
 FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   this._watch(file, function(file, newStats) {
     if (!this._throttle('watch', file, 5)) return;
+    var dirname = sysPath.dirname(file);
+    var basename = sysPath.basename(file);
     if (!newStats || newStats && newStats.mtime.getTime() === 0) {
       fs.exists(file, function(exists) {
         // Fix issues where mtime is null but file is still present
         if (!exists) {
-          this._remove(sysPath.dirname(file), sysPath.basename(file));
+          this._remove(dirname, basename);
         } else {
           this._emit('change', file, newStats);
         }
       }.bind(this));
-    } else {
+    } else if (this._getWatchedDir(dirname).has(basename)) {
       this._emit('change', file, newStats);
     }
   }.bind(this));
