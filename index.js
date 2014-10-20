@@ -197,7 +197,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   if (!this._throttle('remove', fullPath, 5)) return;
 
   // if the only watched file is removed, watch for its return
-  if (!isDirectory && Object.keys(this.watched).length === 1) {
+  if (!isDirectory && !this.options.useFsEvents && Object.keys(this.watched).length === 1) {
     this.add(directory, item);
   }
 
