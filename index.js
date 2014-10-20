@@ -344,9 +344,9 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
   this._watch(file, function(file, newStats) {
     if (!this._throttle('watch', file, 5)) return;
     if (!newStats || newStats && newStats.mtime.getTime() === 0) {
-      fs.exists(file, function(exists) {
+      fs.stat(file, function(error, newStats) {
         // Fix issues where mtime is null but file is still present
-        if (!exists) {
+        if (error) {
           this._remove(dirname, basename);
         } else {
           this._emit('change', file, newStats);
