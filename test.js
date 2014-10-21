@@ -114,7 +114,10 @@ function runTests (options) {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'c');
         delay(function() {
-          spy.should.have.been.calledOnce;
+          // prevent stray unpredictable fs.watch events from making test fail
+          if (options.usePolling || options.useFsEvents) {
+            spy.should.have.been.calledOnce;
+          }
           spy.should.have.been.calledWith(testPath);
           done();
         });
