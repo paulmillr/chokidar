@@ -261,6 +261,27 @@ function runTests (options) {
         });
       });
     });
+    it('should ignore unwatched siblings', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('add.txt');
+      var siblingPath = getFixturePath('change.txt');
+      options.persistent = true;
+      var watcher = chokidar.watch(testPath, options).on('all', spy);
+      delay(function() {
+        fs.writeFileSync(siblingPath, 'c');
+        delay(function() {
+          spy.should.not.have.been.called;
+          fs.writeFileSync(testPath, 'a');
+          delay(function() {
+            fs.unlinkSync(testPath);
+            spy.should.have.been.calledWith('add', testPath);
+            delete options.persistent;
+            watcher.close();
+            done();
+          });
+        });
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
