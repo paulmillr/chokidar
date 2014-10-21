@@ -466,7 +466,7 @@ FSWatcher.prototype._addToFsEvents = function(file) {
       }
     }.bind(this));
   }
-  this._watchWithFsEvents(file);
+  if (this.options.persistent) this._watchWithFsEvents(file);
   return this;
 };
 
