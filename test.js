@@ -240,6 +240,27 @@ function runTests (options) {
         });
       }, 1000);
     });
+    it('should detect unlink and re-add', function(done) {
+      var unlinkSpy = sinon.spy(function unlink(){});
+      var addSpy = sinon.spy(function add(){});
+      var testPath = getFixturePath('unlink.txt');
+      options.persistent = true;
+      var watcher = chokidar.watch(testPath, options)
+        .on('unlink', unlinkSpy).on('add', addSpy);
+      delay(function() {
+        fs.unlinkSync(testPath);
+        delay(function() {
+          unlinkSpy.should.have.been.calledWith(testPath);
+          fs.writeFileSync(testPath, 'c');
+          delay(function() {
+            addSpy.should.have.been.calledWith(testPath);
+            watcher.close();
+            delete options.persistent;
+            done();
+          });
+        });
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
