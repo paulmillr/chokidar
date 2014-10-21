@@ -197,7 +197,19 @@ function runTests (options) {
   describe('watch individual files', function() {
     // need to be persistent or watcher will exit for non-existent files
     before(function() {options.persistent = true;});
-    after(function() {delete options.persistent;});
+    function clean() {
+      fs.writeFileSync(getFixturePath('change.txt'), 'b');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+    }
+    beforeEach(function(done) {
+      clean();
+      delay(done);
+    });
+    after(function() {
+      delete options.persistent;
+      clean();
+    });
     it('should detect changes', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
@@ -220,7 +232,6 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledWith(testPath);
           watcher.close();
-          fs.writeFileSync(testPath, 'c');
           done();
         });
       });
@@ -233,7 +244,6 @@ function runTests (options) {
       setTimeout(function() {
         fs.writeFileSync(testPath, 'a');
         delay(function() {
-          fs.unlinkSync(testPath);
           spy.should.have.been.calledWith(testPath);
           watcher.close();
           done();
@@ -250,7 +260,6 @@ function runTests (options) {
         fs.unlinkSync(testPath);
         delay(function() {
           unlinkSpy.should.have.been.calledWith(testPath);
-          fs.writeFileSync(testPath, 'c');
           delay(function() {
             addSpy.should.have.been.calledWith(testPath);
             watcher.close();
@@ -270,7 +279,6 @@ function runTests (options) {
           spy.should.not.have.been.called;
           fs.writeFileSync(testPath, 'a');
           delay(function() {
-            fs.unlinkSync(testPath);
             spy.should.have.been.calledWith('add', testPath);
             watcher.close();
             done();
@@ -361,7 +369,7 @@ function runTests (options) {
           delay(function(){
             spy.should.have.been.calledThrice;
             done();
-          })
+          });
         });
       });
     });
