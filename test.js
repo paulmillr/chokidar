@@ -195,6 +195,9 @@ function runTests (options) {
     });
   });
   describe('watch individual files', function() {
+    // need to be persistent or watcher will exit for non-existent files
+    before(function() {options.persistent = true;});
+    after(function() {delete options.persistent;});
     it('should detect changes', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
@@ -225,8 +228,6 @@ function runTests (options) {
     it('should watch non-existent file and detect add', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
-      // need to be persistent or watcher will exit
-      options.persistent = true;
       var watcher = chokidar.watch(testPath, options).on('add', spy);
       // polling takes a bit longer here
       setTimeout(function() {
@@ -235,7 +236,6 @@ function runTests (options) {
           fs.unlinkSync(testPath);
           spy.should.have.been.calledWith(testPath);
           watcher.close();
-          delete options.persistent;
           done();
         });
       }, 1000);
@@ -244,7 +244,6 @@ function runTests (options) {
       var unlinkSpy = sinon.spy(function unlink(){});
       var addSpy = sinon.spy(function add(){});
       var testPath = getFixturePath('unlink.txt');
-      options.persistent = true;
       var watcher = chokidar.watch(testPath, options)
         .on('unlink', unlinkSpy).on('add', addSpy);
       delay(function() {
@@ -255,7 +254,6 @@ function runTests (options) {
           delay(function() {
             addSpy.should.have.been.calledWith(testPath);
             watcher.close();
-            delete options.persistent;
             done();
           });
         });
@@ -265,7 +263,6 @@ function runTests (options) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
       var siblingPath = getFixturePath('change.txt');
-      options.persistent = true;
       var watcher = chokidar.watch(testPath, options).on('all', spy);
       delay(function() {
         fs.writeFileSync(siblingPath, 'c');
@@ -275,7 +272,6 @@ function runTests (options) {
           delay(function() {
             fs.unlinkSync(testPath);
             spy.should.have.been.calledWith('add', testPath);
-            delete options.persistent;
             watcher.close();
             done();
           });
