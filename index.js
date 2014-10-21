@@ -485,11 +485,10 @@ FSWatcher.prototype.add = function(files, _origAdd) {
     each(files, function(file, next) {
       this._handle(file, this._initialAdd, _origAdd, next);
     }.bind(this), function(error, results) {
-      results
-        .filter(function(item){return item;})
-        .forEach(function(fail){
-          this.add(sysPath.dirname(fail), sysPath.basename(_origAdd || fail));
-        }, this);
+      results.forEach(function(item){
+        if (!item) return;
+        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+      }, this);
     }.bind(this));
   }
 
