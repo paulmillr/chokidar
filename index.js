@@ -488,7 +488,7 @@ FSWatcher.prototype.add = function(files, _origAdd) {
       results
         .filter(function(item){return item;})
         .forEach(function(fail){
-          this.add(sysPath.dirname(fail), _origAdd || fail);
+          this.add(sysPath.dirname(fail), sysPath.basename(_origAdd || fail));
         }, this);
     }.bind(this));
   }
