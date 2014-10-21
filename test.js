@@ -191,6 +191,21 @@ function runTests (options) {
       });
     });
   });
+  describe('watch individual files', function() {
+    it('should detect changes', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('change.txt');
+      var watcher = chokidar.watch(testPath, options).on('change', spy);
+      delay(function() {
+        fs.writeFileSync(testPath, 'c');
+        delay(function() {
+          spy.should.have.always.been.calledWith(testPath);
+          watcher.close();
+          done();
+        });
+      });
+    });
+  });
   describe('watch options', function() {
     function clean (done) {
       try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
