@@ -238,7 +238,7 @@ function runTests (options) {
           delete options.persistent;
           done();
         });
-      }, 500);
+      }, 1000);
     });
   });
   describe('watch options', function() {
