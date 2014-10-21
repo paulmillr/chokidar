@@ -44,6 +44,8 @@ describe('chokidar', function() {
 function runTests (options) {
   if (!options) options = {};
 
+  options.persistent = true;
+
   describe('watch', function() {
     beforeEach(function(done) {
       this.watcher = chokidar.watch(fixturesPath, options);
@@ -195,21 +197,14 @@ function runTests (options) {
     });
   });
   describe('watch individual files', function() {
-    // need to be persistent or watcher will exit for non-existent files
-    before(function() {options.persistent = true;});
-    function clean() {
+    function clean(done) {
       fs.writeFileSync(getFixturePath('change.txt'), 'b');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-    }
-    beforeEach(function(done) {
-      clean();
       delay(done);
-    });
-    after(function() {
-      delete options.persistent;
-      clean();
-    });
+    }
+    beforeEach(clean);
+    after(clean);
     it('should detect changes', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
