@@ -3,6 +3,7 @@ var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
 var os = require('os');
 var sysPath = require('path');
+var each = require('async-each');
 
 var fsevents, readdirp;
 try {
@@ -187,7 +188,13 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
-  if (!this._throttle('remove', fullPath, 5)) return;
+  if (!this._throttle('remove', fullPath, 10)) return;
+
+  // if the only watched file is removed, watch for its return
+  var watchedDirs = Object.keys(this.watched);
+  if (!isDirectory && !this.options.useFsEvents && watchedDirs.length === 1) {
+    this.add(directory, item);
+  }
 
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
@@ -329,18 +336,24 @@ FSWatcher.prototype._watch = function(item, callback) {
 
 // Returns nothing.
 FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
+  var dirname = sysPath.dirname(file);
+  var basename = sysPath.basename(file);
+  var parent = this._getWatchedDir(dirname);
+  // if the file is already being watched, do nothing
+  if (parent.has(basename)) return;
   this._watch(file, function(file, newStats) {
     if (!this._throttle('watch', file, 5)) return;
-    if (newStats && newStats.mtime.getTime() === 0) {
-      fs.exists(file, function(exists) {
+    if (!newStats || newStats && newStats.mtime.getTime() === 0) {
+      fs.stat(file, function(error, newStats) {
         // Fix issues where mtime is null but file is still present
-        if (!exists) {
-          this._remove(sysPath.dirname(file), sysPath.basename(file));
+        if (error) {
+          this._remove(dirname, basename);
         } else {
           this._emit('change', file, newStats);
         }
       }.bind(this));
-    } else {
+    // add is about to be emitted if file not already tracked in parent
+    } else if (parent.has(basename)) {
       this._emit('change', file, newStats);
     }
   }.bind(this));
@@ -358,8 +371,8 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // * initialAdd - boolean, was the file added at watch instantiation?
 
 // Returns nothing.
-FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
-  var read = function read(directory, initialAdd) {
+FSWatcher.prototype._handleDir = function(directory, stats, initialAdd, target) {
+  var read = function read(directory, initialAdd, target) {
     var throttler = this._throttle('readdir', directory, 1000);
     if (!throttler) return;
     fs.readdir(directory, function(error, current) {
@@ -382,20 +395,20 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
       // but absent in previous are added to watch list and
       // emit `add` event.
       current.filter(function(file) {
-        return !previous.has(file);
+        return file === target || !target && !previous.has(file);
       }).forEach(function(file) {
-        this._handle(sysPath.join(directory, file), initialAdd);
+        this._handle(sysPath.join(directory, file), initialAdd, target);
       }, this);
     }.bind(this));
   }.bind(this);
-  read(directory, initialAdd);
+  if (!target) read(directory, initialAdd);
   this._watch(directory, function(dir, stats) {
     // Current directory is removed, do nothing
     if (stats && stats.mtime.getTime() === 0) return;
 
-    read(dir, false);
+    read(dir, false, target);
   });
-  if (!(initialAdd && this.options.ignoreInitial)) {
+  if (!(initialAdd && this.options.ignoreInitial) && !target) {
     this._emit('addDir', directory, stats);
   }
 };
@@ -407,25 +420,27 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd) {
 // * initialAdd - boolean, was the file added at watch instantiation?
 
 // Returns nothing.
-FSWatcher.prototype._handle = function(item, initialAdd) {
-  if (this._isIgnored(item) || this.closed) return;
+FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
+  if (!callback) callback = Function.prototype;
+  if (this._isIgnored(item) || this.closed) return callback(null, item);
 
   fs.realpath(item, function(error, path) {
-    if (this._handleError(error)) return;
+    if (this._handleError(error)) return callback(null, item);
     fs.stat(path, function(error, stats) {
-      if (this._handleError(error)) return;
+      if (this._handleError(error)) return callback(null, item);
       if ((
         this.options.ignorePermissionErrors &&
         !this._hasReadPermissions(stats)
       ) || (
         this._isIgnored.length === 2 &&
         this._isIgnored(item, stats)
-      )) return;
+      )) return callback(null, false);
       if (stats.isFile() || stats.isCharacterDevice()) {
-        this._handleFile(item, stats, initialAdd);
+        this._handleFile(item, stats, initialAdd, target);
       } else if (stats.isDirectory()) {
-        this._handleDir(item, stats, initialAdd);
+        this._handleDir(item, stats, initialAdd, target);
       }
+      callback(null, false);
     }.bind(this));
   }.bind(this));
 };
@@ -460,17 +475,22 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 // * files - array of strings (file or directory paths).
 
 // Returns an instance of FSWatcher for chaining.
-FSWatcher.prototype.add = function(files) {
+FSWatcher.prototype.add = function(files, _origAdd) {
   if (!('_initialAdd' in this)) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
-  files.forEach(function(file) {
-    if (this.options.useFsEvents) {
-      this._addToFsEvents(file);
-    } else {
-      this._handle(file, this._initialAdd);
-    }
-  }, this);
+  if (this.options.useFsEvents) {
+    files.forEach(this._addToFsEvents, this);
+  } else if (!this.closed) {
+    each(files, function(file, next) {
+      this._handle(file, this._initialAdd, _origAdd, next);
+    }.bind(this), function(error, results) {
+      results.forEach(function(item){
+        if (!item) return;
+        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+      }, this);
+    }.bind(this));
+  }
 
   this._initialAdd = false;
   return this;

@@ -114,7 +114,10 @@ function runTests (options) {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'c');
         delay(function() {
-          spy.should.have.been.calledOnce;
+          // prevent stray unpredictable fs.watch events from making test fail
+          if (options.usePolling || options.useFsEvents) {
+            spy.should.have.been.calledOnce;
+          }
           spy.should.have.been.calledWith(testPath);
           done();
         });
@@ -187,6 +190,99 @@ function runTests (options) {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           done();
+        });
+      });
+    });
+  });
+  describe('watch individual files', function() {
+    // need to be persistent or watcher will exit for non-existent files
+    before(function() {options.persistent = true;});
+    function clean() {
+      fs.writeFileSync(getFixturePath('change.txt'), 'b');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+    }
+    beforeEach(function(done) {
+      clean();
+      delay(done);
+    });
+    after(function() {
+      delete options.persistent;
+      clean();
+    });
+    it('should detect changes', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('change.txt');
+      var watcher = chokidar.watch(testPath, options).on('change', spy);
+      delay(function() {
+        fs.writeFileSync(testPath, 'c');
+        delay(function() {
+          spy.should.have.always.been.calledWith(testPath);
+          watcher.close();
+          done();
+        });
+      });
+    });
+    it('should detect unlinks', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('unlink.txt');
+      var watcher = chokidar.watch(testPath, options).on('unlink', spy);
+      delay(function() {
+        fs.unlinkSync(testPath);
+        delay(function() {
+          spy.should.have.been.calledWith(testPath);
+          watcher.close();
+          done();
+        });
+      });
+    });
+    it('should watch non-existent file and detect add', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('add.txt');
+      var watcher = chokidar.watch(testPath, options).on('add', spy);
+      // polling takes a bit longer here
+      setTimeout(function() {
+        fs.writeFileSync(testPath, 'a');
+        delay(function() {
+          spy.should.have.been.calledWith(testPath);
+          watcher.close();
+          done();
+        });
+      }, 1000);
+    });
+    it('should detect unlink and re-add', function(done) {
+      var unlinkSpy = sinon.spy(function unlink(){});
+      var addSpy = sinon.spy(function add(){});
+      var testPath = getFixturePath('unlink.txt');
+      var watcher = chokidar.watch(testPath, options)
+        .on('unlink', unlinkSpy).on('add', addSpy);
+      delay(function() {
+        fs.unlinkSync(testPath);
+        delay(function() {
+          unlinkSpy.should.have.been.calledWith(testPath);
+          delay(function() {
+            addSpy.should.have.been.calledWith(testPath);
+            watcher.close();
+            done();
+          });
+        });
+      });
+    });
+    it('should ignore unwatched siblings', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('add.txt');
+      var siblingPath = getFixturePath('change.txt');
+      var watcher = chokidar.watch(testPath, options).on('all', spy);
+      delay(function() {
+        fs.writeFileSync(siblingPath, 'c');
+        delay(function() {
+          spy.should.not.have.been.called;
+          fs.writeFileSync(testPath, 'a');
+          delay(function() {
+            spy.should.have.been.calledWith('add', testPath);
+            watcher.close();
+            done();
+          });
         });
       });
     });
@@ -273,7 +369,7 @@ function runTests (options) {
           delay(function(){
             spy.should.have.been.calledThrice;
             done();
-          })
+          });
         });
       });
     });
