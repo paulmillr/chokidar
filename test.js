@@ -219,6 +219,24 @@ function runTests (options) {
         });
       });
     });
+    it('should watch non-existent file and detect add', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('add.txt');
+      // need to be persistent or watcher will exit
+      options.persistent = true;
+      var watcher = chokidar.watch(testPath, options).on('add', spy);
+      // polling takes a bit longer here
+      setTimeout(function() {
+        fs.writeFileSync(testPath, 'a');
+        delay(function() {
+          fs.unlinkSync(testPath);
+          spy.should.have.been.calledWith(testPath);
+          watcher.close();
+          delete options.persistent;
+          done();
+        });
+      }, 500);
+    });
   });
   describe('watch options', function() {
     function clean (done) {
