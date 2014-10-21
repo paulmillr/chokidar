@@ -205,6 +205,20 @@ function runTests (options) {
         });
       });
     });
+    it('should detect unlinks', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('unlink.txt');
+      var watcher = chokidar.watch(testPath, options).on('unlink', spy);
+      delay(function() {
+        fs.unlinkSync(testPath);
+        delay(function() {
+          spy.should.have.been.calledWith(testPath);
+          watcher.close();
+          fs.writeFileSync(testPath, 'c');
+          done();
+        });
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
