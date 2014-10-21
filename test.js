@@ -214,14 +214,14 @@ function runTests (options) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
       var watcher = chokidar.watch(testPath, options).on('change', spy);
-      delay(function() {
+      setTimeout(function() {
         fs.writeFileSync(testPath, 'c');
         delay(function() {
-          spy.should.have.always.been.calledWith(testPath);
           watcher.close();
+          spy.should.have.always.been.calledWith(testPath);
           done();
         });
-      });
+      }, 500);
     });
     it('should detect unlinks', function(done) {
       var spy = sinon.spy();
