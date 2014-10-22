@@ -369,6 +369,7 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // * directory  - string, fs path.
 // * stats      - object, result of fs.stat
 // * initialAdd - boolean, was the file added at watch instantiation?
+// * target     - child path actually targeted for watch
 
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(directory, stats, initialAdd, target) {
@@ -416,8 +417,10 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd, target) 
 // Private: Handle added file or directory.
 // Delegates call to _handleFile / _handleDir after checks.
 
-// * item - string, path to file or directory.
+// * item       - string, path to file or directory.
 // * initialAdd - boolean, was the file added at watch instantiation?
+// * target     - child path actually targeted for watch
+// * callback   - indicates whether the item was found or not
 
 // Returns nothing.
 FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
@@ -472,7 +475,8 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 
 // Public: Adds directories / files for tracking.
 
-// * files - array of strings (file or directory paths).
+// * files    - array of strings (file or directory paths).
+// * _origAdd - private argument for handling non-existent paths to be watched
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(files, _origAdd) {
