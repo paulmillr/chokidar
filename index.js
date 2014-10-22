@@ -439,7 +439,7 @@ FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
         this._isIgnored(item, stats)
       )) return callback(null, false);
       if (stats.isFile() || stats.isCharacterDevice()) {
-        this._handleFile(item, stats, initialAdd, target);
+        this._handleFile(item, stats, initialAdd);
       } else if (stats.isDirectory()) {
         this._handleDir(item, stats, initialAdd, target);
       }
