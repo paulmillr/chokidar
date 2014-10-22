@@ -36,8 +36,7 @@
     "mocha": "~2.0.0",
     "chai": "~1.9.2",
     "sinon": "~1.10.3",
-    "sinon-chai": "~2.6.0",
-    "rimraf": "~2.2.8"
+    "sinon-chai": "~2.6.0"
   },
   "optionalDependencies": {
     "fsevents": "0.3.0",
