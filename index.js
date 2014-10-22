@@ -366,13 +366,13 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // Private: Read directory to add / remove files from `@watched` list
 // and re-read it on change.
 
-// * directory  - string, fs path.
+// * dir        - string, fs path.
 // * stats      - object, result of fs.stat
 // * initialAdd - boolean, was the file added at watch instantiation?
 // * target     - child path actually targeted for watch
 
 // Returns nothing.
-FSWatcher.prototype._handleDir = function(directory, stats, initialAdd, target) {
+FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
   var read = function read(directory, initialAdd, target) {
     var throttler = this._throttle('readdir', directory, 1000);
     if (!throttler) return;
@@ -402,15 +402,15 @@ FSWatcher.prototype._handleDir = function(directory, stats, initialAdd, target) 
       }, this);
     }.bind(this));
   }.bind(this);
-  if (!target) read(directory, initialAdd);
-  this._watch(directory, function(dir, stats) {
+  if (!target) read(dir, initialAdd);
+  this._watch(dir, function(dirPath, stats) {
     // Current directory is removed, do nothing
     if (stats && stats.mtime.getTime() === 0) return;
 
-    read(dir, false, target);
+    read(dirPath, false, target);
   });
   if (!(initialAdd && this.options.ignoreInitial) && !target) {
-    this._emit('addDir', directory, stats);
+    this._emit('addDir', dir, stats);
   }
 };
 
