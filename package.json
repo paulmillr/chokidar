@@ -37,7 +37,6 @@
     "chai": "~1.4.0",
     "sinon": "~1.5.2",
     "sinon-chai": "2.2.0",
-    "coffee-script": "~1.6.0",
     "rimraf": "~2.2.2"
   },
   "optionalDependencies": {
