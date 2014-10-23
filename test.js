@@ -15,13 +15,8 @@ function getFixturePath (subPath) {
 
 var fixturesPath = getFixturePath('');
 
-function delay (fn) {
-  return setTimeout(fn, 250);
-}
-
-before(function(done) {
+before(function() {
   try {fs.mkdirSync(fixturesPath, 0x1ed);} catch(err) {}
-  delay(done);
 });
 
 after(function() {
@@ -43,6 +38,10 @@ describe('chokidar', function() {
 
 function runTests (options) {
   if (!options) options = {};
+
+  var delayTime = options.usePolling ? 350 : 205;
+  function delay (fn) { return setTimeout(fn, delayTime); }
+  function ddelay (fn) { return setTimeout(fn, delayTime * (options.usePolling ? 3 : 1)); }
 
   options.persistent = true;
 
@@ -209,14 +208,14 @@ function runTests (options) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
       var watcher = chokidar.watch(testPath, options).on('change', spy);
-      setTimeout(function() {
+      ddelay(function() {
         fs.writeFileSync(testPath, 'c');
         delay(function() {
           watcher.close();
           spy.should.have.always.been.calledWith(testPath);
           done();
         });
-      }, 500);
+      });
     });
     it('should detect unlinks', function(done) {
       var spy = sinon.spy();
@@ -236,14 +235,14 @@ function runTests (options) {
       var testPath = getFixturePath('add.txt');
       var watcher = chokidar.watch(testPath, options).on('add', spy);
       // polling takes a bit longer here
-      setTimeout(function() {
+      ddelay(function() {
         fs.writeFileSync(testPath, 'a');
         delay(function() {
           spy.should.have.been.calledWith(testPath);
           watcher.close();
           done();
         });
-      }, 1000);
+      });
     });
     it('should detect unlink and re-add', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
