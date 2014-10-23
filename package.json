@@ -43,6 +43,6 @@
     "readdirp": "~1.1.0"
   },
   "dependencies": {
-    "async-each": "~0.1.4"
+    "async-each": "~0.1.5"
   }
 }
