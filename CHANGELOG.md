@@ -1,3 +1,7 @@
+# Chokidar 0.10.2 (23 October 2014)
+* Improve individual file watching
+* Fix fsevents keeping process alive when `persistent: false`
+
 # Chokidar 0.10.1 (19 October 2014)
 * Improve handling of text editor atomic writes
 
