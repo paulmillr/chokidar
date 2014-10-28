@@ -236,15 +236,23 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       info.type === 'directory' ? path : parent
     );
 
-    var handleEvent = function handleEvent(event) {
-      if (event === 'add') {
-        this._getWatchedDir(parent).add(item);
-      } else if (event === 'unlink') {
+    var handleEvent = function (event) {
+      if (event === 'unlink') {
         // suppress unlink events on never before seen files (from atomic write)
         if (info.type === 'directory' || watchedDir.has(item)) {
           this._remove(parent, item);
+        } else {
+          fs.stat(path, function(error, stats) {
+            if (!stats) return;
+            info.type = stats.isDirectory() ? 'directory' : 'file';
+            handleEvent('add');
+          });
         }
         return; // Don't emit event twice.
+      }
+      if (event === 'add') {
+        this._getWatchedDir(parent).add(item);
+        if (info.type === 'directory') this._getWatchedDir(path);
       }
       var eventName = info.type === 'file' ? event : event + 'Dir';
       this._emit(eventName, path);
@@ -255,8 +263,8 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       handleEvent(watchedDir.has(item) ? 'change' : 'add');
     }
     var wrongEventFlags = [69888, 70400, 71424, 72704, 73472, 131328, 131840];
-    if (wrongEventFlags.indexOf(flags) !== -1) {
-      if (info.event === 'deleted' || info.event === 'moved') {
+    if (wrongEventFlags.indexOf(flags) !== -1 || info.event === 'unknown') {
+      if (info.event !== 'add' && info.event !== 'change') {
         fs.stat(path, function(error, stats) {
           if (stats) {
             addOrChange();
