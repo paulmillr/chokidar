@@ -332,8 +332,10 @@ function runTests (options) {
       before(function() {
         options.ignoreInitial = false;
       });
-      after(function() {
+      afterEach(function() {
         watcher.close();
+      });
+      after(function() {
         delete options.ignoreInitial;
       });
       it('should emit `add` events for preexisting files', function(done) {
