@@ -291,12 +291,8 @@ function runTests (options) {
     beforeEach(clean);
     after(clean);
     describe('ignoreInitial:true', function() {
-      before(function() {
-        options.ignoreInitial = true;
-      });
-      after(function() {
-        delete options.ignoreInitial;
-      });
+      before(function() { options.ignoreInitial = true; });
+      after(function() { delete options.ignoreInitial; });
       it('should ignore inital add events', function(done) {
         var spy = sinon.spy();
         var watcher = chokidar.watch(fixturesPath, options);
@@ -329,15 +325,9 @@ function runTests (options) {
     });
     describe('ignoreInitial:false', function() {
       var watcher;
-      before(function() {
-        options.ignoreInitial = false;
-      });
-      afterEach(function() {
-        watcher.close();
-      });
-      after(function() {
-        delete options.ignoreInitial;
-      });
+      before(function() { options.ignoreInitial = false; });
+      afterEach(function() { watcher.close(); });
+      after(function() { delete options.ignoreInitial; });
       it('should emit `add` events for preexisting files', function(done) {
         var spy = sinon.spy();
         watcher = chokidar.watch(fixturesPath, options).on('add', spy);
@@ -369,9 +359,7 @@ function runTests (options) {
       });
     });
     describe('ignored', function() {
-      after(function() {
-        delete options.ignored;
-      });
+      after(function() { delete options.ignored; });
       it('should check ignore after stating', function(done) {
         var testDir = getFixturePath('subdir');
         var spy = sinon.spy();
@@ -400,12 +388,10 @@ function runTests (options) {
     before(function() {
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
     });
-
     after(function() {
       this.watcher.close();
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
     });
-
     it('should ignore further events on close', function(done) {
       var watcher = this.watcher = chokidar.watch(fixturesPath, options);
       var spy = sinon.spy();
@@ -422,7 +408,6 @@ function runTests (options) {
           });
         });
       });
-
       fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
       fs.unlinkSync(getFixturePath('add.txt'));
     });
