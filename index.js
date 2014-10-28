@@ -184,7 +184,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   // if it is not a directory, nestedDirectoryChildren will be empty array
   var fullPath = sysPath.join(directory, item);
   var absolutePath = sysPath.resolve(fullPath);
-  var isDirectory = this.watched[fullPath];
+  var isDirectory = this.watched[fullPath] || this.watched[absolutePath];
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
@@ -211,6 +211,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
   delete this.watched[fullPath];
+  delete this.watched[absolutePath];
   var eventName = isDirectory ? 'unlinkDir' : 'unlink';
   this._emit(eventName, fullPath);
 };
