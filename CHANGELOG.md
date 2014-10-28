@@ -1,3 +1,8 @@
+# Chokidar 0.10.3 (28 October 2014)
+* Fix removed dir emitting as `unlink` instead of `unlinkDir`
+* Fix issues with file changing to dir or vice versa (gh-165)
+* Fix handling of `ignored` option in fsevents mode
+
 # Chokidar 0.10.2 (23 October 2014)
 * Improve individual file watching
 * Fix fsevents keeping process alive when `persistent: false`
