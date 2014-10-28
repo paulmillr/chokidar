@@ -124,7 +124,10 @@ FSWatcher.prototype._emit = function(event) {
 };
 
 FSWatcher.prototype._handleError = function(error) {
-  if (error && error.code !== 'ENOENT') this.emit('error', error);
+  if (error &&
+    error.code !== 'ENOENT' &&
+    error.code !== 'ENOTDIR'
+  ) this.emit('error', error);
   return error || this.closed;
 };
 
@@ -407,7 +410,6 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
   this._watch(dir, function(dirPath, stats) {
     // Current directory is removed, do nothing
     if (stats && stats.mtime.getTime() === 0) return;
-
     read(dirPath, false, target);
   });
   if (!(initialAdd && this.options.ignoreInitial) && !target) {
