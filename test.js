@@ -302,8 +302,8 @@ function runTests (options) {
         var watcher = chokidar.watch(fixturesPath, options);
         watcher.on('add', spy);
         delay(function() {
-          spy.should.not.have.been.called;
           watcher.close();
+          spy.should.not.have.been.called;
           done();
         });
       });
@@ -319,9 +319,9 @@ function runTests (options) {
           watcher.add(testDir);
           fs.writeFileSync(testPath, 'hello');
           delay(function() {
+            watcher.close();
             spy.should.have.been.calledOnce;
             spy.should.have.been.calledWith(testPath);
-            watcher.close();
             done();
           });
         });
@@ -385,9 +385,9 @@ function runTests (options) {
         fs.mkdirSync(testDir + '/dir', 0x1ed);
         fs.writeFileSync(testDir + '/dir/ignored.txt', '');
         delay(function() {
+          watcher.close();
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(sysPath.join(testDir, 'add.txt'));
-          watcher.close();
           done();
         });
       });
