@@ -70,6 +70,7 @@ function FSWatcher(_opts) {
   if (_opts) for (var opt in _opts) opts[opt] = _opts[opt];
   this.watched = Object.create(null);
   this.watchers = [];
+  this.ignoredPaths = Object.create(null);
   this.closed = false;
   this._throttled = Object.create(null);
 
@@ -91,20 +92,28 @@ function FSWatcher(_opts) {
   // Disable polling on Windows.
   if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWin32;
 
-  this._isIgnored = (function(ignored) {
-    switch (toString.call(ignored)) {
-    case '[object RegExp]':
-      return function(string) {
-        return ignored.test(string);
-      };
-    case '[object Function]':
-      return ignored;
-    default:
-      return function() {
-        return false;
-      };
+  this._isIgnored = function(path, stats) {
+    var userIgnored = (function(ignored) {
+      switch (toString.call(ignored)) {
+      case '[object RegExp]':
+        return function(string) {
+          return ignored.test(string);
+        };
+      case '[object Function]':
+        return ignored;
+      default:
+        return function() {
+          return false;
+        };
+      }
+    })(opts.ignored);
+    var ignoredPaths = Object.keys(this.ignoredPaths);
+    function isParent(ip) {
+      return !path.indexOf(ip + sysPath.sep);
     }
-  })(opts.ignored);
+    return ignoredPaths.length && ignoredPaths.some(isParent) ||
+      userIgnored(path, stats);
+  };
 
   this.options = opts;
 
@@ -235,6 +244,14 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
     var watchedDir = this._getWatchedDir(
       info.type === 'directory' ? path : parent
     );
+    var checkIgnored = function (stats) {
+      if (this._isIgnored(path, stats)) {
+        this.ignoredPaths[fullPath] = true;
+        return true;
+      } else {
+        delete this.ignoredPaths[fullPath];
+      }
+    }.bind(this);
 
     var handleEvent = function (event) {
       if (event === 'unlink') {
@@ -243,7 +260,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
           this._remove(parent, item);
         } else {
           fs.stat(path, function(error, stats) {
-            if (!stats) return;
+            if (!stats || checkIgnored(stats)) return;
             info.type = stats.isDirectory() ? 'directory' : 'file';
             handleEvent('add');
           });
@@ -266,6 +283,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
     if (wrongEventFlags.indexOf(flags) !== -1 || info.event === 'unknown') {
       if (info.event !== 'add' && info.event !== 'change') {
         fs.stat(path, function(error, stats) {
+          if (checkIgnored(stats)) return;
           if (stats) {
             addOrChange();
           } else {
