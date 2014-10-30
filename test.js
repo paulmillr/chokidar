@@ -39,7 +39,7 @@ describe('chokidar', function() {
 function runTests (options) {
   if (!options) options = {};
 
-  var delayTime = options.usePolling ? 350 : 205;
+  var delayTime = options.usePolling ? 350 : options.useFsEvents ? 205 : 250;
   function delay (fn) { return setTimeout(fn, delayTime); }
   function ddelay (fn) { return setTimeout(fn, delayTime * (options.usePolling ? 3 : 1)); }
 
