@@ -1,3 +1,7 @@
+# Chokidar 0.10.4 (5 November 2014)
+* Bump fsevents dependency to ~0.3.1
+  * Should resolve build warnings and `npm rebuild` on non-Macs
+
 # Chokidar 0.10.3 (28 October 2014)
 * Fix removed dir emitting as `unlink` instead of `unlinkDir`
 * Fix issues with file changing to dir or vice versa (gh-165)
