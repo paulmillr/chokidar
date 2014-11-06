@@ -92,28 +92,6 @@ function FSWatcher(_opts) {
   // Disable polling on Windows.
   if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWin32;
 
-  this._isIgnored = function(path, stats) {
-    var userIgnored = (function(ignored) {
-      switch (toString.call(ignored)) {
-      case '[object RegExp]':
-        return function(string) {
-          return ignored.test(string);
-        };
-      case '[object Function]':
-        return ignored;
-      default:
-        return function() {
-          return false;
-        };
-      }
-    })(opts.ignored);
-    var ignoredPaths = Object.keys(this.ignoredPaths);
-    function isParent(ip) {
-      return !path.indexOf(ip + sysPath.sep);
-    }
-    return ignoredPaths.length && ignoredPaths.some(isParent) ||
-      userIgnored(path, stats);
-  };
 
   this.options = opts;
 
@@ -153,6 +131,29 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
   var timeoutObject = setTimeout(clear, timeout);
   throttled[path] = {timeoutObject: timeoutObject, clear: clear};
   return throttled[path];
+};
+
+FSWatcher.prototype._isIgnored = function(path, stats) {
+  var userIgnored = (function(ignored) {
+    switch (toString.call(ignored)) {
+    case '[object RegExp]':
+      return function(string) {
+        return ignored.test(string);
+      };
+    case '[object Function]':
+      return ignored;
+    default:
+      return function() {
+        return false;
+      };
+    }
+  })(this.options.ignored);
+  var ignoredPaths = Object.keys(this.ignoredPaths);
+  function isParent(ip) {
+    return !path.indexOf(ip + sysPath.sep);
+  }
+  return ignoredPaths.length && ignoredPaths.some(isParent) ||
+    userIgnored(path, stats);
 };
 
 // Directory helpers
