@@ -232,7 +232,9 @@ FSWatcher.prototype._remove = function(directory, item) {
 };
 
 // FS Events helper.
+var FSEventsInstanceCount = 0;
 function createFSEventsInstance(path, callback) {
+  FSEventsInstanceCount++;
   return (new fsevents(path)).on('fsevent', callback).start();
 }
 
@@ -526,7 +528,7 @@ FSWatcher.prototype.add = function(files, _origAdd) {
   if (!('_initialAdd' in this)) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
-  if (this.options.useFsEvents) {
+  if (this.options.useFsEvents && FSEventsInstanceCount < 400) {
     files.forEach(this._addToFsEvents, this);
   } else if (!this.closed) {
     each(files, function(file, next) {
@@ -555,7 +557,12 @@ FSWatcher.prototype.close = function() {
 
   this.closed = true;
   this.watchers.forEach(function(watcher) {
-    watcher[method]();
+    if (watcher.stop) {
+      watcher.stop();
+      FSEventsInstanceCount--;
+    } else {
+      watcher.close();
+    }
   });
   Object.keys(watched).forEach(function(directory) {
     watched[directory].children().forEach(function(file) {
