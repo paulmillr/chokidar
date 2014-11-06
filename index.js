@@ -408,12 +408,13 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
-  var read = function read(directory, initialAdd, target) {
+  var _this = this;
+  function read(directory, initialAdd, target) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, '');
-    var throttler = this._throttle('readdir', directory, 1000);
+    var throttler = _this._throttle('readdir', directory, 1000);
     if (!throttler) return;
-    var previous = this._getWatchedDir(directory);
+    var previous = _this._getWatchedDir(directory);
     var current = [];
 
     readdirp({
@@ -428,9 +429,9 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
       // but absent in previous are added to watch list and
       // emit `add` event.
       if (item === target || !target && !previous.has(item)) {
-        this._handle(sysPath.join(directory, item), initialAdd, target);
+        _this._handle(sysPath.join(directory, item), initialAdd, target);
       }
-    }.bind(this)).on('end', function() {
+    }).on('end', function() {
       throttler.clear();
 
       // Files that absent in current directory snapshot
@@ -439,10 +440,10 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
       previous.children().filter(function(item) {
         return item !== directory && current.indexOf(item) === -1;
       }).forEach(function(item) {
-        this._remove(directory, item);
-      }, this);
-    }.bind(this)).on('error', this._handleError);
-  }.bind(this);
+        _this._remove(directory, item);
+      });
+    }).on('error', _this._handleError.bind(_this));
+  }
   if (!target) read(dir, initialAdd);
   this._watch(dir, function(dirPath, stats) {
     // Current directory is removed, do nothing
