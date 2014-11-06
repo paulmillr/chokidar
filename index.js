@@ -271,6 +271,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
         }
         return; // Don't emit event twice.
       }
+      if (checkIgnored()) return;
       if (event === 'add') {
         this._getWatchedDir(parent).add(item);
         if (info.type === 'directory') this._getWatchedDir(path);
