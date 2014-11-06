@@ -4,11 +4,10 @@ var fs = require('fs');
 var os = require('os');
 var sysPath = require('path');
 var each = require('async-each');
-
-var fsevents, readdirp;
+var readdirp = require('readdirp');
+var fsevents;
 try {
   fsevents = require('fsevents');
-  readdirp = require('readdirp');
 } catch (error) {}
 
 var isWin32 = os.platform() === 'win32';
