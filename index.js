@@ -409,33 +409,39 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
   var read = function read(directory, initialAdd, target) {
+    // Normalize the directory name on Windows
+    directory = sysPath.join(directory, '');
     var throttler = this._throttle('readdir', directory, 1000);
     if (!throttler) return;
-    fs.readdir(directory, function(error, current) {
-      throttler.clear();
-      if (this._handleError(error) || !current) return;
-      // Normalize the directory name on Windows
-      directory = sysPath.join(directory, '');
-      var previous = this._getWatchedDir(directory);
+    var previous = this._getWatchedDir(directory);
+    var current = [];
 
-      // Files that absent in current directory snapshot
-      // but present in previous emit `remove` event
-      // and are removed from @watched[directory].
-      previous.children().filter(function(file) {
-        return file !== directory && current.indexOf(file) === -1;
-      }).forEach(function(file) {
-        this._remove(directory, file);
-      }, this);
+    readdirp({
+      root: directory,
+      entryType: 'both',
+      depth: 0
+    }).on('data', function(entry) {
+      var item = entry.path;
+      current.push(item);
 
       // Files that present in current directory snapshot
       // but absent in previous are added to watch list and
       // emit `add` event.
-      current.filter(function(file) {
-        return file === target || !target && !previous.has(file);
-      }).forEach(function(file) {
-        this._handle(sysPath.join(directory, file), initialAdd, target);
+      if (item === target || !target && !previous.has(item)) {
+        this._handle(sysPath.join(directory, item), initialAdd, target);
+      }
+    }.bind(this)).on('end', function() {
+      throttler.clear();
+
+      // Files that absent in current directory snapshot
+      // but present in previous emit `remove` event
+      // and are removed from @watched[directory].
+      previous.children().filter(function(item) {
+        return item !== directory && current.indexOf(item) === -1;
+      }).forEach(function(item) {
+        this._remove(directory, item);
       }, this);
-    }.bind(this));
+    }.bind(this)).on('error', this._handleError);
   }.bind(this);
   if (!target) read(dir, initialAdd);
   this._watch(dir, function(dirPath, stats) {
