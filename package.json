@@ -39,10 +39,10 @@
     "sinon-chai": "~2.6.0"
   },
   "optionalDependencies": {
-    "fsevents": "~0.3.1",
-    "readdirp": "~1.1.0"
+    "fsevents": "~0.3.1"
   },
   "dependencies": {
+    "readdirp": "~1.1.0",
     "async-each": "~0.1.5"
   }
 }
