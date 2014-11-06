@@ -1,3 +1,8 @@
+# Chokidar 0.10.5 (6 November 2014)
+* Limit number of simultaneous FSEvents instances (fall back to other methods)
+* Prevent some cases of EMFILE errors during initialization
+* Fix ignored files emitting events in some fsevents-mode circumstances
+
 # Chokidar 0.10.4 (5 November 2014)
 * Bump fsevents dependency to ~0.3.1
   * Should resolve build warnings and `npm rebuild` on non-Macs
