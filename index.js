@@ -92,6 +92,9 @@ function FSWatcher(_opts) {
   // Disable polling on Windows.
   if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWin32;
 
+  this._isntIgnored = function(entry) {
+    return !this._isIgnored(entry.path, entry.stat);
+  }.bind(this);
 
   this.options = opts;
 
@@ -489,11 +492,14 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 
       if (stats.isDirectory()) {
         this._emit('addDir', file, stats);
-        readdirp({root: file, entryType: 'both'})
-          .on('data', function(entry) {
-            if (this._isIgnored(entry.path)) return;
-            emitAdd(sysPath.join(file, entry.path), entry.stat);
-          }.bind(this));
+        readdirp({
+          root: file,
+          entryType: 'both',
+          fileFilter: this._isntIgnored,
+          directoryFilter: this._isntIgnored
+        }).on('data', function(entry) {
+          emitAdd(sysPath.join(file, entry.path), entry.stat);
+        });
       } else {
         emitAdd(file, stats);
       }
