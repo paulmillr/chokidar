@@ -345,10 +345,14 @@ FSWatcher.prototype._watch = function(item, callback) {
     };
     fs.watchFile(absolutePath, options, listener);
   } else {
-    var watcher = fs.watch(item, options, function(event, path) {
-      callback(item);
-    });
-    var _handleError = this._handleError;
+    var _handleEvent = function() {callback(item);};
+    var _handleError = this._handleError.bind(this);
+    var watcher;
+    try {
+      watcher = fs.watch(item, options, _handleEvent);
+    } catch (error) {
+      return _handleError(error);
+    }
     watcher.on('error', function(error) {
       // Workaround for https://github.com/joyent/node/issues/4337
       if (isWin32 && error.code === 'EPERM') {
