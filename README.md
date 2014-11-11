@@ -8,18 +8,20 @@ Node.js `fs.watch`:
 
 * Doesn't report filenames on OS X.
 * Doesn't report events at all when using editors like Sublime on OS X.
-* Doesn't use OS X internals for **fast low-CPU watching on OS X** (no other fs watch module does this!).
-* Sometimes reports events twice.
-* Has only one non-useful event: `rename`.
+* Often reports events twice.
+* Emits most changes as `rename`.
 * Has [a lot of other issues](https://github.com/joyent/node/search?q=fs.watch&type=Issues)
+* Does not provide an easy way to recursively watch file trees.
 
 Node.js `fs.watchFile`:
 
-* Almost as shitty in event tracking.
+* Almost as bad at event handling.
+* Also does not provide any recursive watching.
+* Results in high CPU utilization.
 
 Other node.js watching libraries:
 
-* Are not using ultra-fast non-polling watcher implementation on OS X
+* Are not using ultra-fast non-polling fsevents watcher implementation on OS X
 
 Chokidar resolves these problems.
 
@@ -85,6 +87,8 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
     * `options.interval` (default: `100`). Interval of file system polling.
     * `options.binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
+    * `options.useFsEvents` (default: `true` on OS X). Whether to use the `fsevents` watching interface if
+    available. When `true` and `fsevents` is available, it supercedes the `usePolling` setting.
     * `options.usePolling` (default: `false` on Windows, `true` on Linux and OS X). Whether to use fs.watchFile
     (backed by polling), or fs.watch. If polling leads to high CPU utilization,
     consider setting this to `false`.
