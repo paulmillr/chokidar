@@ -185,7 +185,7 @@ function runTests (options) {
       var testPath = getFixturePath('subdir/add.txt');
       this.watcher.on('add', spy);
       delay(function() {
-        spy.should.not.have.been.callled;
+        spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testPath, 'hello');
         delay(function() {
