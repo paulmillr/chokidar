@@ -277,7 +277,7 @@ function setFSEventsListener(path, callback) {
       delete watchContainer.listeners[listenerIndex];
       if (!Object.keys(watchContainer.listeners).length) {
         watchContainer.watcher.stop();
-        delete FSEventsWatchers[path];
+        delete FSEventsWatchers[watchPath];
       }
     }
   };
