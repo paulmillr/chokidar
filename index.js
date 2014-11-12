@@ -246,7 +246,7 @@ function setFSEventsListener(path, callback) {
       listeners: [callback],
       watcher: createFSEventsInstance(path, function(fullPath, flags) {
         watchContainer.listeners.forEach(function(callback) {
-          if (callback) callback(fullPath, flags);
+          callback(fullPath, flags);
         });
       })
     };
@@ -254,11 +254,8 @@ function setFSEventsListener(path, callback) {
   var listenerIndex = watchContainer.listeners.length - 1;
   return {
     stop: function() {
-      watchContainer.listeners[listenerIndex] = false;
-      var noListeners = watchContainer.listeners.every(function (listener) {
-        return !listener;
-      });
-      if (noListeners) {
+      delete watchContainer.listeners[listenerIndex];
+      if (!Object.keys(watchContainer.listeners).length) {
         watchContainer.watcher.stop();
         delete FSEventsWatchers[path];
       }
