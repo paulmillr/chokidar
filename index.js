@@ -238,13 +238,33 @@ function createFSEventsInstance(path, callback) {
 }
 
 function setFSEventsListener(path, callback) {
-  var watchContainer = FSEventsWatchers[path];
-  if (watchContainer) {
-    watchContainer.listeners.push(callback);
+  var watchPath = sysPath.extname(path) ? sysPath.dirname(path) : path;
+  var watchContainer;
+
+  var resolvedPath = sysPath.resolve(path);
+  function filteredCallback(fullPath, flags) {
+    if (
+      fullPath === resolvedPath ||
+      !fullPath.indexOf(resolvedPath + sysPath.sep)
+    ) callback(fullPath, flags);
+  }
+
+  if (
+    watchPath in FSEventsWatchers ||
+    // check if there is already a watcher on a parent path
+    Object.keys(FSEventsWatchers).some(function(watchedPath) {
+      if (!watchPath.indexOf(watchedPath)) {
+        watchPath = watchedPath;
+        return true;
+      }
+    })
+  ) {
+    watchContainer = FSEventsWatchers[watchPath];
+    watchContainer.listeners.push(filteredCallback);
   } else {
-    watchContainer = FSEventsWatchers[path] = {
-      listeners: [callback],
-      watcher: createFSEventsInstance(path, function(fullPath, flags) {
+    watchContainer = FSEventsWatchers[watchPath] = {
+      listeners: [filteredCallback],
+      watcher: createFSEventsInstance(watchPath, function(fullPath, flags) {
         watchContainer.listeners.forEach(function(callback) {
           callback(fullPath, flags);
         });
