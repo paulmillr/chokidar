@@ -1,3 +1,8 @@
+# Chokidar 0.10.6 (12 November 2014)
+* More efficient creation/reuse of FSEvents instances to avoid system limits
+* Reduce simultaneous FSEvents instances allowed in a process
+* Handle errors thrown by `fs.watch` upon invocation
+
 # Chokidar 0.10.5 (6 November 2014)
 * Limit number of simultaneous FSEvents instances (fall back to other methods)
 * Prevent some cases of EMFILE errors during initialization

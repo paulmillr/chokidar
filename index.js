@@ -231,7 +231,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   this._emit(eventName, fullPath);
 };
 
-// FS Events helper.
+// FS Events helpers.
 var FSEventsWatchers = Object.create(null);
 function createFSEventsInstance(path, callback) {
   return (new fsevents(path)).on('fsevent', callback).start();
