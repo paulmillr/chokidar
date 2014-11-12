@@ -232,10 +232,38 @@ FSWatcher.prototype._remove = function(directory, item) {
 };
 
 // FS Events helper.
-var FSEventsInstanceCount = 0;
+var FSEventsWatchers = Object.create(null);
 function createFSEventsInstance(path, callback) {
-  FSEventsInstanceCount++;
   return (new fsevents(path)).on('fsevent', callback).start();
+}
+
+function setFSEventsListener(path, callback) {
+  var watchContainer = FSEventsWatchers[path];
+  if (watchContainer) {
+    watchContainer.listeners.push(callback);
+  } else {
+    watchContainer = FSEventsWatchers[path] = {
+      listeners: [callback],
+      watcher: createFSEventsInstance(path, function(fullPath, flags) {
+        watchContainer.listeners.forEach(function(callback) {
+          if (callback) callback(fullPath, flags);
+        });
+      })
+    };
+  }
+  var listenerIndex = watchContainer.listeners.length - 1;
+  return {
+    stop: function() {
+      watchContainer.listeners[listenerIndex] = false;
+      var noListeners = watchContainer.listeners.every(function (listener) {
+        return !listener;
+      });
+      if (noListeners) {
+        watchContainer.watcher.stop();
+        delete FSEventsWatchers[path];
+      }
+    }
+  };
 }
 
 FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
@@ -532,7 +560,7 @@ FSWatcher.prototype.add = function(files, _origAdd) {
   if (!('_initialAdd' in this)) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
-  if (this.options.useFsEvents && FSEventsInstanceCount < 400) {
+  if (this.options.useFsEvents && Object.keys(FSEventsWatchers).length < 400) {
     files.forEach(this._addToFsEvents, this);
   } else if (!this.closed) {
     each(files, function(file, next) {
@@ -563,7 +591,6 @@ FSWatcher.prototype.close = function() {
   this.watchers.forEach(function(watcher) {
     if (watcher.stop) {
       watcher.stop();
-      FSEventsInstanceCount--;
     } else {
       watcher.close();
     }
