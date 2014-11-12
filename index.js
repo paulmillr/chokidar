@@ -602,7 +602,6 @@ FSWatcher.prototype.close = function() {
   var listeners = this.listeners;
   var watched = this.watched;
   var useFsEvents = this.options.useFsEvents;
-  var method = useFsEvents ? 'stop' : 'close';
 
   this.closed = true;
   this.watchers.forEach(function(watcher) {
