@@ -285,7 +285,7 @@ function setFSEventsListener(path, callback) {
 
 FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
   if (this._isIgnored(watchPath)) return;
-  var watcher = createFSEventsInstance(watchPath, function(fullPath, flags) {
+  var watcher = setFSEventsListener(watchPath, function(fullPath, flags) {
     var info = fsevents.getInfo(fullPath, flags);
     var path = sysPath.join(watchPath, sysPath.relative(watchPath, fullPath));
     // ensure directories are tracked
