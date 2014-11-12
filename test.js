@@ -57,18 +57,20 @@ function runTests (options) {
       delete this.watcher;
       delay(done);
     });
-    before(function(done) {
+    function clean() {
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
       try {fs.unlinkSync(getFixturePath('moved.txt'));} catch(err) {}
       try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
       try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
+    }
+    before(function(done) {
+      clean();
       fs.writeFileSync(getFixturePath('change.txt'), 'b');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
       delay(done);
     });
     after(function() {
-      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-      try {fs.unlinkSync(getFixturePath('moved.txt'));} catch(err) {}
+      clean();
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
     });
