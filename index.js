@@ -364,12 +364,41 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 };
 
 // Node.js native watcher helpers
+var FsWatchInstances = Object.create(null);
 function createFsWatchInstance(item, options, callback, errHandler) {
-  var _handleEvent = function() {callback(item);};
+  var handleEvent = function() {callback(item);};
   try {
-    return fs.watch(item, options, _handleEvent);
+    return fs.watch(item, options, handleEvent);
   } catch (error) {
     errHandler(error);
+  }
+}
+
+function setFsWatchListener(item, options, callback, errHandler) {
+  if (!options.persistent) {
+    return createFsWatchInstance(item, options, callback, errHandler);
+  } else if (!FsWatchInstances[item]) {
+    var handler = function(item) {
+      FsWatchInstances[item].listeners.forEach(function(callback) {
+        callback(item);
+      });
+    }
+    FsWatchInstances[item] = {
+      listeners: [callback],
+      watcher: createFsWatchInstance(item, options, handler, errHandler)
+    }
+  } else {
+    FsWatchInstances[item].listeners.push(callback);
+  }
+  var listenerIndex = FsWatchInstances[item].listeners.length - 1;
+  return {
+    close: function() {
+      delete FsWatchInstances[item].listeners[listenerIndex];
+      if (!Object.keys(FsWatchInstances[item].listeners).length) {
+        FsWatchInstances[item].watcher.close();
+        delete FsWatchInstances[item];
+      }
+    }
   }
 }
 
