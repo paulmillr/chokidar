@@ -363,6 +363,16 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
   return this.watchers.push(watcher);
 };
 
+// Node.js native watcher helpers
+function createFsWatchInstance(item, options, callback, errHandler) {
+  var _handleEvent = function() {callback(item);};
+  try {
+    return fs.watch(item, options, _handleEvent);
+  } catch (error) {
+    errHandler(error);
+  }
+}
+
 // Private: Watch file for changes with fs.watchFile or fs.watch.
 
 // * item     - string, path to file or directory.
@@ -390,22 +400,17 @@ FSWatcher.prototype._watch = function(item, callback) {
     };
     fs.watchFile(absolutePath, options, listener);
   } else {
-    var _handleEvent = function() {callback(item);};
-    var _handleError = this._handleError.bind(this);
-    var watcher;
-    try {
-      watcher = fs.watch(item, options, _handleEvent);
-    } catch (error) {
-      return _handleError(error);
-    }
+    var errHandler = this._handleError.bind(this);
+    var watcher = createFsWatchInstance(item, options, callback, errHandler);
+    if (!watcher) return;
     watcher.on('error', function(error) {
       // Workaround for https://github.com/joyent/node/issues/4337
       if (isWin32 && error.code === 'EPERM') {
         fs.exists(item, function(exists) {
-          if (exists) _handleError(error);
+          if (exists) errHandler(error);
         });
       } else {
-        _handleError(error);
+        errHandler(error);
       }
     });
     this.watchers.push(watcher);
