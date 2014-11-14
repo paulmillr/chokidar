@@ -424,6 +424,54 @@ function setFsWatchListener(item, options, callback, errHandler) {
   };
 }
 
+var FsWatchFileInstances = Object.create(null);
+function setFsWatchFileListener(item, absPath, options, callback) {
+  var container = FsWatchFileInstances[absPath];
+  var listeners = [];
+  if (
+    container && (
+      container.options.persistent < options.persistent ||
+      container.options.interval > options.interval
+    )
+  ) {
+    // "Upgrade" the watcher to persistence or a quicker interval.
+    // This creates some unlikely edge case issues if the user mixes
+    // settings in a very weird way, but solving for those cases
+    // doesn't seem worthwhile for the added complexity.
+    listeners = container.listeners;
+    fs.unwatchFile(absPath);
+    container = false;
+  }
+  if (!container) {
+    listeners.push(callback);
+    container = FsWatchFileInstances[absPath] = {
+      listeners: listeners,
+      options: options,
+      watcher: fs.watchFile(absPath, options, function(curr, prev) {
+        var currmtime = curr.mtime.getTime();
+        if (currmtime > prev.mtime.getTime() || currmtime === 0) {
+          container.listeners.forEach(function(callback) {
+            callback(item, curr);
+          });
+        }
+      })
+    };
+  } else {
+    container.listeners.push(callback);
+    console.log(absPath, container)
+  }
+  var listenerIndex = container.listeners.length - 1;
+  return {
+    close: function() {
+      delete container.listeners[listenerIndex];
+      if (!Object.keys(container.listeners).length) {
+        fs.unwatchFile(absPath);
+        delete FsWatchFileInstances[absPath];
+      }
+    }
+  };
+}
+
 // Private: Watch file for changes with fs.watchFile or fs.watch.
 
 // * item     - string, path to file or directory.
@@ -440,21 +488,16 @@ FSWatcher.prototype._watch = function(item, callback) {
   var options = {persistent: this.options.persistent};
   if (!callback) callback = Function.prototype; // empty function
 
+  var watcher;
   if (this.options.usePolling) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
-    var listener = this.listeners[absolutePath] = function(curr, prev) {
-      var currmtime = curr.mtime.getTime();
-      if (currmtime > prev.mtime.getTime() || currmtime === 0) {
-        callback(item, curr);
-      }
-    };
-    fs.watchFile(absolutePath, options, listener);
+    watcher = setFsWatchFileListener(item, absolutePath, options, callback);
   } else {
     var errHandler = this._handleError.bind(this);
-    var watcher = createFsWatchInstance(item, options, callback, errHandler);
-    if (watcher) this.watchers.push(watcher);
+    watcher = createFsWatchInstance(item, options, callback, errHandler);
   }
+  if (watcher) this.watchers.push(watcher);
 };
 
 // Private: Emit `change` event once and watch file to emit it in the future
