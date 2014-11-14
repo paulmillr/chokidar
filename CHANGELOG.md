@@ -1,3 +1,6 @@
+# Chokidar 0.10.7 (14 November 2014)
+* Apply watcher reuse methodology to `fs.watch` and `fs.watchFile` as well
+
 # Chokidar 0.10.6 (12 November 2014)
 * More efficient creation/reuse of FSEvents instances to avoid system limits
 * Reduce simultaneous FSEvents instances allowed in a process
