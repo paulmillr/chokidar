@@ -1,3 +1,6 @@
+# Chokidar 0.10.8 (14 November 2014)
+* Remove accidentally committed/published `console.log` statement
+
 # Chokidar 0.10.7 (14 November 2014)
 * Apply watcher reuse methodology to `fs.watch` and `fs.watchFile` as well
 
