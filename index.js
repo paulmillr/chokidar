@@ -95,6 +95,14 @@ function FSWatcher(_opts) {
     return !this._isIgnored(entry.path, entry.stat);
   }.bind(this);
 
+  var readyCalls = 0;
+  this._emitReady = function(expectedCalls) {
+    if (++readyCalls >= expectedCalls) {
+      process.nextTick(this.emit.bind(this, 'ready'));
+      this._emitReady = Function.prototype;
+    }
+  }.bind(this);
+
   this.options = opts;
 
   // You’re frozen when your heart’s not open.
@@ -360,6 +368,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       });
     }
   }.bind(this));
+  this._emitReady(2);
   return this.watchers.push(watcher);
 };
 
@@ -644,11 +653,14 @@ FSWatcher.prototype._addToFsEvents = function(file) {
           directoryFilter: this._isntIgnored
         }).on('data', function(entry) {
           emitAdd(sysPath.join(file, entry.path), entry.stat);
-        });
+        }).on('end', this._emitReady.bind(this, 2));
       } else {
         emitAdd(file, stats);
+        this._emitReady(2);
       }
     }.bind(this));
+  } else {
+    this._emitReady(2);
   }
   if (this.options.persistent) this._watchWithFsEvents(file);
   return this;
