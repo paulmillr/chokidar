@@ -273,7 +273,7 @@ function setFSEventsListener(path, callback) {
   }
   var listenerIndex = watchContainer.listeners.length - 1;
   return {
-    stop: function() {
+    close: function() {
       delete watchContainer.listeners[listenerIndex];
       if (!Object.keys(watchContainer.listeners).length) {
         watchContainer.watcher.stop();
@@ -651,11 +651,7 @@ FSWatcher.prototype.close = function() {
 
   this.closed = true;
   this.watchers.forEach(function(watcher) {
-    if (watcher.stop) {
-      watcher.stop();
-    } else {
-      watcher.close();
-    }
+    watcher.close();
   });
   Object.keys(watched).forEach(function(directory) {
     watched[directory].children().forEach(function(file) {
