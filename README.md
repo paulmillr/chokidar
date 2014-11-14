@@ -27,9 +27,13 @@ Chokidar resolves these problems.
 
 It is used in
 [brunch](http://brunch.io),
-[socketstream](http://www.socketstream.org),
-and [karma](http://karma-runner.github.io)
-and has proven itself in production environments.
+[karma](http://karma-runner.github.io),
+[PM2](https://github.com/Unitech/PM2),
+[socketstream](http://www.socketstream.org), 
+[derby](http://derbyjs.com/),
+[watchify](https://github.com/substack/watchify),
+and [many others](https://www.npmjs.org/browse/depended/chokidar/).
+It has proven itself in production environments.
 
 ## Getting started
 Install chokidar via node.js package manager:
