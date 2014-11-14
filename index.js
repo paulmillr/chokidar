@@ -381,9 +381,10 @@ function fsWatchBroadcast(item, type, value) {
 }
 
 function setFsWatchListener(item, options, callback, errHandler) {
+  var container = container;
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
-  } else if (!FsWatchInstances[item]) {
+  } else if (!container) {
     var watcher = createFsWatchInstance(
       item,
       options,
@@ -401,22 +402,22 @@ function setFsWatchListener(item, options, callback, errHandler) {
         broadcastErr(error);
       }
     });
-    FsWatchInstances[item] = {
+    container = FsWatchInstances[item] = {
       listeners: [callback],
       errHandlers: [errHandler],
       watcher: watcher
     };
   } else {
-    FsWatchInstances[item].listeners.push(callback);
-    FsWatchInstances[item].errHandlers.push(errHandler);
+    container.listeners.push(callback);
+    container.errHandlers.push(errHandler);
   }
-  var listenerIndex = FsWatchInstances[item].listeners.length - 1;
+  var listenerIndex = container.listeners.length - 1;
   return {
     close: function() {
-      delete FsWatchInstances[item].listeners[listenerIndex];
-      delete FsWatchInstances[item].errHandlers[listenerIndex];
-      if (!Object.keys(FsWatchInstances[item].listeners).length) {
-        FsWatchInstances[item].watcher.close();
+      delete container.listeners[listenerIndex];
+      delete container.errHandlers[listenerIndex];
+      if (!Object.keys(container.listeners).length) {
+        container.watcher.close();
         delete FsWatchInstances[item];
       }
     }
