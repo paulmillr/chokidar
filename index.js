@@ -381,7 +381,7 @@ function fsWatchBroadcast(item, type, value) {
 }
 
 function setFsWatchListener(item, options, callback, errHandler) {
-  var container = container;
+  var container = FsWatchInstances[item];
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
   } else if (!container) {
@@ -494,7 +494,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     watcher = setFsWatchFileListener(item, absolutePath, options, callback);
   } else {
     var errHandler = this._handleError.bind(this);
-    watcher = createFsWatchInstance(item, options, callback, errHandler);
+    watcher = setFsWatchListener(item, options, callback, errHandler);
   }
   if (watcher) this.watchers.push(watcher);
 };
