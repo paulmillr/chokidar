@@ -374,14 +374,14 @@ function createFsWatchInstance(item, options, callback, errHandler) {
   }
 }
 
-function fsWatchBroadcast(item, type, value) {
-  FsWatchInstances[item][type].forEach(function(callback) {
+function fsWatchBroadcast(absPath, type, value) {
+  FsWatchInstances[absPath][type].forEach(function(callback) {
     callback(value);
   });
 }
 
-function setFsWatchListener(item, options, callback, errHandler) {
-  var container = FsWatchInstances[item];
+function setFsWatchListener(item, absPath, options, callback, errHandler) {
+  var container = FsWatchInstances[absPath];
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
   } else if (!container) {
@@ -402,7 +402,7 @@ function setFsWatchListener(item, options, callback, errHandler) {
         broadcastErr(error);
       }
     });
-    container = FsWatchInstances[item] = {
+    container = FsWatchInstances[absPath] = {
       listeners: [callback],
       errHandlers: [errHandler],
       watcher: watcher
@@ -418,7 +418,7 @@ function setFsWatchListener(item, options, callback, errHandler) {
       delete container.errHandlers[listenerIndex];
       if (!Object.keys(container.listeners).length) {
         container.watcher.close();
-        delete FsWatchInstances[item];
+        delete FsWatchInstances[absPath];
       }
     }
   };
@@ -494,7 +494,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     watcher = setFsWatchFileListener(item, absolutePath, options, callback);
   } else {
     var errHandler = this._handleError.bind(this);
-    watcher = setFsWatchListener(item, options, callback, errHandler);
+    watcher = setFsWatchListener(item, absolutePath, options, callback, errHandler);
   }
   if (watcher) this.watchers.push(watcher);
 };
