@@ -687,8 +687,6 @@ FSWatcher.prototype.add = function(files, _origAdd) {
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.close = function() {
   if (this.closed) return this;
-  var watched = this.watched;
-  var useFsEvents = this.options.useFsEvents;
 
   this.closed = true;
   this.watchers.forEach(function(watcher) {
