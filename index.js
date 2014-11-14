@@ -398,16 +398,14 @@ function setFsWatchListener(item, options, callback, errHandler) {
           if (exists) broadcastErr(error);
         });
       } else {
-        process.nextTick(function() {
-          broadcastErr(error);
-        });
+        broadcastErr(error);
       }
     });
     FsWatchInstances[item] = {
       listeners: [callback],
       errHandlers: [errHandler],
       watcher: watcher
-    };
+    }
   } else {
     FsWatchInstances[item].listeners.push(callback);
     FsWatchInstances[item].errHandlers.push(errHandler);
