@@ -661,12 +661,13 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(files, _origAdd) {
+  this.closed = false;
   if (!('_initialAdd' in this)) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
   if (this.options.useFsEvents && Object.keys(FSEventsWatchers).length < 128) {
     files.forEach(this._addToFsEvents, this);
-  } else if (!this.closed) {
+  } else {
     each(files, function(file, next) {
       this._handle(file, this._initialAdd, _origAdd, next);
     }.bind(this), function(error, results) {
