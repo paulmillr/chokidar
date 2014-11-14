@@ -388,10 +388,10 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
     var watcher = createFsWatchInstance(
       item,
       options,
-      fsWatchBroadcast.bind(null, item, 'listeners'),
+      fsWatchBroadcast.bind(null, absPath, 'listeners'),
       errHandler // no need to use broadcast here
     );
-    var broadcastErr = fsWatchBroadcast.bind(null, item, 'errHandlers');
+    var broadcastErr = fsWatchBroadcast.bind(null, absPath, 'errHandlers');
     watcher.on('error', function(error) {
       // Workaround for https://github.com/joyent/node/issues/4337
       if (isWin32 && error.code === 'EPERM') {
