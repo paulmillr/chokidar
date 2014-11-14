@@ -405,7 +405,7 @@ function setFsWatchListener(item, options, callback, errHandler) {
       listeners: [callback],
       errHandlers: [errHandler],
       watcher: watcher
-    }
+    };
   } else {
     FsWatchInstances[item].listeners.push(callback);
     FsWatchInstances[item].errHandlers.push(errHandler);
