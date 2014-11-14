@@ -96,10 +96,10 @@ function FSWatcher(_opts) {
   }.bind(this);
 
   var readyCalls = 0;
-  this._emitReady = function(expectedCalls) {
-    if (++readyCalls >= expectedCalls) {
-      process.nextTick(this.emit.bind(this, 'ready'));
+  this._emitReady = function() {
+    if (++readyCalls >= this._readyCount) {
       this._emitReady = Function.prototype;
+      process.nextTick(this.emit.bind(this, 'ready'));
     }
   }.bind(this);
 
@@ -368,7 +368,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
       });
     }
   }.bind(this));
-  this._emitReady(2);
+  this._emitReady();
   return this.watchers.push(watcher);
 };
 
@@ -503,7 +503,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     watcher = setFsWatchFileListener(item, absolutePath, options, callback);
   } else {
     var errHandler = this._handleError.bind(this);
-    watcher = createFsWatchInstance(item, options, callback, errHandler);
+    watcher = setFsWatchListener(item, options, callback, errHandler);
   }
   if (watcher) this.watchers.push(watcher);
 };
@@ -516,7 +516,7 @@ FSWatcher.prototype._watch = function(item, callback) {
 // * initialAdd - boolean, was the file added at watch instantiation?
 
 // Returns nothing.
-FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
+FSWatcher.prototype._handleFile = function(file, stats, initialAdd, target, callback) {
   var dirname = sysPath.dirname(file);
   var basename = sysPath.basename(file);
   var parent = this._getWatchedDir(dirname);
@@ -542,6 +542,7 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
     if (!this._throttle('add', file, 0)) return;
     this._emit('add', file, stats);
   }
+  if (callback) callback();
 };
 
 // Private: Read directory to add / remove files from `@watched` list
@@ -553,9 +554,9 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd) {
 // * target     - child path actually targeted for watch
 
 // Returns nothing.
-FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
+FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callback) {
   var _this = this;
-  function read(directory, initialAdd, target) {
+  function read(directory, initialAdd, target, done) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, '');
     var throttler = _this._throttle('readdir', directory, 1000);
@@ -575,10 +576,12 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
       // but absent in previous are added to watch list and
       // emit `add` event.
       if (item === target || !target && !previous.has(item)) {
+        _this._readyCount++;
         _this._handle(sysPath.join(directory, item), initialAdd, target);
       }
     }).on('end', function() {
       throttler.clear();
+      if (done) done();
 
       // Files that absent in current directory snapshot
       // but present in previous emit `remove` event
@@ -590,7 +593,7 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
       });
     }).on('error', _this._handleError.bind(_this));
   }
-  if (!target) read(dir, initialAdd);
+  if (!target) read(dir, initialAdd, null, callback);
   this._watch(dir, function(dirPath, stats) {
     // Current directory is removed, do nothing
     if (stats && stats.mtime.getTime() === 0) return;
@@ -612,7 +615,10 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target) {
 // Returns nothing.
 FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
   if (!callback) callback = Function.prototype;
-  if (this._isIgnored(item) || this.closed) return callback(null, item);
+  if (this._isIgnored(item) || this.closed) {
+    this._emitReady();
+    return callback(null, item);
+  }
 
   fs.realpath(item, function(error, path) {
     if (this._handleError(error)) return callback(null, item);
@@ -624,11 +630,14 @@ FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
       ) || (
         this._isIgnored.length === 2 &&
         this._isIgnored(item, stats)
-      )) return callback(null, false);
+      )) {
+        this._emitReady();
+        return callback(null, false);
+      }
       if (stats.isFile() || stats.isCharacterDevice()) {
-        this._handleFile(item, stats, initialAdd);
+        this._handleFile(item, stats, initialAdd, target, this._emitReady);
       } else if (stats.isDirectory()) {
-        this._handleDir(item, stats, initialAdd, target);
+        this._handleDir(item, stats, initialAdd, target, this._emitReady);
       }
       callback(null, false);
     }.bind(this));
@@ -640,7 +649,9 @@ FSWatcher.prototype._addToFsEvents = function(file) {
     this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
     this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
   }.bind(this);
-  if (!this.options.ignoreInitial) {
+  if (this.options.ignoreInitial) {
+    this._emitReady();
+  } else {
     fs.stat(file, function(error, stats) {
       if (this._handleError(error)) return;
 
@@ -653,14 +664,12 @@ FSWatcher.prototype._addToFsEvents = function(file) {
           directoryFilter: this._isntIgnored
         }).on('data', function(entry) {
           emitAdd(sysPath.join(file, entry.path), entry.stat);
-        }).on('end', this._emitReady.bind(this, 2));
+        }).on('end', this._emitReady);
       } else {
         emitAdd(file, stats);
-        this._emitReady(2);
+        this._emitReady();
       }
     }.bind(this));
-  } else {
-    this._emitReady(2);
   }
   if (this.options.persistent) this._watchWithFsEvents(file);
   return this;
@@ -677,10 +686,16 @@ FSWatcher.prototype.add = function(files, _origAdd) {
   if (!Array.isArray(files)) files = [files];
 
   if (this.options.useFsEvents && Object.keys(FSEventsWatchers).length < 128) {
+    if (!this._readyCount) this._readyCount = 2;
     files.forEach(this._addToFsEvents, this);
   } else if (!this.closed) {
+    if (!this._readyCount) this._readyCount = 0;
+    this._readyCount += files.length;
     each(files, function(file, next) {
-      this._handle(file, this._initialAdd, _origAdd, next);
+      this._handle(file, this._initialAdd, _origAdd, function(res) {
+        if (res) this._emitReady();
+        next(res);
+      }.bind(this));
     }.bind(this), function(error, results) {
       results.forEach(function(item){
         if (!item) return;
