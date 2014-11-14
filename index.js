@@ -458,7 +458,6 @@ function setFsWatchFileListener(item, absPath, options, callback) {
     };
   } else {
     container.listeners.push(callback);
-    console.log(absPath, container)
   }
   var listenerIndex = container.listeners.length - 1;
   return {
