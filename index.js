@@ -374,32 +374,53 @@ function createFsWatchInstance(item, options, callback, errHandler) {
   }
 }
 
+function fsWatchBroadcast(item, type, value) {
+  FsWatchInstances[item][type].forEach(function(callback) {
+    callback(value);
+  });
+}
+
 function setFsWatchListener(item, options, callback, errHandler) {
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
   } else if (!FsWatchInstances[item]) {
-    var handler = function(item) {
-      FsWatchInstances[item].listeners.forEach(function(callback) {
-        callback(item);
-      });
-    }
+    var watcher = createFsWatchInstance(
+      item,
+      options,
+      fsWatchBroadcast.bind(null, item, 'listeners'),
+      errHandler // no need to use broadcast here
+    );
+    var broadcastErr = fsWatchBroadcast.bind(null, item, 'errHandlers');
+    watcher.on('error', function(error) {
+      // Workaround for https://github.com/joyent/node/issues/4337
+      if (isWin32 && error.code === 'EPERM') {
+        fs.exists(item, function(exists) {
+          if (exists) broadcastErr(error);
+        });
+      } else {
+        broadcastErr(error);
+      }
+    });
     FsWatchInstances[item] = {
       listeners: [callback],
-      watcher: createFsWatchInstance(item, options, handler, errHandler)
+      errHandlers: [errHandler],
+      watcher: watcher
     }
   } else {
     FsWatchInstances[item].listeners.push(callback);
+    FsWatchInstances[item].errHandlers.push(errHandler);
   }
   var listenerIndex = FsWatchInstances[item].listeners.length - 1;
   return {
     close: function() {
       delete FsWatchInstances[item].listeners[listenerIndex];
+      delete FsWatchInstances[item].errHandlers[listenerIndex];
       if (!Object.keys(FsWatchInstances[item].listeners).length) {
         FsWatchInstances[item].watcher.close();
         delete FsWatchInstances[item];
       }
     }
-  }
+  };
 }
 
 // Private: Watch file for changes with fs.watchFile or fs.watch.
@@ -431,18 +452,7 @@ FSWatcher.prototype._watch = function(item, callback) {
   } else {
     var errHandler = this._handleError.bind(this);
     var watcher = createFsWatchInstance(item, options, callback, errHandler);
-    if (!watcher) return;
-    watcher.on('error', function(error) {
-      // Workaround for https://github.com/joyent/node/issues/4337
-      if (isWin32 && error.code === 'EPERM') {
-        fs.exists(item, function(exists) {
-          if (exists) errHandler(error);
-        });
-      } else {
-        errHandler(error);
-      }
-    });
-    this.watchers.push(watcher);
+    if (watcher) this.watchers.push(watcher);
   }
 };
 
