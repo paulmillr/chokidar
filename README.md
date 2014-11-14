@@ -1,5 +1,5 @@
 # Chokidar
-A neat wrapper around node.js fs.watch / fs.watchFile.
+A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.
 
 [![NPM](https://nodei.co/npm-dl/chokidar.png)](https://nodei.co/npm/chokidar/)
 
