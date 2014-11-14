@@ -390,7 +390,7 @@ function fsWatchBroadcast(item, type, value) {
 }
 
 function setFsWatchListener(item, options, callback, errHandler) {
-  var container = container;
+  var container = FsWatchInstances[item];
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
   } else if (!container) {
