@@ -686,20 +686,12 @@ FSWatcher.prototype.add = function(files, _origAdd) {
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.close = function() {
   if (this.closed) return this;
-  var listeners = this.listeners;
   var watched = this.watched;
   var useFsEvents = this.options.useFsEvents;
 
   this.closed = true;
   this.watchers.forEach(function(watcher) {
     watcher.close();
-  });
-  Object.keys(watched).forEach(function(directory) {
-    watched[directory].children().forEach(function(file) {
-      var absolutePath = sysPath.resolve(directory, file);
-      fs.unwatchFile(absolutePath, listeners[absolutePath]);
-      delete listeners[absolutePath];
-    });
   });
   this.watched = Object.create(null);
 
