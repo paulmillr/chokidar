@@ -3,4 +3,6 @@ require('./').watch('.', {
   persistent: true
 }).on('all', function(event, path) {
   console.log(event, path);
+}).on('ready', function() {
+  console.log('ready');
 });
