@@ -383,24 +383,24 @@ function createFsWatchInstance(item, options, callback, errHandler) {
   }
 }
 
-function fsWatchBroadcast(item, type, value) {
-  FsWatchInstances[item][type].forEach(function(callback) {
+function fsWatchBroadcast(absPath, type, value) {
+  FsWatchInstances[absPath][type].forEach(function(callback) {
     callback(value);
   });
 }
 
-function setFsWatchListener(item, options, callback, errHandler) {
-  var container = FsWatchInstances[item];
+function setFsWatchListener(item, absPath, options, callback, errHandler) {
+  var container = FsWatchInstances[absPath];
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
   } else if (!container) {
     var watcher = createFsWatchInstance(
       item,
       options,
-      fsWatchBroadcast.bind(null, item, 'listeners'),
+      fsWatchBroadcast.bind(null, absPath, 'listeners'),
       errHandler // no need to use broadcast here
     );
-    var broadcastErr = fsWatchBroadcast.bind(null, item, 'errHandlers');
+    var broadcastErr = fsWatchBroadcast.bind(null, absPath, 'errHandlers');
     watcher.on('error', function(error) {
       // Workaround for https://github.com/joyent/node/issues/4337
       if (isWin32 && error.code === 'EPERM') {
@@ -411,7 +411,7 @@ function setFsWatchListener(item, options, callback, errHandler) {
         broadcastErr(error);
       }
     });
-    container = FsWatchInstances[item] = {
+    container = FsWatchInstances[absPath] = {
       listeners: [callback],
       errHandlers: [errHandler],
       watcher: watcher
@@ -427,7 +427,7 @@ function setFsWatchListener(item, options, callback, errHandler) {
       delete container.errHandlers[listenerIndex];
       if (!Object.keys(container.listeners).length) {
         container.watcher.close();
-        delete FsWatchInstances[item];
+        delete FsWatchInstances[absPath];
       }
     }
   };
@@ -503,7 +503,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     watcher = setFsWatchFileListener(item, absolutePath, options, callback);
   } else {
     var errHandler = this._handleError.bind(this);
-    watcher = setFsWatchListener(item, options, callback, errHandler);
+    watcher = setFsWatchListener(item, absolutePath, options, callback, errHandler);
   }
   if (watcher) this.watchers.push(watcher);
 };
@@ -682,13 +682,14 @@ FSWatcher.prototype._addToFsEvents = function(file) {
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(files, _origAdd) {
+  this.closed = false;
   if (!('_initialAdd' in this)) this._initialAdd = true;
   if (!Array.isArray(files)) files = [files];
 
   if (this.options.useFsEvents && Object.keys(FSEventsWatchers).length < 128) {
     if (!this._readyCount) this._readyCount = 2;
     files.forEach(this._addToFsEvents, this);
-  } else if (!this.closed) {
+  } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += files.length;
     each(files, function(file, next) {
@@ -713,20 +714,10 @@ FSWatcher.prototype.add = function(files, _origAdd) {
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.close = function() {
   if (this.closed) return this;
-  var listeners = this.listeners;
-  var watched = this.watched;
-  var useFsEvents = this.options.useFsEvents;
 
   this.closed = true;
   this.watchers.forEach(function(watcher) {
     watcher.close();
-  });
-  Object.keys(watched).forEach(function(directory) {
-    watched[directory].children().forEach(function(file) {
-      var absolutePath = sysPath.resolve(directory, file);
-      fs.unwatchFile(absolutePath, listeners[absolutePath]);
-      delete listeners[absolutePath];
-    });
   });
   this.watched = Object.create(null);
 
