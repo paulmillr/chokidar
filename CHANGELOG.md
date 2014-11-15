@@ -1,3 +1,6 @@
+# Chokidar 0.10.9 (15 November 2014)
+* Fix some leftover issues from adding watcher reuse
+
 # Chokidar 0.10.8 (14 November 2014)
 * Remove accidentally committed/published `console.log` statement.
 * Sry 'bout that :crying_cat_face:
