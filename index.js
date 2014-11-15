@@ -687,7 +687,7 @@ FSWatcher.prototype.add = function(files, _origAdd) {
   if (!Array.isArray(files)) files = [files];
 
   if (this.options.useFsEvents && Object.keys(FSEventsWatchers).length < 128) {
-    if (!this._readyCount) this._readyCount = 2;
+    if (!this._readyCount) this._readyCount = files.length * 2;
     files.forEach(this._addToFsEvents, this);
   } else {
     if (!this._readyCount) this._readyCount = 0;
