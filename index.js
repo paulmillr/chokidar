@@ -73,23 +73,27 @@ function FSWatcher(_opts) {
   this.closed = false;
   this._throttled = Object.create(null);
 
+  function undef(key) {
+    return opts[key] === undefined;
+  }
+
   // Set up default options.
-  if (!('persistent' in opts)) opts.persistent = false;
-  if (!('ignoreInitial' in opts)) opts.ignoreInitial = false;
-  if (!('ignorePermissionErrors' in opts)) opts.ignorePermissionErrors = false;
-  if (!('interval' in opts)) opts.interval = 100;
-  if (!('binaryInterval' in opts)) opts.binaryInterval = 300;
+  if (undef('persistent')) opts.persistent = false;
+  if (undef('ignoreInitial')) opts.ignoreInitial = false;
+  if (undef('ignorePermissionErrors')) opts.ignorePermissionErrors = false;
+  if (undef('interval')) opts.interval = 100;
+  if (undef('binaryInterval')) opts.binaryInterval = 300;
   this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
   // Enable fsevents on OS X when polling is disabled.
   // Which is basically super fast watcher.
-  if (!('useFsEvents' in opts)) opts.useFsEvents = !opts.usePolling;
+  if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
   // If we can't use fs events, disable it in any case.
   if (!canUseFsEvents) opts.useFsEvents = false;
 
   // Use polling by default on Linux and Mac (if not using fsevents).
   // Disable polling on Windows.
-  if (!('usePolling' in opts) && !opts.useFsEvents) opts.usePolling = !isWin32;
+  if (undef('usePolling') && !opts.useFsEvents) opts.usePolling = !isWin32;
 
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
