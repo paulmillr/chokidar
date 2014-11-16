@@ -697,9 +697,9 @@ FSWatcher.prototype.add = function(files, _origAdd) {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += files.length;
     each(files, function(file, next) {
-      this._handle(file, this._initialAdd, _origAdd, function(res) {
+      this._handle(file, this._initialAdd, _origAdd, function(err, res) {
         if (res) this._emitReady();
-        next(res);
+        next(err, res);
       }.bind(this));
     }.bind(this), function(error, results) {
       results.forEach(function(item){
