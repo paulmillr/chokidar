@@ -49,11 +49,13 @@ function runTests (options) {
 
   describe('watch', function() {
     beforeEach(function(done) {
-      this.watcher = chokidar.watch(fixturesPath, options);
+      this.readySpy = sinon.spy();
+      this.watcher = chokidar.watch(fixturesPath, options).on('ready', this.readySpy);
       delay(done);
     });
     afterEach(function(done) {
       this.watcher.close();
+      this.readySpy.should.have.been.calledOnce;
       delete this.watcher;
       delay(done);
     });
@@ -211,10 +213,13 @@ function runTests (options) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
       var watcher = chokidar.watch(testPath, options).on('change', spy);
+      var readySpy = sinon.spy();
+      watcher.on('ready', readySpy);
       ddelay(function() {
         fs.writeFileSync(testPath, 'c');
         delay(function() {
           watcher.close();
+          readySpy.should.have.been.calledOnce;
           spy.should.have.always.been.calledWith(testPath);
           done();
         });
@@ -237,11 +242,14 @@ function runTests (options) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
       var watcher = chokidar.watch(testPath, options).on('add', spy);
+      var readySpy = sinon.spy();
+      watcher.on('ready', readySpy);
       // polling takes a bit longer here
       ddelay(function() {
         fs.writeFileSync(testPath, 'a');
         delay(function() {
           spy.should.have.been.calledWith(testPath);
+          readySpy.should.have.been.calledOnce;
           watcher.close();
           done();
         });
@@ -301,8 +309,11 @@ function runTests (options) {
         var spy = sinon.spy();
         var watcher = chokidar.watch(fixturesPath, options);
         watcher.on('add', spy);
+        var readySpy = sinon.spy();
+        watcher.on('ready', readySpy);
         delay(function() {
           watcher.close();
+          readySpy.should.have.been.calledOnce;
           spy.should.not.have.been.called;
           done();
         });
@@ -335,8 +346,11 @@ function runTests (options) {
       it('should emit `add` events for preexisting files', function(done) {
         var spy = sinon.spy();
         watcher = chokidar.watch(fixturesPath, options).on('add', spy);
+        var readySpy = sinon.spy();
+        watcher.on('ready', readySpy);
         delay(function() {
           spy.should.have.been.calledTwice;
+          readySpy.should.have.been.calledOnce;
           done();
         });
       });
