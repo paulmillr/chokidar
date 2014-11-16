@@ -1,3 +1,8 @@
+# Chokidar 0.11.0 (16 November 2014)
+* Add a `ready` event, which is emitted after initial file scan completes
+* Fix issue with options keys passed in defined as `undefined`
+* Rename some internal `FSWatcher` properties to indicate they're private
+
 # Chokidar 0.10.9 (15 November 2014)
 * Fix some leftover issues from adding watcher reuse
 
