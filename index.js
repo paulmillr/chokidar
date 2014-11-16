@@ -67,9 +67,9 @@ function FSWatcher(_opts) {
   var opts = {};
   // in case _opts that is passed in is a frozen object
   if (_opts) for (var opt in _opts) opts[opt] = _opts[opt];
-  this.watched = Object.create(null);
-  this.watchers = [];
-  this.ignoredPaths = Object.create(null);
+  this._watched = Object.create(null);
+  this._watchers = [];
+  this._ignoredPaths = Object.create(null);
   this.closed = false;
   this._throttled = Object.create(null);
 
@@ -158,7 +158,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
       };
     }
   })(this.options.ignored);
-  var ignoredPaths = Object.keys(this.ignoredPaths);
+  var ignoredPaths = Object.keys(this._ignoredPaths);
   function isParent(ip) {
     return !path.indexOf(ip + sysPath.sep);
   }
@@ -170,14 +170,14 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 // -----------------
 FSWatcher.prototype._getWatchedDir = function(directory) {
   var dir = sysPath.resolve(directory);
-  if (!(dir in this.watched)) this.watched[dir] = {
+  if (!(dir in this._watched)) this._watched[dir] = {
     _items: Object.create(null),
     add: function(item) {this._items[item] = true;},
     remove: function(item) {delete this._items[item];},
     has: function(item) {return item in this._items;},
     children: function() {return Object.keys(this._items);}
   };
-  return this.watched[dir];
+  return this._watched[dir];
 };
 
 // File helpers
@@ -207,14 +207,14 @@ FSWatcher.prototype._remove = function(directory, item) {
   // if it is not a directory, nestedDirectoryChildren will be empty array
   var fullPath = sysPath.join(directory, item);
   var absolutePath = sysPath.resolve(fullPath);
-  var isDirectory = this.watched[fullPath] || this.watched[absolutePath];
+  var isDirectory = this._watched[fullPath] || this._watched[absolutePath];
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
   if (!this._throttle('remove', fullPath, 10)) return;
 
   // if the only watched file is removed, watch for its return
-  var watchedDirs = Object.keys(this.watched);
+  var watchedDirs = Object.keys(this._watched);
   if (!isDirectory && !this.options.useFsEvents && watchedDirs.length === 1) {
     this.add(directory, item);
   }
@@ -233,8 +233,8 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
-  delete this.watched[fullPath];
-  delete this.watched[absolutePath];
+  delete this._watched[fullPath];
+  delete this._watched[absolutePath];
   var eventName = isDirectory ? 'unlinkDir' : 'unlink';
   this._emit(eventName, fullPath);
 };
@@ -304,10 +304,10 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
     );
     var checkIgnored = function (stats) {
       if (this._isIgnored(path, stats)) {
-        this.ignoredPaths[fullPath] = true;
+        this._ignoredPaths[fullPath] = true;
         return true;
       } else {
-        delete this.ignoredPaths[fullPath];
+        delete this._ignoredPaths[fullPath];
       }
     }.bind(this);
 
@@ -369,7 +369,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
     }
   }.bind(this));
   this._emitReady();
-  return this.watchers.push(watcher);
+  return this._watchers.push(watcher);
 };
 
 // Node.js native watcher helpers
@@ -505,7 +505,7 @@ FSWatcher.prototype._watch = function(item, callback) {
     var errHandler = this._handleError.bind(this);
     watcher = setFsWatchListener(item, absolutePath, options, callback, errHandler);
   }
-  if (watcher) this.watchers.push(watcher);
+  if (watcher) this._watchers.push(watcher);
 };
 
 // Private: Emit `change` event once and watch file to emit it in the future
@@ -716,10 +716,10 @@ FSWatcher.prototype.close = function() {
   if (this.closed) return this;
 
   this.closed = true;
-  this.watchers.forEach(function(watcher) {
+  this._watchers.forEach(function(watcher) {
     watcher.close();
   });
-  this.watched = Object.create(null);
+  this._watched = Object.create(null);
 
   this.removeAllListeners();
   return this;
