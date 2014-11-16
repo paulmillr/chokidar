@@ -657,7 +657,7 @@ FSWatcher.prototype._addToFsEvents = function(file) {
     this._emitReady();
   } else {
     fs.stat(file, function(error, stats) {
-      if (this._handleError(error)) return;
+      if (this._handleError(error)) return this._emitReady();
 
       if (stats.isDirectory()) {
         this._emit('addDir', file, stats);
