@@ -10,7 +10,7 @@ try {
 } catch (error) {}
 
 var platform = require('os').platform();
-var canUseFsEvents = platform === 'darwin' && !!fsevents;
+var canUseFsEvents = platform === 'darwin' && fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
