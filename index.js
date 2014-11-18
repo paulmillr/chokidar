@@ -1,7 +1,6 @@
 'use strict';
 var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
-var os = require('os');
 var sysPath = require('path');
 var each = require('async-each');
 var readdirp = require('readdirp');
@@ -10,8 +9,8 @@ try {
   fsevents = require('fsevents');
 } catch (error) {}
 
-var isWin32 = os.platform() === 'win32';
-var canUseFsEvents = os.platform() === 'darwin' && !!fsevents;
+var platform = require('os').platform();
+var canUseFsEvents = platform === 'darwin' && !!fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
@@ -93,7 +92,9 @@ function FSWatcher(_opts) {
 
   // Use polling by default on Linux and Mac (if not using fsevents).
   // Disable polling on Windows.
-  if (undef('usePolling') && !opts.useFsEvents) opts.usePolling = !isWin32;
+  if (undef('usePolling') && !opts.useFsEvents) {
+    opts.usePolling = platform !== 'win32';
+  }
 
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
@@ -408,7 +409,7 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
     var broadcastErr = fsWatchBroadcast.bind(null, absPath, 'errHandlers');
     watcher.on('error', function(error) {
       // Workaround for https://github.com/joyent/node/issues/4337
-      if (isWin32 && error.code === 'EPERM') {
+      if (platform === 'win32' && error.code === 'EPERM') {
         fs.exists(item, function(exists) {
           if (exists) broadcastErr(error);
         });
