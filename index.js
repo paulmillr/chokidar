@@ -96,6 +96,9 @@ function FSWatcher(_opts) {
     opts.usePolling = platform !== 'win32';
   }
 
+  // vim friendly settings
+  if (undef('vimSafe')) opts.vimSafe = platform === 'linux';
+
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
   }.bind(this);
@@ -150,6 +153,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 };
 
 FSWatcher.prototype._isIgnored = function(path, stats) {
+  if (this.options.vimSafe && /^\..*\.sw[px]$|\~$/.test(path)) return true;
   var userIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
     case '[object RegExp]':
