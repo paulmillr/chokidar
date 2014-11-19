@@ -97,7 +97,10 @@ function FSWatcher(_opts) {
   }
 
   // vim friendly settings
-  if (undef('vimSafe')) opts.vimSafe = platform === 'linux';
+  if (undef('vimSafe')) {
+    opts.vimSafe = platform === 'linux';
+    this._pendingUnlinks = Object.create(null);
+  }
 
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
@@ -124,6 +127,24 @@ FSWatcher.prototype = Object.create(EventEmitter.prototype);
 // --------------
 FSWatcher.prototype._emit = function(event) {
   var args = [].slice.apply(arguments);
+  if (this.options.vimSafe) {
+    if (event === 'unlink') {
+      this._pendingUnlinks[args[1]] = args;
+      setTimeout(function() {
+        Object.keys(this._pendingUnlinks).forEach(function(path) {
+          this.emit.apply(this, this._pendingUnlinks[path]);
+          delete this._pendingUnlinks[path];
+        }.bind(this));
+      }.bind(this), 100);
+      return this;
+    } else if (event === 'add' && this._pendingUnlinks[args[1]]) {
+      event = args[0] = 'change';
+      delete this._pendingUnlinks[args[1]];
+    }
+    if (event === 'change') {
+      if (!this._throttle('change', args[1], 50)) return this;
+    }
+  }
   this.emit.apply(this, args);
   if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   return this;
@@ -587,6 +608,9 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
       // emit `add` event.
       if (item === target || !target && !previous.has(item)) {
         _this._readyCount++;
+        if (_this.options.vimSafe && /\~$/.test(item)) {
+          _this._emit('change', item.slice(0, -1), entry.stat);
+        }
         _this._handle(sysPath.join(directory, item), initialAdd, target);
       }
     }).on('end', function() {
