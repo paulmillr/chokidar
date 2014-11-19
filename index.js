@@ -96,9 +96,9 @@ function FSWatcher(_opts) {
     opts.usePolling = platform !== 'win32';
   }
 
-  // vim friendly settings
-  if (undef('vimSafe')) {
-    opts.vimSafe = platform === 'linux';
+  // vim & atomic save friendly settings
+  if (undef('atomic')) {
+    opts.atomic = !opts.usePolling && !opts.useFsEvents;
     this._pendingUnlinks = Object.create(null);
   }
 
@@ -127,7 +127,7 @@ FSWatcher.prototype = Object.create(EventEmitter.prototype);
 // --------------
 FSWatcher.prototype._emit = function(event) {
   var args = [].slice.apply(arguments);
-  if (this.options.vimSafe) {
+  if (this.options.atomic) {
     if (event === 'unlink') {
       this._pendingUnlinks[args[1]] = args;
       setTimeout(function() {
@@ -174,7 +174,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 };
 
 FSWatcher.prototype._isIgnored = function(path, stats) {
-  if (this.options.vimSafe && /^\..*\.sw[px]$|\~$/.test(path)) return true;
+  if (this.options.atomic && /^\..*\.sw[px]$|\~$/.test(path)) return true;
   var userIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
     case '[object RegExp]':
@@ -608,7 +608,7 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
       // emit `add` event.
       if (item === target || !target && !previous.has(item)) {
         _this._readyCount++;
-        if (_this.options.vimSafe && /\~$/.test(item)) {
+        if (_this.options.atomic && /\~$/.test(item)) {
           _this._emit('change', item.slice(0, -1), entry.stat);
         }
         _this._handle(sysPath.join(directory, item), initialAdd, target);
