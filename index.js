@@ -10,7 +10,7 @@ try {
 } catch (error) {}
 
 var platform = require('os').platform();
-var canUseFsEvents = platform === 'darwin' && !!fsevents;
+var canUseFsEvents = platform === 'darwin' && fsevents;
 
 // To disable FSEvents completely.
 // var canUseFsEvents = false;
@@ -431,6 +431,7 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
       fsWatchBroadcast.bind(null, absPath, 'listeners'),
       errHandler // no need to use broadcast here
     );
+    if (!watcher) return;
     var broadcastErr = fsWatchBroadcast.bind(null, absPath, 'errHandlers');
     watcher.on('error', function(error) {
       // Workaround for https://github.com/joyent/node/issues/4337
