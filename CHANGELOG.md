@@ -1,3 +1,6 @@
+# Chokidar 0.11.1 (19 November 2014)
+* Fix a bug where an error is thrown when `fs.watch` instantiation fails
+
 # Chokidar 0.11.0 (16 November 2014)
 * Add a `ready` event, which is emitted after initial file scan completes
 * Fix issue with options keys passed in defined as `undefined`
