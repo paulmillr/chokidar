@@ -99,8 +99,8 @@ function FSWatcher(_opts) {
   // vim & atomic save friendly settings
   if (undef('atomic')) {
     opts.atomic = !opts.usePolling && !opts.useFsEvents;
-    this._pendingUnlinks = Object.create(null);
   }
+  if (opts.atomic) this._pendingUnlinks = Object.create(null);
 
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
