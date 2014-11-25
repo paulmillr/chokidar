@@ -411,7 +411,7 @@ var FsWatchInstances = Object.create(null);
 function createFsWatchInstance(item, options, callback, errHandler) {
   var handleEvent = function(rawEvent, path) {
     callback(item);
-    if (item !== path) {
+    if (path && item !== path) {
       fsWatchBroadcast(sysPath.resolve(path), 'listeners', path);
     }
   };
