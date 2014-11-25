@@ -409,7 +409,12 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 // Node.js native watcher helpers
 var FsWatchInstances = Object.create(null);
 function createFsWatchInstance(item, options, callback, errHandler) {
-  var handleEvent = function() {callback(item);};
+  var handleEvent = function(rawEvent, path) {
+    callback(item);
+    if (item !== path) {
+      fsWatchBroadcast(sysPath.resolve(path), 'listeners', path);
+    }
+  };
   try {
     return fs.watch(item, options, handleEvent);
   } catch (error) {
@@ -418,6 +423,7 @@ function createFsWatchInstance(item, options, callback, errHandler) {
 }
 
 function fsWatchBroadcast(absPath, type, value) {
+  if (!FsWatchInstances[absPath]) return;
   FsWatchInstances[absPath][type].forEach(function(callback) {
     callback(value);
   });
