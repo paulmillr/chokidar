@@ -174,7 +174,10 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 };
 
 FSWatcher.prototype._isIgnored = function(path, stats) {
-  if (this.options.atomic && /^\..*\.sw[px]$|\~$/.test(path)) return true;
+  if (
+    this.options.atomic &&
+    /^\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(path)
+  ) return true;
   var userIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
     case '[object RegExp]':
