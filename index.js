@@ -133,6 +133,7 @@ FSWatcher.prototype._emit = function(event) {
       setTimeout(function() {
         Object.keys(this._pendingUnlinks).forEach(function(path) {
           this.emit.apply(this, this._pendingUnlinks[path]);
+          this.emit.apply(this, ['all'].concat(this._pendingUnlinks[path]));
           delete this._pendingUnlinks[path];
         }.bind(this));
       }.bind(this), 100);
