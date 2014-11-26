@@ -48,14 +48,19 @@ function runTests (options) {
   options.persistent = true;
 
   describe('watch', function() {
+    var rawSpy;
     beforeEach(function(done) {
-      this.readySpy = sinon.spy();
-      this.watcher = chokidar.watch(fixturesPath, options).on('ready', this.readySpy);
+      this.readySpy = sinon.spy(function readySpy(){});
+      rawSpy = sinon.spy(function rawSpy(){});
+      this.watcher = chokidar.watch(fixturesPath, options)
+        .on('ready', this.readySpy)
+        .on('raw', rawSpy);
       delay(done);
     });
     afterEach(function(done) {
       this.watcher.close();
       this.readySpy.should.have.been.calledOnce;
+      rawSpy = undefined;
       delete this.watcher;
       delay(done);
     });
@@ -95,6 +100,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          rawSpy.should.have.been.called;
           done();
         });
       });
@@ -109,6 +115,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
+          rawSpy.should.have.been.called;
           done();
         });
       });
@@ -126,6 +133,7 @@ function runTests (options) {
             spy.should.have.been.calledOnce;
           }
           spy.should.have.been.calledWith(testPath);
+          rawSpy.should.have.been.called;
           done();
         });
       });
@@ -140,6 +148,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          rawSpy.should.have.been.called;
           done();
         });
       });
@@ -153,6 +162,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
+          rawSpy.should.have.been.called;
           done();
         });
       });
@@ -174,14 +184,16 @@ function runTests (options) {
           addSpy.should.have.been.calledOnce;
           addSpy.should.have.been.calledWith(newPath);
           fs.renameSync(newPath, testPath);
+          rawSpy.should.have.been.called;
           done();
         });
       });
     });
-    it('should survive ENOENT for missing subdirectories', function() {
+    it('should survive ENOENT for missing subdirectories', function(done) {
       var testDir;
       testDir = getFixturePath('subdir');
       this.watcher.add(testDir);
+      delay(done);
     });
     it('should notice when a file appears in a new directory', function(done) {
       var spy = sinon.spy();
@@ -195,6 +207,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          rawSpy.should.have.been.called;
           done();
         });
       });

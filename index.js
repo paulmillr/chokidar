@@ -280,16 +280,16 @@ function createFSEventsInstance(path, callback) {
   return (new fsevents(path)).on('fsevent', callback).start();
 }
 
-function setFSEventsListener(path, callback) {
+function setFSEventsListener(path, callback, rawEmitter) {
   var watchPath = sysPath.extname(path) ? sysPath.dirname(path) : path;
   var watchContainer;
 
   var resolvedPath = sysPath.resolve(path);
-  function filteredCallback(fullPath, flags) {
+  function filteredCallback(fullPath, flags, info) {
     if (
       fullPath === resolvedPath ||
       !fullPath.indexOf(resolvedPath + sysPath.sep)
-    ) callback(fullPath, flags);
+    ) callback(fullPath, flags, info);
   }
 
   if (
@@ -307,9 +307,14 @@ function setFSEventsListener(path, callback) {
   } else {
     watchContainer = FSEventsWatchers[watchPath] = {
       listeners: [filteredCallback],
+      rawEmitters: [rawEmitter],
       watcher: createFSEventsInstance(watchPath, function(fullPath, flags) {
+        var info = fsevents.getInfo(fullPath, flags);
         watchContainer.listeners.forEach(function(callback) {
-          callback(fullPath, flags);
+          callback(fullPath, flags, info);
+        });
+        watchContainer.rawEmitters.forEach(function(emitter) {
+          emitter(info.event, fullPath, info);
         });
       })
     };
@@ -328,8 +333,7 @@ function setFSEventsListener(path, callback) {
 
 FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
   if (this._isIgnored(watchPath)) return;
-  var watcher = setFSEventsListener(watchPath, function(fullPath, flags) {
-    var info = fsevents.getInfo(fullPath, flags);
+  var watcher = setFSEventsListener(watchPath, function(fullPath, flags, info) {
     var path = sysPath.join(watchPath, sysPath.relative(watchPath, fullPath));
     // ensure directories are tracked
     var parent = sysPath.dirname(path);
@@ -402,16 +406,17 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
         stats ? addOrChange() : handleEvent('unlink');
       });
     }
-  }.bind(this));
+  }.bind(this), this.emit.bind(this, 'raw'));
   this._emitReady();
   return this._watchers.push(watcher);
 };
 
 // Node.js native watcher helpers
 var FsWatchInstances = Object.create(null);
-function createFsWatchInstance(item, options, callback, errHandler) {
+function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
   var handleEvent = function(rawEvent, path) {
     callback(item);
+    emitRaw(rawEvent, path);
     if (path && item !== path) {
       fsWatchBroadcast(sysPath.resolve(path), 'listeners', path);
     }
@@ -423,14 +428,17 @@ function createFsWatchInstance(item, options, callback, errHandler) {
   }
 }
 
-function fsWatchBroadcast(absPath, type, value) {
+function fsWatchBroadcast(absPath, type, value1, value2) {
   if (!FsWatchInstances[absPath]) return;
   FsWatchInstances[absPath][type].forEach(function(callback) {
-    callback(value);
+    callback(value1, value2);
   });
 }
 
-function setFsWatchListener(item, absPath, options, callback, errHandler) {
+function setFsWatchListener(item, absPath, options, handlers) {
+  var callback = handlers.callback;
+  var errHandler = handlers.errHandler;
+  var rawEmitter = handlers.rawEmitter;
   var container = FsWatchInstances[absPath];
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
@@ -439,7 +447,8 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
       item,
       options,
       fsWatchBroadcast.bind(null, absPath, 'listeners'),
-      errHandler // no need to use broadcast here
+      errHandler, // no need to use broadcast here
+      fsWatchBroadcast.bind(null, absPath, 'rawEmitters')
     );
     if (!watcher) return;
     var broadcastErr = fsWatchBroadcast.bind(null, absPath, 'errHandlers');
@@ -456,11 +465,13 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
     container = FsWatchInstances[absPath] = {
       listeners: [callback],
       errHandlers: [errHandler],
+      rawEmitters: [rawEmitter],
       watcher: watcher
     };
   } else {
     container.listeners.push(callback);
     container.errHandlers.push(errHandler);
+    container.rawEmitters.push(rawEmitter);
   }
   var listenerIndex = container.listeners.length - 1;
   return {
@@ -476,9 +487,12 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
 }
 
 var FsWatchFileInstances = Object.create(null);
-function setFsWatchFileListener(item, absPath, options, callback) {
+function setFsWatchFileListener(item, absPath, options, handlers) {
+  var callback = handlers.callback;
+  var rawEmitter = handlers.rawEmitter;
   var container = FsWatchFileInstances[absPath];
   var listeners = [];
+  var rawEmitters = [];
   if (
     container && (
       container.options.persistent < options.persistent ||
@@ -490,15 +504,21 @@ function setFsWatchFileListener(item, absPath, options, callback) {
     // settings in a very weird way, but solving for those cases
     // doesn't seem worthwhile for the added complexity.
     listeners = container.listeners;
+    rawEmitters = container.rawEmitters;
     fs.unwatchFile(absPath);
     container = false;
   }
   if (!container) {
     listeners.push(callback);
+    rawEmitters.push(rawEmitter);
     container = FsWatchFileInstances[absPath] = {
       listeners: listeners,
+      rawEmitters: rawEmitters,
       options: options,
       watcher: fs.watchFile(absPath, options, function(curr, prev) {
+        container.rawEmitters.forEach(function(rawEmitter) {
+          rawEmitter('change', absPath, {curr: curr, prev: prev});
+        });
         var currmtime = curr.mtime.getTime();
         if (currmtime > prev.mtime.getTime() || currmtime === 0) {
           container.listeners.forEach(function(callback) {
@@ -542,10 +562,16 @@ FSWatcher.prototype._watch = function(item, callback) {
   if (this.options.usePolling) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
-    watcher = setFsWatchFileListener(item, absolutePath, options, callback);
+    watcher = setFsWatchFileListener(item, absolutePath, options, {
+      callback: callback,
+      rawEmitter: this.emit.bind(this, 'raw')
+    });
   } else {
-    var errHandler = this._handleError.bind(this);
-    watcher = setFsWatchListener(item, absolutePath, options, callback, errHandler);
+    watcher = setFsWatchListener(item, absolutePath, options, {
+      callback: callback,
+      errHandler: this._handleError.bind(this),
+      rawEmitter: this.emit.bind(this, 'raw')
+    });
   }
   if (watcher) this._watchers.push(watcher);
 };
