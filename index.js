@@ -385,9 +385,9 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 // Node.js native watcher helpers
 var FsWatchInstances = Object.create(null);
 function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
-  var handleEvent = function(event, path) {
+  var handleEvent = function(rawEvent, path) {
     callback(item);
-    emitRaw(event, path);
+    emitRaw(rawEvent, path, {watchedPath: item});
   };
   try {
     return fs.watch(item, options, handleEvent);
