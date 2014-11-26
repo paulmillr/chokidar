@@ -454,9 +454,12 @@ function setFsWatchListener(item, absPath, options, handlers) {
 }
 
 var FsWatchFileInstances = Object.create(null);
-function setFsWatchFileListener(item, absPath, options, callback) {
+function setFsWatchFileListener(item, absPath, options, handlers) {
+  var callback = handlers.callback;
+  var rawEmitter = handlers.rawEmitter;
   var container = FsWatchFileInstances[absPath];
   var listeners = [];
+  var rawEmitters = [];
   if (
     container && (
       container.options.persistent < options.persistent ||
@@ -468,15 +471,21 @@ function setFsWatchFileListener(item, absPath, options, callback) {
     // settings in a very weird way, but solving for those cases
     // doesn't seem worthwhile for the added complexity.
     listeners = container.listeners;
+    rawEmitters = container.rawEmitters;
     fs.unwatchFile(absPath);
     container = false;
   }
   if (!container) {
     listeners.push(callback);
+    rawEmitters.push(rawEmitter);
     container = FsWatchFileInstances[absPath] = {
       listeners: listeners,
+      rawEmitters: rawEmitters,
       options: options,
       watcher: fs.watchFile(absPath, options, function(curr, prev) {
+        container.rawEmitters.forEach(function(rawEmitter) {
+          rawEmitter('change', absPath, {curr: curr, prev: prev});
+        });
         var currmtime = curr.mtime.getTime();
         if (currmtime > prev.mtime.getTime() || currmtime === 0) {
           container.listeners.forEach(function(callback) {
@@ -520,7 +529,10 @@ FSWatcher.prototype._watch = function(item, callback) {
   if (this.options.usePolling) {
     options.interval = this.enableBinaryInterval && isBinaryPath(basename) ?
       this.options.binaryInterval : this.options.interval;
-    watcher = setFsWatchFileListener(item, absolutePath, options, callback);
+    watcher = setFsWatchFileListener(item, absolutePath, options, {
+      callback: callback,
+      rawEmitter: this.emit.bind(this, 'raw')
+    });
   } else {
     watcher = setFsWatchListener(item, absolutePath, options, {
       callback: callback,
