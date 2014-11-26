@@ -251,16 +251,16 @@ function createFSEventsInstance(path, callback) {
   return (new fsevents(path)).on('fsevent', callback).start();
 }
 
-function setFSEventsListener(path, callback) {
+function setFSEventsListener(path, callback, rawEmitter) {
   var watchPath = sysPath.extname(path) ? sysPath.dirname(path) : path;
   var watchContainer;
 
   var resolvedPath = sysPath.resolve(path);
-  function filteredCallback(fullPath, flags) {
+  function filteredCallback(fullPath, flags, info) {
     if (
       fullPath === resolvedPath ||
       !fullPath.indexOf(resolvedPath + sysPath.sep)
-    ) callback(fullPath, flags);
+    ) callback(fullPath, flags, info);
   }
 
   if (
@@ -278,9 +278,14 @@ function setFSEventsListener(path, callback) {
   } else {
     watchContainer = FSEventsWatchers[watchPath] = {
       listeners: [filteredCallback],
+      rawEmitters: [rawEmitter],
       watcher: createFSEventsInstance(watchPath, function(fullPath, flags) {
+        var info = fsevents.getInfo(fullPath, flags);
         watchContainer.listeners.forEach(function(callback) {
-          callback(fullPath, flags);
+          callback(fullPath, flags, info);
+        });
+        watchContainer.rawEmitters.forEach(function(emitter) {
+          emitter(info.event, fullPath, info);
         });
       })
     };
@@ -299,8 +304,7 @@ function setFSEventsListener(path, callback) {
 
 FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
   if (this._isIgnored(watchPath)) return;
-  var watcher = setFSEventsListener(watchPath, function(fullPath, flags) {
-    var info = fsevents.getInfo(fullPath, flags);
+  var watcher = setFSEventsListener(watchPath, function(fullPath, flags, info) {
     var path = sysPath.join(watchPath, sysPath.relative(watchPath, fullPath));
     // ensure directories are tracked
     var parent = sysPath.dirname(path);
@@ -373,7 +377,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
         stats ? addOrChange() : handleEvent('unlink');
       });
     }
-  }.bind(this));
+  }.bind(this), this.emit.bind(this, 'raw'));
   this._emitReady();
   return this._watchers.push(watcher);
 };
