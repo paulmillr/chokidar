@@ -56,6 +56,7 @@ watcher
   .on('unlinkDir', function(path) {console.log('Directory', path, 'has been removed');})
   .on('error', function(error) {console.error('Error happened', error);})
   .on('ready', function() {console.info('Initial scan complete. Ready for changes.')})
+  .on('raw', function(event, path, details) {console.info('Raw event info:', event, path, details)})
 
 // 'add', 'addDir' and 'change' events also receive stat() results as second argument.
 // http://nodejs.org/api/fs.html#fs_class_fs_stats
@@ -104,9 +105,9 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 * `.add(file / files)`: Add directories / files for tracking.
 Takes an array of strings (file paths) or just one path.
 * `.on(event, callback)`: Listen for an FS event.
-Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`, `error`.
+Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`, `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event name
-and path for every event other than `ready` and `error`.
+and path for every event other than `ready`, `raw`, and `error`.
 * `.close()`: Removes all listeners from watched files.
 
 ## License
