@@ -384,8 +384,11 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 
 // Node.js native watcher helpers
 var FsWatchInstances = Object.create(null);
-function createFsWatchInstance(item, options, callback, errHandler) {
-  var handleEvent = function() {callback(item);};
+function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
+  var handleEvent = function(event, path) {
+    callback(item);
+    emitRaw(event, path);
+  };
   try {
     return fs.watch(item, options, handleEvent);
   } catch (error) {
@@ -393,13 +396,16 @@ function createFsWatchInstance(item, options, callback, errHandler) {
   }
 }
 
-function fsWatchBroadcast(absPath, type, value) {
+function fsWatchBroadcast(absPath, type, value1, value2) {
   FsWatchInstances[absPath][type].forEach(function(callback) {
-    callback(value);
+    callback(value1, value2);
   });
 }
 
-function setFsWatchListener(item, absPath, options, callback, errHandler) {
+function setFsWatchListener(item, absPath, options, handlers) {
+  var callback = handlers.callback;
+  var errHandler = handlers.errHandler;
+  var rawEmitter = handlers.rawEmitter;
   var container = FsWatchInstances[absPath];
   if (!options.persistent) {
     return createFsWatchInstance(item, options, callback, errHandler);
@@ -408,7 +414,8 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
       item,
       options,
       fsWatchBroadcast.bind(null, absPath, 'listeners'),
-      errHandler // no need to use broadcast here
+      errHandler, // no need to use broadcast here
+      fsWatchBroadcast.bind(null, absPath, 'rawEmitters')
     );
     if (!watcher) return;
     var broadcastErr = fsWatchBroadcast.bind(null, absPath, 'errHandlers');
@@ -425,11 +432,13 @@ function setFsWatchListener(item, absPath, options, callback, errHandler) {
     container = FsWatchInstances[absPath] = {
       listeners: [callback],
       errHandlers: [errHandler],
+      rawEmitters: [rawEmitter],
       watcher: watcher
     };
   } else {
     container.listeners.push(callback);
     container.errHandlers.push(errHandler);
+    container.rawEmitters.push(rawEmitter);
   }
   var listenerIndex = container.listeners.length - 1;
   return {
@@ -513,8 +522,11 @@ FSWatcher.prototype._watch = function(item, callback) {
       this.options.binaryInterval : this.options.interval;
     watcher = setFsWatchFileListener(item, absolutePath, options, callback);
   } else {
-    var errHandler = this._handleError.bind(this);
-    watcher = setFsWatchListener(item, absolutePath, options, callback, errHandler);
+    watcher = setFsWatchListener(item, absolutePath, options, {
+      callback: callback,
+      errHandler: this._handleError.bind(this),
+      rawEmitter: this.emit.bind(this, 'raw')
+    });
   }
   if (watcher) this._watchers.push(watcher);
 };
