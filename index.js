@@ -154,7 +154,8 @@ FSWatcher.prototype._emit = function(event) {
 FSWatcher.prototype._handleError = function(error) {
   if (error &&
     error.code !== 'ENOENT' &&
-    error.code !== 'ENOTDIR'
+    error.code !== 'ENOTDIR' &&
+		(!this.options.ignorePermissionErrors || error.code !== 'EPERM')
   ) this.emit('error', error);
   return error || this.closed;
 };
@@ -417,7 +418,10 @@ function createFsWatchInstance(item, options, callback, errHandler) {
     }
   };
   try {
-    return fs.watch(item, options, handleEvent);
+    var watcher = fs.watch(item, options, handleEvent);
+		watcher.on('error', errHandler);
+		
+		return watcher;
   } catch (error) {
     errHandler(error);
   }
