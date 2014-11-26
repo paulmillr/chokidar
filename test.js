@@ -50,7 +50,7 @@ function runTests (options) {
   describe('watch', function() {
     var rawSpy;
     beforeEach(function(done) {
-      this.readySpy = sinon.spy();
+      this.readySpy = sinon.spy(function readySpy(){});
       rawSpy = sinon.spy(function rawSpy(){});
       this.watcher = chokidar.watch(fixturesPath, options)
         .on('ready', this.readySpy)
