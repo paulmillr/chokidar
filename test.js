@@ -189,10 +189,11 @@ function runTests (options) {
         });
       });
     });
-    it('should survive ENOENT for missing subdirectories', function() {
+    it('should survive ENOENT for missing subdirectories', function(done) {
       var testDir;
       testDir = getFixturePath('subdir');
       this.watcher.add(testDir);
+      delay(done);
     });
     it('should notice when a file appears in a new directory', function(done) {
       var spy = sinon.spy();
