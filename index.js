@@ -396,9 +396,9 @@ function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
   }
 }
 
-function fsWatchBroadcast(absPath, type, value1, value2) {
+function fsWatchBroadcast(absPath, type, value1, value2, value3) {
   FsWatchInstances[absPath][type].forEach(function(callback) {
-    callback(value1, value2);
+    callback(value1, value2, value3);
   });
 }
 
