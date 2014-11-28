@@ -129,7 +129,8 @@ FSWatcher.prototype._emit = function(event) {
 FSWatcher.prototype._handleError = function(error) {
   if (error &&
     error.code !== 'ENOENT' &&
-    error.code !== 'ENOTDIR'
+    error.code !== 'ENOTDIR' &&
+    !(error.code === 'EPERM' && !this.options.ignorePermissionErrors)
   ) this.emit('error', error);
   return error || this.closed;
 };
