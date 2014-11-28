@@ -418,7 +418,7 @@ function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
     callback(item);
     emitRaw(rawEvent, path, {watchedPath: item});
     if (path && item !== path) {
-      fsWatchBroadcast(sysPath.resolve(path), 'listeners', path);
+      fsWatchBroadcast(sysPath.resolve(item, path), 'listeners', path);
     }
   };
   try {
