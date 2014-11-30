@@ -77,7 +77,7 @@ function FSWatcher(_opts) {
   }
 
   // Set up default options.
-  if (undef('persistent')) opts.persistent = false;
+  if (undef('persistent')) opts.persistent = true;
   if (undef('ignoreInitial')) opts.ignoreInitial = false;
   if (undef('ignorePermissionErrors')) opts.ignorePermissionErrors = false;
   if (undef('interval')) opts.interval = 100;
