@@ -289,7 +289,8 @@ function setFSEventsListener(path, callback, rawEmitter) {
   function filteredCallback(fullPath, flags, info) {
     if (
       fullPath === resolvedPath ||
-      !fullPath.indexOf(resolvedPath + sysPath.sep)
+      !fullPath.indexOf(resolvedPath + sysPath.sep) ||
+      fullPath === sysPath.join(sysPath.sep, 'private', resolvedPath)
     ) callback(fullPath, flags, info);
   }
 
