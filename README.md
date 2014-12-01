@@ -85,20 +85,25 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
       twice per path - once with a single argument (the path), second time with
       two arguments (the path and the [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
       object of that path).
-    * `options.persistent` (default: `false`). Indicates whether the process
-    should continue to run as long as files are being watched.
+    * `options.persistent` (default: `true`). Indicates whether the process
+    should continue to run as long as files are being watched. If set to
+    `false` when using `fsevents` to watch, no more events will be emitted
+    after `ready`, even if the process continues to run.
     * `options.ignorePermissionErrors` (default: `false`). Indicates
-      whether to watch files that don't have read permissions.
+    whether to watch files that don't have read permissions.
     * `options.ignoreInitial` (default: `false`). Indicates whether chokidar
     should ignore the initial `add` events or not.
     * `options.interval` (default: `100`). Interval of file system polling.
     * `options.binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
-    * `options.useFsEvents` (default: `true` on OS X). Whether to use the `fsevents` watching interface if
-    available. When `true` and `fsevents` is available, it supercedes the `usePolling` setting.
-    * `options.usePolling` (default: `false` on Windows, `true` on Linux and OS X). Whether to use fs.watchFile
-    (backed by polling), or fs.watch. If polling leads to high CPU utilization,
-    consider setting this to `false`.
+    * `options.useFsEvents` (default: `true` on OS X). Whether to use the
+    `fsevents` watching interface if available. When set to `true` and 
+    `fsevents` is available this supercedes the `usePolling` setting.
+    * `options.usePolling` (default: `false` on Windows, `true` on Linux and OS X).
+    Whether to use fs.watchFile (backed by polling), or fs.watch. If polling
+    leads to high CPU utilization, consider setting this to `false`. Polling
+    may be necessary to successfully watch files in certain situation, such as
+    network mounted drives.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
