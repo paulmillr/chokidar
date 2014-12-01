@@ -77,7 +77,7 @@ function FSWatcher(_opts) {
   }
 
   // Set up default options.
-  if (undef('persistent')) opts.persistent = false;
+  if (undef('persistent')) opts.persistent = true;
   if (undef('ignoreInitial')) opts.ignoreInitial = false;
   if (undef('ignorePermissionErrors')) opts.ignorePermissionErrors = false;
   if (undef('interval')) opts.interval = 100;
@@ -154,7 +154,8 @@ FSWatcher.prototype._emit = function(event) {
 FSWatcher.prototype._handleError = function(error) {
   if (error &&
     error.code !== 'ENOENT' &&
-    error.code !== 'ENOTDIR'
+    error.code !== 'ENOTDIR' &&
+    !(error.code === 'EPERM' && !this.options.ignorePermissionErrors)
   ) this.emit('error', error);
   return error || this.closed;
 };
@@ -428,10 +429,10 @@ function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
   }
 }
 
-function fsWatchBroadcast(absPath, type, value1, value2) {
+function fsWatchBroadcast(absPath, type, value1, value2, value3) {
   if (!FsWatchInstances[absPath]) return;
   FsWatchInstances[absPath][type].forEach(function(callback) {
-    callback(value1, value2);
+    callback(value1, value2, value3);
   });
 }
 
