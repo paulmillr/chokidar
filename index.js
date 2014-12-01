@@ -96,6 +96,12 @@ function FSWatcher(_opts) {
     opts.usePolling = platform !== 'win32';
   }
 
+  // vim & atomic save friendly settings
+  if (undef('atomic')) {
+    opts.atomic = !opts.usePolling && !opts.useFsEvents;
+  }
+  if (opts.atomic) this._pendingUnlinks = Object.create(null);
+
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
   }.bind(this);
@@ -121,6 +127,25 @@ FSWatcher.prototype = Object.create(EventEmitter.prototype);
 // --------------
 FSWatcher.prototype._emit = function(event) {
   var args = [].slice.apply(arguments);
+  if (this.options.atomic) {
+    if (event === 'unlink') {
+      this._pendingUnlinks[args[1]] = args;
+      setTimeout(function() {
+        Object.keys(this._pendingUnlinks).forEach(function(path) {
+          this.emit.apply(this, this._pendingUnlinks[path]);
+          this.emit.apply(this, ['all'].concat(this._pendingUnlinks[path]));
+          delete this._pendingUnlinks[path];
+        }.bind(this));
+      }.bind(this), 100);
+      return this;
+    } else if (event === 'add' && this._pendingUnlinks[args[1]]) {
+      event = args[0] = 'change';
+      delete this._pendingUnlinks[args[1]];
+    }
+    if (event === 'change') {
+      if (!this._throttle('change', args[1], 50)) return this;
+    }
+  }
   this.emit.apply(this, args);
   if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   return this;
@@ -151,6 +176,10 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 };
 
 FSWatcher.prototype._isIgnored = function(path, stats) {
+  if (
+    this.options.atomic &&
+    /^\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(path)
+  ) return true;
   var userIgnored = (function(ignored) {
     switch (toString.call(ignored)) {
     case '[object RegExp]':
@@ -389,6 +418,9 @@ function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
   var handleEvent = function(rawEvent, path) {
     callback(item);
     emitRaw(rawEvent, path, {watchedPath: item});
+    if (path && item !== path) {
+      fsWatchBroadcast(sysPath.resolve(item, path), 'listeners', path);
+    }
   };
   try {
     return fs.watch(item, options, handleEvent);
@@ -398,6 +430,7 @@ function createFsWatchInstance(item, options, callback, errHandler, emitRaw) {
 }
 
 function fsWatchBroadcast(absPath, type, value1, value2, value3) {
+  if (!FsWatchInstances[absPath]) return;
   FsWatchInstances[absPath][type].forEach(function(callback) {
     callback(value1, value2, value3);
   });
@@ -613,6 +646,9 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
       // emit `add` event.
       if (item === target || !target && !previous.has(item)) {
         _this._readyCount++;
+        if (_this.options.atomic && /\~$/.test(item)) {
+          _this._emit('change', item.slice(0, -1), entry.stat);
+        }
         _this._handle(sysPath.join(directory, item), initialAdd, target);
       }
     }).on('end', function() {
