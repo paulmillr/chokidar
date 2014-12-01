@@ -744,9 +744,9 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
           if (entry.stat.isSymbolicLink()) {
             _this._readyCount++;
             fs.readlink(entryPath, function(error, linkPath) {
-              if (_this._handleError(error)) return;
+              if (_this._handleError(error)) return _this._emitReady();
               fs.stat(linkPath, function(error, linkStats) {
-                if (_this._handleError(error)) return;
+                if (_this._handleError(error)) return _this._emitReady();
                 if (linkStats.isDirectory()) {
                   _this._readyCount++;
                   _this._addToFsEvents(linkPath, function(path) {
