@@ -716,32 +716,57 @@ FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
   }.bind(this));
 };
 
-FSWatcher.prototype._addToFsEvents = function(file) {
+FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
+  var _this = this;
+  if (!pathTransform) pathTransform = function(val) { return val; };
   var emitAdd = function(path, stats) {
-    this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
-    this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
-  }.bind(this);
+    path = pathTransform(path);
+    _this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
+    _this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
+  };
   if (this.options.ignoreInitial) {
     this._emitReady();
   } else {
     fs.stat(file, function(error, stats) {
-      if (this._handleError(error)) return this._emitReady();
+      if (_this._handleError(error)) return _this._emitReady();
 
       if (stats.isDirectory()) {
-        this._emit('addDir', file, stats);
+        _this._emit('addDir', pathTransform(file), stats);
         readdirp({
           root: file,
           entryType: 'both',
-          fileFilter: this._isntIgnored,
-          directoryFilter: this._isntIgnored
+          fileFilter: _this._isntIgnored,
+          directoryFilter: _this._isntIgnored,
+          lstat: true
         }).on('data', function(entry) {
-          emitAdd(sysPath.join(file, entry.path), entry.stat);
-        }).on('end', this._emitReady);
+          var entryPath = sysPath.join(file, entry.path);
+          var processEntry = emitAdd.bind(null, entryPath, entry.stat);
+          if (entry.stat.isSymbolicLink()) {
+            _this._readyCount++;
+            fs.readlink(entryPath, function(error, linkPath) {
+              if (_this._handleError(error)) return;
+              fs.stat(linkPath, function(error, linkStats) {
+                if (_this._handleError(error)) return;
+                if (linkStats.isDirectory()) {
+                  _this._readyCount++;
+                  _this._addToFsEvents(linkPath, function(path) {
+                    return path.replace(linkPath, entryPath);
+                  });
+                } else if (linkStats.isFile()) {
+                  processEntry();
+                  _this._emitReady();
+                }
+              });
+            });
+          } else {
+            processEntry();
+          }
+        }).on('end', _this._emitReady);
       } else {
         emitAdd(file, stats);
-        this._emitReady();
+        _this._emitReady();
       }
-    }.bind(this));
+    });
   }
   if (this.options.persistent) this._watchWithFsEvents(file);
   return this;
