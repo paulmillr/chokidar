@@ -397,9 +397,9 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
 
     switch (info.event) {
     case 'created':
-      return handleEvent('add');
+      return addOrChange();
     case 'modified':
-      return handleEvent('change');
+      return addOrChange();
     case 'deleted':
       return handleEvent('unlink');
     case 'moved':
