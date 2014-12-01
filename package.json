@@ -42,7 +42,7 @@
     "fsevents": "~0.3.1"
   },
   "dependencies": {
-    "readdirp": "~1.1.0",
+    "readdirp": "~1.2.0",
     "async-each": "~0.1.5"
   }
 }
