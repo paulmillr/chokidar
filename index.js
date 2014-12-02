@@ -292,7 +292,8 @@ function setFSEventsListener(path, callback, rawEmitter) {
     if (hasSymlink) fullPath = fullPath.replace(realPath, resolvedPath);
     if (
       fullPath === resolvedPath ||
-      !fullPath.indexOf(resolvedPath + sysPath.sep)
+      !fullPath.indexOf(resolvedPath + sysPath.sep) ||
+      fullPath === sysPath.join(sysPath.sep, 'private', resolvedPath)
     ) callback(fullPath, flags, info);
   }
 
