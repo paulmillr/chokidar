@@ -286,7 +286,10 @@ function setFSEventsListener(path, callback, rawEmitter) {
   var watchContainer;
 
   var resolvedPath = sysPath.resolve(path);
+  var realPath = fs.realpathSync(resolvedPath);
+  var hasSymlink = resolvedPath !== realPath;
   function filteredCallback(fullPath, flags, info) {
+    if (hasSymlink) fullPath = fullPath.replace(realPath, resolvedPath);
     if (
       fullPath === resolvedPath ||
       !fullPath.indexOf(resolvedPath + sysPath.sep)
