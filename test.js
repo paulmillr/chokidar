@@ -305,6 +305,29 @@ function runTests (options) {
       });
     });
   });
+  describe('watch symlinks', function() {
+    var linkedPath = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
+    before(function() {
+      try {fs.symlinkSync(fixturesPath, linkedPath);} catch(err) {}
+    });
+    after(function() {
+      try {fs.unlinkSync(linkedPath);} catch(err) {}
+    });
+    it('should watch symlinked dirs', function(done) {
+      var spy = sinon.spy();
+      var watcher = chokidar.watch(linkedPath, options);
+      watcher.on('addDir', spy);
+      watcher.on('add', console.log);
+      var readySpy = sinon.spy();
+      watcher.on('ready', readySpy);
+      delay(function() {
+        watcher.close();
+        readySpy.should.have.been.calledOnce;
+        spy.should.have.been.calledWith(linkedPath);
+        done();
+      });
+    });
+  });
   describe('watch options', function() {
     function clean (done) {
       try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
