@@ -372,7 +372,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath) {
         this._getWatchedDir(parent).add(item);
         if (info.type === 'directory') this._getWatchedDir(path);
       }
-      var eventName = info.type === 'file' ? event : event + 'Dir';
+      var eventName = info.type === 'directory' ? event + 'Dir' : event;
       this._emit(eventName, path);
     }.bind(this);
 
