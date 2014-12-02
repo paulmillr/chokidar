@@ -314,16 +314,19 @@ function runTests (options) {
       try {fs.unlinkSync(linkedPath);} catch(err) {}
     });
     it('should watch symlinked dirs', function(done) {
-      var spy = sinon.spy();
+      var dirSpy = sinon.spy(function dirSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
       var watcher = chokidar.watch(linkedPath, options);
-      watcher.on('addDir', spy);
-      watcher.on('add', console.log);
-      var readySpy = sinon.spy();
+      watcher.on('addDir', dirSpy);
+      watcher.on('add', addSpy);
+      var readySpy = sinon.spy(function readySpy(){});
       watcher.on('ready', readySpy);
       delay(function() {
         watcher.close();
         readySpy.should.have.been.calledOnce;
-        spy.should.have.been.calledWith(linkedPath);
+        dirSpy.should.have.been.calledWith(linkedPath);
+        addSpy.should.have.been.calledWith(sysPath.join(linkedPath, 'change.txt'));
+        addSpy.should.have.been.calledWith(sysPath.join(linkedPath, 'unlink.txt'));
         done();
       });
     });
