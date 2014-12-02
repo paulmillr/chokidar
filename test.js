@@ -306,17 +306,19 @@ function runTests (options) {
     });
   });
   describe('watch symlinks', function() {
-    var linkedPath = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
+    var linkedDir = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
     before(function() {
-      try {fs.symlinkSync(fixturesPath, linkedPath);} catch(err) {}
+      try {fs.symlinkSync(fixturesPath, linkedDir);} catch(err) {}
+      fs.writeFileSync(getFixturePath('change.txt'), 'b');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
     });
     after(function() {
-      try {fs.unlinkSync(linkedPath);} catch(err) {}
+      try {fs.unlinkSync(linkedDir);} catch(err) {}
     });
     it('should watch symlinked dirs', function(done) {
       var dirSpy = sinon.spy(function dirSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
-      var watcher = chokidar.watch(linkedPath, options);
+      var watcher = chokidar.watch(linkedDir, options);
       watcher.on('addDir', dirSpy);
       watcher.on('add', addSpy);
       var readySpy = sinon.spy(function readySpy(){});
@@ -324,9 +326,9 @@ function runTests (options) {
       delay(function() {
         watcher.close();
         readySpy.should.have.been.calledOnce;
-        dirSpy.should.have.been.calledWith(linkedPath);
-        addSpy.should.have.been.calledWith(sysPath.join(linkedPath, 'change.txt'));
-        addSpy.should.have.been.calledWith(sysPath.join(linkedPath, 'unlink.txt'));
+        dirSpy.should.have.been.calledWith(linkedDir);
+        addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
+        addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'unlink.txt'));
         done();
       });
     });
