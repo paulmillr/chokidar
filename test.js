@@ -314,6 +314,8 @@ function runTests (options) {
     });
     after(function() {
       try {fs.unlinkSync(linkedDir);} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
+      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
     });
     it('should watch symlinked dirs', function(done) {
       var dirSpy = sinon.spy(function dirSpy(){});
@@ -340,11 +342,30 @@ function runTests (options) {
       var watcher = chokidar.watch(linkPath, options).on('all', spy);
       delay(function() {
         fs.writeFileSync(changePath, 'c');
-        delay(function() {
+        ddelay(function() {
           watcher.close();
           try {fs.unlinkSync(linkPath);} catch(err) {}
           spy.should.have.been.calledWith('add', linkPath);
           spy.should.have.been.calledWith('change', linkPath);
+          done();
+        });
+      });
+    });
+    it('should watch paths with a symlinked parent', function(done) {
+      this.timeout(2500);
+      var spy = sinon.spy();
+      var testDir = sysPath.join(linkedDir, 'subdir');
+      var testFile = sysPath.join(testDir, 'add.txt');
+      fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+      fs.writeFileSync(getFixturePath('subdir/add.txt'), 'a');
+      var watcher = chokidar.watch(testDir, options).on('all', spy);
+      ddelay(function() {
+        spy.should.have.been.calledWith('addDir', testDir);
+        spy.should.have.been.calledWith('add', testFile);
+        fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+        ddelay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith('change', testFile);
           done();
         });
       });
