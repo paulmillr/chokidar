@@ -780,7 +780,7 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
   }
   if (this.options.persistent) {
     fs.realpath(sysPath.resolve(file), function(error, realPath) {
-      if (_this._handleError(error)) return;
+      if (error) realPath = file;
       _this._watchWithFsEvents(file, realPath);
     });
   }
