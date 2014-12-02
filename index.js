@@ -281,12 +281,11 @@ function createFSEventsInstance(path, callback) {
   return (new fsevents(path)).on('fsevent', callback).start();
 }
 
-function setFSEventsListener(path, callback, rawEmitter) {
+function setFSEventsListener(path, realPath, callback, rawEmitter) {
   var watchPath = sysPath.extname(path) ? sysPath.dirname(path) : path;
   var watchContainer;
 
   var resolvedPath = sysPath.resolve(path);
-  var realPath = fs.realpathSync(resolvedPath);
   var hasSymlink = resolvedPath !== realPath;
   function filteredCallback(fullPath, flags, info) {
     if (hasSymlink) fullPath = fullPath.replace(realPath, resolvedPath);
@@ -335,9 +334,9 @@ function setFSEventsListener(path, callback, rawEmitter) {
   };
 }
 
-FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
+FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath) {
   if (this._isIgnored(watchPath)) return;
-  var watcher = setFSEventsListener(watchPath, function(fullPath, flags, info) {
+  var watchCallback = function(fullPath, flags, info) {
     var path = sysPath.join(watchPath, sysPath.relative(watchPath, fullPath));
     // ensure directories are tracked
     var parent = sysPath.dirname(path);
@@ -410,7 +409,15 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath) {
         stats ? addOrChange() : handleEvent('unlink');
       });
     }
-  }.bind(this), this.emit.bind(this, 'raw'));
+  }.bind(this);
+
+  var watcher = setFSEventsListener(
+    watchPath,
+    realPath,
+    watchCallback,
+    this.emit.bind(this, 'raw')
+  );
+
   this._emitReady();
   return this._watchers.push(watcher);
 };
@@ -771,7 +778,12 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
       }
     });
   }
-  if (this.options.persistent) this._watchWithFsEvents(file);
+  if (this.options.persistent) {
+    fs.realpath(sysPath.resolve(file), function(error, realPath) {
+      if (_this._handleError(error)) return;
+      _this._watchWithFsEvents(file, realPath);
+    });
+  }
   return this;
 };
 
