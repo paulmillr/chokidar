@@ -335,10 +335,12 @@ function setFSEventsListener(path, realPath, callback, rawEmitter) {
   };
 }
 
-FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath) {
+FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath, pt) {
   if (this._isIgnored(watchPath)) return;
   var watchCallback = function(fullPath, flags, info) {
-    var path = sysPath.join(watchPath, sysPath.relative(watchPath, fullPath));
+    var path = pt(sysPath.join(
+      watchPath, sysPath.relative(watchPath, fullPath)
+    ));
     // ensure directories are tracked
     var parent = sysPath.dirname(path);
     var item = sysPath.basename(path);
@@ -794,7 +796,7 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
   if (this.options.persistent) {
     fs.realpath(sysPath.resolve(file), function(error, realPath) {
       if (error) realPath = file;
-      _this._watchWithFsEvents(file, realPath);
+      _this._watchWithFsEvents(file, realPath, pathTransform);
     });
   }
   return this;
