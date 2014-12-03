@@ -759,6 +759,9 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
           var entryPath = sysPath.join(file, entry.path);
           var processEntry = emitAdd.bind(null, entryPath, entry.stat);
           if (entry.stat.isSymbolicLink()) {
+            if (_this._symlinkPaths[entry.path]) return;
+            else _this._symlinkPaths[entry.path] = true;
+
             _this._readyCount++;
             fs.readlink(entryPath, function(error, linkPath) {
               if (_this._handleError(error)) return _this._emitReady();
