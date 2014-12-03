@@ -381,6 +381,18 @@ function runTests (options) {
         done();
       });
     });
+    it('should recognize changes following symlinked dirs', function(done) {
+      var spy = sinon.spy(function changeSpy(){});
+      var watcher = chokidar.watch(linkedDir, options).on('change', spy);
+      delay(function() {
+        fs.writeFileSync(getFixturePath('change.txt'), 'c');
+        delay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
+          done();
+        });
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
