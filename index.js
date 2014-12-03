@@ -773,9 +773,9 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
                   _this._readyCount++;
                   _this._addToFsEvents(linkPath, function(path) {
                     var ds = '.' + sysPath.sep;
-                    return linkPath && linkPath !== ds ?
+                    return pathTransform(linkPath && linkPath !== ds ?
                       path.replace(linkPath, entryPath) :
-                      path === ds ? entryPath : sysPath.join(entryPath, path);
+                      path === ds ? entryPath : sysPath.join(entryPath, path));
                   });
                 } else if (linkStats.isFile()) {
                   processEntry();
