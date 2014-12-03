@@ -370,6 +370,17 @@ function runTests (options) {
         });
       });
     });
+    it('should not recurse indefinitely on circular symlinks', function(done) {
+      var spy = sinon.spy();
+      fs.symlinkSync(fixturesPath, getFixturePath('subdir/circular'));
+      var watcher = chokidar.watch(fixturesPath, options).on('ready', spy);
+      delay(function() {
+        fs.unlinkSync(getFixturePath('subdir/circular'));
+        watcher.close();
+        spy.should.have.been.calledOnce;
+        done();
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
