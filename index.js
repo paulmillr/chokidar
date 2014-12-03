@@ -770,7 +770,10 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
                 if (linkStats.isDirectory()) {
                   _this._readyCount++;
                   _this._addToFsEvents(linkPath, function(path) {
-                    return path.replace(linkPath, entryPath);
+                    var ds = '.' + sysPath.sep;
+                    return linkPath && linkPath !== ds ?
+                      path.replace(linkPath, entryPath) :
+                      path === ds ? entryPath : sysPath.join(entryPath, path);
                   });
                 } else if (linkStats.isFile()) {
                   processEntry();
