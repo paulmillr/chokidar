@@ -71,6 +71,7 @@ function FSWatcher(_opts) {
   this._ignoredPaths = Object.create(null);
   this.closed = false;
   this._throttled = Object.create(null);
+  this._symlinkPaths = Object.create(null);
 
   function undef(key) {
     return opts[key] === undefined;
@@ -646,8 +647,14 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
     readdirp({
       root: directory,
       entryType: 'both',
-      depth: 0
+      depth: 0,
+      lstat: true
     }).on('data', function(entry) {
+      if (entry.stat.isSymbolicLink()) {
+        if (_this._symlinkPaths[entry.path]) return;
+        else _this._symlinkPaths[entry.path] = true;
+      }
+
       var item = entry.path;
       current.push(item);
 
