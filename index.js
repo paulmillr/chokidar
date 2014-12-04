@@ -784,7 +784,7 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
       if (_this._handleError(error)) return _this._emitReady();
 
       if (stats.isDirectory()) {
-        _this._emit('addDir', pathTransform(file), stats);
+        emitAdd(pathTransform(file), stats);
         readdirp({
           root: file,
           entryType: 'both',
