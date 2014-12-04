@@ -665,23 +665,21 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
           _this._readyCount++;
           fs.readlink(path, function(error, linkPath) {
             if (previous.has(item)) {
-              if (_this._symlinkPaths[path] !== linkPath) {
-                _this._symlinkPaths[path] = linkPath;
+              if (_this._symlinkPaths[entry.fullPath] !== linkPath) {
+                _this._symlinkPaths[entry.fullPath] = linkPath;
                 _this._emit('change', path, entry.stat);
               }
             } else {
               previous.add(item);
-              _this._symlinkPaths[path] = linkPath;
+              _this._symlinkPaths[entry.fullPath] = linkPath;
               _this._emit('add', path, entry.stat);
             }
             _this._emitReady();
           });
           return;
         }
-        if (
-          _this._symlinkPaths[path] || _this._symlinkPaths[directory]
-        ) return;
-        else _this._symlinkPaths[path] = true;
+        if (_this._symlinkPaths[entry.fullPath]) return;
+        else _this._symlinkPaths[entry.fullPath] = true;
       }
 
       // Files that present in current directory snapshot
@@ -784,9 +782,9 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
         }).on('data', function(entry) {
           var entryPath = sysPath.join(file, entry.path);
           var processEntry = emitAdd.bind(null, entryPath, entry.stat);
-          if (_this.options.followSymlinks && entry.stat.isSymbolicLink()) {
-            if (_this._symlinkPaths[entry.path]) return;
-            else _this._symlinkPaths[entry.path] = true;
+          if (followSymlinks && entry.stat.isSymbolicLink()) {
+            if (_this._symlinkPaths[entry.fullPath]) return;
+            else _this._symlinkPaths[entry.fullPath] = true;
 
             _this._readyCount++;
             fs.readlink(entryPath, function(error, linkPath) {
