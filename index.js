@@ -642,7 +642,7 @@ FSWatcher.prototype._handleFile = function(file, stats, initialAdd, target, call
 // Returns nothing.
 FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callback) {
   var _this = this;
-  function read(directory, initialAdd, target, done) {
+  function read(directory, initialAdd, done) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, '');
     var throttler = _this._throttle('readdir', directory, 1000);
@@ -706,11 +706,11 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
       });
     }).on('error', _this._handleError.bind(_this));
   }
-  if (!target) read(dir, initialAdd, null, callback);
+  if (!target) read(dir, initialAdd, callback);
   this._watch(dir, function(dirPath, stats) {
     // Current directory is removed, do nothing
     if (stats && stats.mtime.getTime() === 0) return;
-    read(dirPath, false, target);
+    read(dirPath, false);
   });
   if (!(initialAdd && this.options.ignoreInitial) && !target) {
     this._emit('addDir', dir, stats);
