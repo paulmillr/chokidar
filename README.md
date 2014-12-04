@@ -104,7 +104,10 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
     leads to high CPU utilization, consider setting this to `false`. Polling
     may be necessary to successfully watch files in certain situation, such as
     network mounted drives.
-    * `options.atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`)
+    * `options.followSymlinks` (default: `true`). When `false`, only the
+    symlinks themselves will be watched for changes instead of following
+    the link references and bubbling events through the link's path.
+    * `options.atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
     Automatically filters out artifacts that occur when using editors that use
     "atomic writes" instead of writing directly to the source file.
 
