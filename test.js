@@ -348,6 +348,7 @@ function runTests (options) {
     });
     after(function() {
       try {fs.unlinkSync(linkedDir);} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('link'));} catch(err) {}
       try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
       try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
     });
@@ -421,6 +422,21 @@ function runTests (options) {
         delay(function() {
           watcher.close();
           spy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
+          done();
+        });
+      });
+    });
+    it('should follow newly created symlinks', function(done) {
+      var spy = sinon.spy();
+      options.ignoreInitial = true;
+      var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+      delay(function() {
+        fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
+        delay(function() {
+          watcher.close();
+          delete options.ignoreInitial;
+          spy.should.have.been.calledWith('addDir', getFixturePath('link'));
+          spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
           done();
         });
       });
