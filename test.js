@@ -458,6 +458,8 @@ function runTests (options) {
   });
   describe('watch options', function() {
     function clean (done) {
+      fs.writeFileSync(getFixturePath('change.txt'), 'b');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
       try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
       try {fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));} catch(err) {}
       try {fs.rmdirSync(getFixturePath('subdir/dir'));} catch(err) {}
