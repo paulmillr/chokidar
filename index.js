@@ -690,7 +690,7 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
         if (_this.options.atomic && /\~$/.test(item)) {
           _this._emit('change', item.slice(0, -1), entry.stat);
         }
-        _this._handle(sysPath.join(directory, item), initialAdd, target);
+        _this._handle(sysPath.join(directory, item), initialAdd);
       }
     }).on('end', function() {
       throttler.clear();
