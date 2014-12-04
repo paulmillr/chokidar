@@ -393,6 +393,20 @@ function runTests (options) {
         });
       });
     });
+    it('should watch symlinks as files when followSymlinks:false', function(done) {
+      var spy = sinon.spy();
+      options.followSymlinks = false;
+      var watcher = chokidar.watch(linkedDir, options).on('all', spy);
+      delay(function() {
+        watcher.close();
+        delete options.followSymlinks;
+        spy.should.not.have.been.calledWith('addDir');
+        spy.should.have.been.calledWith('add', linkedDir);
+        spy.should.have.been.calledOnce;
+        fs.unlinkSync(linkedDir);
+        done();
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
