@@ -103,6 +103,8 @@ function FSWatcher(_opts) {
   }
   if (opts.atomic) this._pendingUnlinks = Object.create(null);
 
+  if (undef('followSymlinks')) opts.followSymlinks = true;
+
   this._isntIgnored = function(entry) {
     return !this._isIgnored(entry.path, entry.stat);
   }.bind(this);
@@ -652,13 +654,31 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
       depth: 0,
       lstat: true
     }).on('data', function(entry) {
-      if (entry.stat.isSymbolicLink()) {
-        if (_this._symlinkPaths[entry.path]) return;
-        else _this._symlinkPaths[entry.path] = true;
-      }
-
       var item = entry.path;
       current.push(item);
+      var path = sysPath.join(directory, item);
+
+      if (entry.stat.isSymbolicLink()) {
+        if (!_this.options.followSymlinks) {
+          _this._readyCount++;
+          fs.readlink(path, function(error, linkPath) {
+            if (previous.has(item)) {
+              if (_this._symlinkPaths[path] !== linkPath) {
+                _this._symlinkPaths[path] = linkPath;
+                _this._emit('change', path, entry.stat);
+              }
+            } else {
+              previous.add(item);
+              _this._symlinkPaths[path] = linkPath;
+              _this._emit('add', path, entry.stat);
+            }
+            _this._emitReady();
+          });
+          return;
+        }
+        if (_this._symlinkPaths[path]) return;
+        else _this._symlinkPaths[path] = true;
+      }
 
       // Files that present in current directory snapshot
       // but absent in previous are added to watch list and
@@ -760,7 +780,7 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
         }).on('data', function(entry) {
           var entryPath = sysPath.join(file, entry.path);
           var processEntry = emitAdd.bind(null, entryPath, entry.stat);
-          if (entry.stat.isSymbolicLink()) {
+          if (_this.options.followSymlinks && entry.stat.isSymbolicLink()) {
             if (_this._symlinkPaths[entry.path]) return;
             else _this._symlinkPaths[entry.path] = true;
 
