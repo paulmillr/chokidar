@@ -375,7 +375,11 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath, pt) {
       if (checkIgnored()) return;
       if (event === 'add') {
         this._getWatchedDir(parent).add(item);
-        if (info.type === 'directory') this._getWatchedDir(path);
+        if (info.type === 'directory') {
+          this._getWatchedDir(path);
+        } else if (info.type === 'symlink' && this.options.followSymlinks) {
+          return this._addToFsEvents(path);
+        }
       }
       var eventName = info.type === 'directory' ? event + 'Dir' : event;
       this._emit(eventName, path);
