@@ -733,27 +733,34 @@ FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
     return callback(null, item);
   }
 
-  fs.realpath(item, function(error, path) {
+  var followSymlinks = this.options.followSymlinks;
+  fs[followSymlinks ? 'stat' : 'lstat'](item, function(error, stats) {
     if (this._handleError(error)) return callback(null, item);
-    fs.stat(path, function(error, stats) {
-      if (this._handleError(error)) return callback(null, item);
-      if ((
-        this.options.ignorePermissionErrors &&
-        !this._hasReadPermissions(stats)
-      ) || (
-        this._isIgnored.length === 2 &&
-        this._isIgnored(item, stats)
-      )) {
+    if ((
+      this.options.ignorePermissionErrors &&
+      !this._hasReadPermissions(stats)
+    ) || (
+      this._isIgnored.length === 2 &&
+      this._isIgnored(item, stats)
+    )) {
+      this._emitReady();
+      return callback(null, false);
+    }
+    if (stats.isDirectory()) {
+      this._handleDir(item, stats, initialAdd, target, this._emitReady);
+    } else if (stats.isSymbolicLink()) {
+      var parent = sysPath.dirname(item);
+      this._getWatchedDir(parent).add(item);
+      this._emit('add', item, stats);
+      this._handleDir(parent, stats, initialAdd, item, this._emitReady);
+      fs.readlink(item, function(error, linkPath) {
+        this._symlinkPaths[sysPath.resolve(item)] = linkPath;
         this._emitReady();
-        return callback(null, false);
-      }
-      if (stats.isFile() || stats.isCharacterDevice()) {
-        this._handleFile(item, stats, initialAdd, target, this._emitReady);
-      } else if (stats.isDirectory()) {
-        this._handleDir(item, stats, initialAdd, target, this._emitReady);
-      }
-      callback(null, false);
-    }.bind(this));
+      }.bind(this));
+    } else {
+      this._handleFile(item, stats, initialAdd, target, this._emitReady);
+    }
+    callback(null, false);
   }.bind(this));
 };
 
