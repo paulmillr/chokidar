@@ -378,7 +378,7 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath, pt) {
         if (info.type === 'directory') {
           this._getWatchedDir(path);
         } else if (info.type === 'symlink' && this.options.followSymlinks) {
-          return this._addToFsEvents(path);
+          return this._addToFsEvents(path, false, true);
         }
       }
       var eventName = info.type === 'directory' ? event + 'Dir' : event;
@@ -768,70 +768,72 @@ FSWatcher.prototype._handle = function(item, initialAdd, target, callback) {
   }.bind(this));
 };
 
-FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
-  var _this = this;
+FSWatcher.prototype._symlinkForFsEvents = function(linkPath, add, pt) {
+  this._readyCount++;
+  fs.readlink(linkPath, function(error, linkTarget) {
+    if (this._handleError(error)) return this._emitReady();
+    fs.stat(linkTarget, function(error, targetStats) {
+      if (this._handleError(error)) return this._emitReady();
+      if (targetStats.isDirectory()) {
+        this._readyCount++;
+        this._addToFsEvents(linkTarget, function(path) {
+          var ds = '.' + sysPath.sep;
+          return pt(linkTarget && linkTarget !== ds ?
+            path.replace(linkTarget, linkPath) :
+            path === ds ? linkPath : sysPath.join(linkPath, path));
+        });
+      } else if (targetStats.isFile()) {
+        add();
+        this._emitReady();
+      }
+    }.bind(this));
+  }.bind(this));
+};
+
+FSWatcher.prototype._addToFsEvents = function(file, pathTransform, forceScan) {
   if (!pathTransform) pathTransform = function(val) { return val; };
   var emitAdd = function(path, stats) {
     path = pathTransform(path);
-    _this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
-    _this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
-  };
+    this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
+    this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
+  }.bind(this);
   var followSymlinks = this.options.followSymlinks;
-  if (this.options.ignoreInitial) {
+  if (this.options.ignoreInitial && forceScan !== true) {
     this._emitReady();
   } else {
     fs[followSymlinks ? 'stat' : 'lstat'](file, function(error, stats) {
-      if (_this._handleError(error)) return _this._emitReady();
+      if (this._handleError(error)) return this._emitReady();
 
       if (stats.isDirectory()) {
         emitAdd(pathTransform(file), stats);
         readdirp({
           root: file,
           entryType: 'both',
-          fileFilter: _this._isntIgnored,
-          directoryFilter: _this._isntIgnored,
+          fileFilter: this._isntIgnored,
+          directoryFilter: this._isntIgnored,
           lstat: true
         }).on('data', function(entry) {
           var entryPath = sysPath.join(file, entry.path);
-          var processEntry = emitAdd.bind(null, entryPath, entry.stat);
+          var addEntry = emitAdd.bind(null, entryPath, entry.stat);
           if (followSymlinks && entry.stat.isSymbolicLink()) {
-            if (_this._symlinkPaths[entry.fullPath]) return;
-            else _this._symlinkPaths[entry.fullPath] = true;
-
-            _this._readyCount++;
-            fs.readlink(entryPath, function(error, linkPath) {
-              if (_this._handleError(error)) return _this._emitReady();
-              fs.stat(linkPath, function(error, linkStats) {
-                if (_this._handleError(error)) return _this._emitReady();
-                if (linkStats.isDirectory()) {
-                  _this._readyCount++;
-                  _this._addToFsEvents(linkPath, function(path) {
-                    var ds = '.' + sysPath.sep;
-                    return pathTransform(linkPath && linkPath !== ds ?
-                      path.replace(linkPath, entryPath) :
-                      path === ds ? entryPath : sysPath.join(entryPath, path));
-                  });
-                } else if (linkStats.isFile()) {
-                  processEntry();
-                  _this._emitReady();
-                }
-              });
-            });
+            if (this._symlinkPaths[entry.fullPath]) return;
+            else this._symlinkPaths[entry.fullPath] = true;
+            this._symlinkForFsEvents(entryPath, addEntry, pathTransform);
           } else {
-            processEntry();
+            addEntry();
           }
-        }).on('end', _this._emitReady);
+        }.bind(this)).on('end', this._emitReady);
       } else {
         emitAdd(file, stats);
-        _this._emitReady();
+        this._emitReady();
       }
-    });
+    }.bind(this));
   }
   if (this.options.persistent) {
     fs.realpath(file, function(error, realPath) {
       if (error) realPath = file;
-      _this._watchWithFsEvents(file, sysPath.resolve(realPath), pathTransform);
-    });
+      this._watchWithFsEvents(file, sysPath.resolve(realPath), pathTransform);
+    }.bind(this));
   }
   return this;
 };
