@@ -497,6 +497,10 @@ function runTests (options) {
       it('should check ignore after stating', function(done) {
         var testDir = getFixturePath('subdir');
         var spy = sinon.spy();
+        try {fs.mkdirSync(testDir, 0x1ed);} catch(err) {}
+        fs.writeFileSync(testDir + '/add.txt', '');
+        fs.mkdirSync(testDir + '/dir', 0x1ed);
+        fs.writeFileSync(testDir + '/dir/ignored.txt', '');
         function ignoredFn(path, stats) {
           if (path === testDir || !stats) return false;
           return stats.isDirectory();
@@ -504,10 +508,6 @@ function runTests (options) {
         options.ignored = ignoredFn;
         var watcher = chokidar.watch(testDir, options);
         watcher.on('add', spy);
-        try {fs.mkdirSync(testDir, 0x1ed);} catch(err) {}
-        fs.writeFileSync(testDir + '/add.txt', '');
-        fs.mkdirSync(testDir + '/dir', 0x1ed);
-        fs.writeFileSync(testDir + '/dir/ignored.txt', '');
         delay(function() {
           watcher.close();
           spy.should.have.been.calledOnce;
