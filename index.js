@@ -765,10 +765,11 @@ FSWatcher.prototype._addToFsEvents = function(file, pathTransform) {
     _this._getWatchedDir(sysPath.dirname(path)).add(sysPath.basename(path));
     _this._emit(stats.isDirectory() ? 'addDir' : 'add', path, stats);
   };
+  var followSymlinks = this.options.followSymlinks;
   if (this.options.ignoreInitial) {
     this._emitReady();
   } else {
-    fs.stat(file, function(error, stats) {
+    fs[followSymlinks ? 'stat' : 'lstat'](file, function(error, stats) {
       if (_this._handleError(error)) return _this._emitReady();
 
       if (stats.isDirectory()) {
