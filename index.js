@@ -678,7 +678,9 @@ FSWatcher.prototype._handleDir = function(dir, stats, initialAdd, target, callba
           });
           return;
         }
-        if (_this._symlinkPaths[path]) return;
+        if (
+          _this._symlinkPaths[path] || _this._symlinkPaths[directory]
+        ) return;
         else _this._symlinkPaths[path] = true;
       }
 
