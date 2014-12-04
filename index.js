@@ -385,7 +385,9 @@ FSWatcher.prototype._watchWithFsEvents = function(watchPath, realPath, pt) {
     function addOrChange() {
       handleEvent(watchedDir.has(item) ? 'change' : 'add');
     }
-    var wrongEventFlags = [69888, 70400, 71424, 72704, 73472, 131328, 131840];
+    var wrongEventFlags = [
+      69888, 70400, 71424, 72704, 73472, 131328, 131840, 262912
+    ];
     if (wrongEventFlags.indexOf(flags) !== -1 || info.event === 'unknown') {
       if (info.event !== 'add' && info.event !== 'change') {
         fs.stat(path, function(error, stats) {
