@@ -375,9 +375,9 @@ function runTests (options) {
       var linkPath = getFixturePath('link.txt');
       try {fs.symlinkSync(changePath, linkPath);} catch(err) {}
       var watcher = chokidar.watch(linkPath, options).on('all', spy);
-      delay(function() {
+      ddelay(function() {
         fs.writeFileSync(changePath, 'c');
-        ddelay(function() {
+        delay(function() {
           watcher.close();
           try {fs.unlinkSync(linkPath);} catch(err) {}
           spy.should.have.been.calledWith('add', linkPath);
