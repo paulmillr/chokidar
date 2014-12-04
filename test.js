@@ -251,23 +251,6 @@ function runTests (options) {
         });
       });
     });
-    it('should watch non-existent file and detect add', function(done) {
-      var spy = sinon.spy();
-      var testPath = getFixturePath('add.txt');
-      var watcher = chokidar.watch(testPath, options).on('add', spy);
-      var readySpy = sinon.spy();
-      watcher.on('ready', readySpy);
-      // polling takes a bit longer here
-      ddelay(function() {
-        fs.writeFileSync(testPath, 'a');
-        delay(function() {
-          spy.should.have.been.calledWith(testPath);
-          readySpy.should.have.been.calledOnce;
-          watcher.close();
-          done();
-        });
-      });
-    });
     it('should detect unlink and re-add', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
       var addSpy = sinon.spy(function add(){});
@@ -301,6 +284,55 @@ function runTests (options) {
             watcher.close();
             done();
           });
+        });
+      });
+    });
+  });
+  describe('watch non-existent paths', function() {
+    function clean(done) {
+      fs.writeFileSync(getFixturePath('change.txt'), 'b');
+      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
+      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
+      delay(done);
+    }
+    beforeEach(clean);
+    after(clean);
+    it('should watch non-existent file and detect add', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('add.txt');
+      var watcher = chokidar.watch(testPath, options).on('add', spy);
+      var readySpy = sinon.spy();
+      watcher.on('ready', readySpy);
+      // polling takes a bit longer here
+      ddelay(function() {
+        fs.writeFileSync(testPath, 'a');
+        delay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith(testPath);
+          readySpy.should.have.been.calledOnce;
+          done();
+        });
+      });
+    });
+    it('should watch non-existent dir and detect addDir/add', function(done) {
+      var spy = sinon.spy();
+      var testDir = getFixturePath('subdir');
+      var testPath = getFixturePath('subdir/add.txt');
+      var watcher = chokidar.watch(testDir, options).on('all', spy);
+      var readySpy = sinon.spy();
+      watcher.on('ready', readySpy);
+      ddelay(function() {
+        spy.should.not.have.been.called;
+        readySpy.should.have.been.calledOnce;
+        fs.mkdirSync(testDir, 0x1ed);
+        fs.writeFileSync(testPath, 'hello');
+        delay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith('addDir', testDir);
+          spy.should.have.been.calledWith('add', testPath);
+          done();
         });
       });
     });
