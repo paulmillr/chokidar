@@ -341,8 +341,10 @@ function runTests (options) {
     var linkedDir = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
     before(function() {
       try {fs.symlinkSync(fixturesPath, linkedDir);} catch(err) {}
+      try {fs.mkdirSync(getFixturePath('subdir'), 0x1ed);} catch(err) {}
       fs.writeFileSync(getFixturePath('change.txt'), 'b');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+      fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b');
     });
     after(function() {
       try {fs.unlinkSync(linkedDir);} catch(err) {}
@@ -388,8 +390,6 @@ function runTests (options) {
       var spy = sinon.spy();
       var testDir = sysPath.join(linkedDir, 'subdir');
       var testFile = sysPath.join(testDir, 'add.txt');
-      fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
-      fs.writeFileSync(getFixturePath('subdir/add.txt'), 'a');
       var watcher = chokidar.watch(testDir, options).on('all', spy);
       ddelay(function() {
         spy.should.have.been.calledWith('addDir', testDir);
