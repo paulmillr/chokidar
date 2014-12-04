@@ -250,7 +250,7 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
-  if (!this._throttle('remove', fullPath, 10)) return;
+  if (!this._throttle('remove', fullPath, 50)) return;
 
   // if the only watched file is removed, watch for its return
   var watchedDirs = Object.keys(this._watched);
