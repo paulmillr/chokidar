@@ -338,6 +338,7 @@ function runTests (options) {
     });
   });
   describe('watch symlinks', function() {
+    if (require('os').platform() === 'win32') return;
     var linkedDir = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
     before(function() {
       try {fs.symlinkSync(fixturesPath, linkedDir);} catch(err) {}
