@@ -6,10 +6,8 @@ var readdirp = require('readdirp');
 var fsevents;
 try { fsevents = require('fsevents'); } catch (error) {}
 
+// fsevents instance helpers
 var FSEventsWatchers = Object.create(null);
-function fseventsHandler() {
-  return fsevents && Object.keys(FSEventsWatchers).length < 128;
-}
 
 function createFSEventsInstance(path, callback) {
   return (new fsevents(path)).on('fsevent', callback).start();
@@ -66,6 +64,12 @@ function setFSEventsListener(path, realPath, callback, rawEmitter) {
       }
     }
   };
+}
+
+// constructor
+function fseventsHandler() {
+  // returns boolean indicating whether fsevents can be used
+  return fsevents && Object.keys(FSEventsWatchers).length < 128;
 }
 
 fseventsHandler.prototype._watchWithFsEvents =

@@ -80,18 +80,11 @@ function FSWatcher(_opts) {
   if (undef('binaryInterval')) opts.binaryInterval = 300;
   this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
-  // Enable fsevents on OS X when polling is disabled.
-  // Which is basically super fast watcher.
+  // Enable fsevents on OS X when polling isn't explicitly enabled.
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
-  // If we can use fsevents, bind the handler methods
-  if (fseventsHandler()) {
-    Object.keys(fseventsHandler.prototype).forEach(function(method) {
-      this[method] = fseventsHandler.prototype[method].bind(this);
-    }, this);
-  // If we can't, ensure the options reflect it's disabled.
-  } else {
-    opts.useFsEvents = false;
-  }
+
+  // If we can't use fsevents, ensure the options reflect it's disabled.
+  if (!fseventsHandler()) opts.useFsEvents = false;
 
   // Use polling by default on Linux and Mac (if not using fsevents).
   // Disable polling on Windows.
@@ -665,6 +658,14 @@ FSWatcher.prototype.close = function() {
   this.removeAllListeners();
   return this;
 };
+
+// Attach watch handler prototype methods
+function importProto (proto) {
+  Object.keys(proto).forEach(function(method) {
+    FSWatcher.prototype[method] = proto[method];
+  });
+}
+if (fseventsHandler()) importProto(fseventsHandler.prototype);
 
 exports.FSWatcher = FSWatcher;
 
