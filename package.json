@@ -31,7 +31,9 @@
   },
   "files": [
     "index.js",
-    "fsevents-handler.js"
+    "fsevents-handler.js",
+    "nodefs-handler.js",
+    "is-binary.js"
   ],
   "devDependencies": {
     "mocha": "~2.0.0",
