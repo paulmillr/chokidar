@@ -30,7 +30,8 @@
     "test": "mocha"
   },
   "files": [
-    "index.js"
+    "index.js",
+    "fsevents-handler.js"
   ],
   "devDependencies": {
     "mocha": "~2.0.0",
