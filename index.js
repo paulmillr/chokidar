@@ -1,7 +1,6 @@
 'use strict';
 var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
-var util = require('util');
 var sysPath = require('path');
 var each = require('async-each');
 
