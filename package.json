@@ -29,11 +29,9 @@
   "scripts": {
     "test": "mocha"
   },
+  "main": "lib",
   "files": [
-    "index.js",
-    "fsevents-handler.js",
-    "nodefs-handler.js",
-    "is-binary.js"
+    "lib"
   ],
   "devDependencies": {
     "mocha": "~2.0.0",
