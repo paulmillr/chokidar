@@ -1,3 +1,11 @@
+# Chokidar 0.12.0 (8 December 2014)
+* Symlink support
+  * Add `followSymlinks` option, which defaults to `true`
+* Change default watch mode on Linux to non-polling `fs.watch`
+* Add `atomic` option to normalize events from editors using atomic writes
+  * Particularly Vim and Sublime
+* Add `raw` event which exposes data from the underlying watch method
+
 # Chokidar 0.11.1 (19 November 2014)
 * Fix a bug where an error is thrown when `fs.watch` instantiation fails
 
