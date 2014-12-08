@@ -29,8 +29,9 @@
   "scripts": {
     "test": "mocha"
   },
+  "main": "lib",
   "files": [
-    "index.js"
+    "lib"
   ],
   "devDependencies": {
     "mocha": "~2.0.0",
