@@ -1,3 +1,6 @@
+# Chokidar 0.12.1 (10 December 2014)
+* Fix a case where file symlinks were not followed properly
+
 # Chokidar 0.12.0 (8 December 2014)
 * Symlink support
   * Add `followSymlinks` option, which defaults to `true`
