@@ -387,6 +387,26 @@ function runTests (options) {
         });
       });
     });
+    it('should follow symlinked files within a normal dir', function(done) {
+      var spy = sinon.spy();
+      var changePath = getFixturePath('change.txt');
+      var linkPath = getFixturePath('subdir/link.txt');
+      try {fs.symlinkSync(changePath, linkPath);} catch(err) {}
+      delay(function() {
+        var watcher = chokidar.watch(getFixturePath('subdir'), options);
+        watcher.on('all', spy);
+        delay(function() {
+          fs.writeFileSync(changePath, 'c');
+          delay(function() {
+            watcher.close();
+            try {fs.unlinkSync(linkPath);} catch(err) {}
+            spy.should.have.been.calledWith('add', linkPath);
+            spy.should.have.been.calledWith('change', linkPath);
+            done();
+          });
+        });
+      });
+    });
     it('should watch paths with a symlinked parent', function(done) {
       this.timeout(2500);
       var spy = sinon.spy();
