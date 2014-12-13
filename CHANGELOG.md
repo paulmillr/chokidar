@@ -1,3 +1,6 @@
+# Chokidar 0.12.3 (13 December 2014)
+* Fix handling of special files such as named pipes and sockets
+
 # Chokidar 0.12.2 (12 December 2014)
 * Fix recursive symlink handling and some other path resolution problems
 
