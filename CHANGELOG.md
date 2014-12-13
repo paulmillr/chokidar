@@ -1,3 +1,6 @@
+# Chokidar 0.12.2 (12 December 2014)
+* Fix recursive symlink handling and some other path resolution problems
+
 # Chokidar 0.12.1 (10 December 2014)
 * Fix a case where file symlinks were not followed properly
 
