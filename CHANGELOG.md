@@ -1,3 +1,7 @@
+# Chokidar 0.12.5 (17 December 2014)
+* Fix bug with matching parent path detection for fsevents instance sharing
+* Fix bug with ignored watch path in nodefs modes
+
 # Chokidar 0.12.4 (14 December 2014)
 * Fix bug in `fs.watch` mode that caused watcher to leak into `cwd`
 * Fix bug preventing ready event when there are symlinks to ignored paths 
