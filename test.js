@@ -586,6 +586,11 @@ function runTests (options) {
           done();
         });
       });
+      it('should not choke on an ignored watch path', function(done) {
+        options.ignored = function() {return true;};
+        var watcher = chokidar.watch(fixturesPath, options);
+        delay(done);
+      });
     });
   });
 
