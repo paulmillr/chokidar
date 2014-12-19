@@ -476,7 +476,7 @@ function runTests (options) {
         done();
       });
     });
-    it('should not use a previously set watcher if the symlink points to a directory outside of the previously watched directory', function(done) {
+    it('should not reuse watcher when following a symlink to elsewhere', function(done) {
       var spy = sinon.spy();
       var linkedPath = getFixturePath('outty_dir');
       var linkedFilePath = sysPath.join(linkedPath, 'text.txt');
