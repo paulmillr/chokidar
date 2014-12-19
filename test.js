@@ -476,6 +476,33 @@ function runTests (options) {
         done();
       });
     });
+    it('should not use a previously set watcher if the symlink points to a directory outside of the previously watched directory', function(done) {
+      var spy = sinon.spy();
+      var linkedPath = getFixturePath('outty_dir');
+      var linkedFilePath = sysPath.join(linkedPath, 'text.txt');
+      fs.mkdirSync(linkedPath, 0x1ed);
+      fs.writeFileSync(linkedFilePath, 'c');
+      var linkPath = getFixturePath('subdir/subsub');
+      fs.symlinkSync(linkedPath, linkPath);
+      delay(function () {
+        var previousWatcher = chokidar.watch(getFixturePath('subdir'), options);
+        var watchedPath = getFixturePath('subdir/subsub/text.txt');
+        var watcher = chokidar.watch(watchedPath, options);
+        watcher.on('all', spy);
+        delay(function () {
+          fs.writeFileSync(linkedFilePath, 'd');
+          delay(function () {
+            watcher.close();
+            previousWatcher.close();
+            fs.unlinkSync(linkPath);
+            fs.unlinkSync(linkedFilePath);
+            fs.rmdirSync(linkedPath);
+            spy.should.have.been.calledWith('change', watchedPath);
+            done();
+          });
+        });
+      });
+    });
   });
   describe('watch options', function() {
     function clean (done) {
