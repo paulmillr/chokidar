@@ -172,8 +172,7 @@ function runTests (options) {
       var addSpy = sinon.spy(function add(){});
       var testPath = getFixturePath('change.txt');
       var newPath = getFixturePath('moved.txt');
-      this.watcher.on('unlink', unlinkSpy);
-      this.watcher.on('add', addSpy);
+      this.watcher.on('unlink', unlinkSpy).on('add', addSpy);
       delay(function() {
         unlinkSpy.should.not.have.been.called;
         addSpy.should.not.have.been.called;
@@ -224,10 +223,11 @@ function runTests (options) {
     after(clean);
     it('should detect changes', function(done) {
       var spy = sinon.spy();
-      var testPath = getFixturePath('change.txt');
-      var watcher = chokidar.watch(testPath, options).on('change', spy);
       var readySpy = sinon.spy();
-      watcher.on('ready', readySpy);
+      var testPath = getFixturePath('change.txt');
+      var watcher = chokidar.watch(testPath, options)
+        .on('change', spy)
+        .on('ready', readySpy);
       ddelay(function() {
         fs.writeFileSync(testPath, 'c');
         delay(function() {
@@ -256,7 +256,8 @@ function runTests (options) {
       var addSpy = sinon.spy(function add(){});
       var testPath = getFixturePath('unlink.txt');
       var watcher = chokidar.watch(testPath, options)
-        .on('unlink', unlinkSpy).on('add', addSpy);
+        .on('unlink', unlinkSpy)
+        .on('add', addSpy);
       delay(function() {
         fs.unlinkSync(testPath);
         delay(function() {
@@ -301,10 +302,11 @@ function runTests (options) {
     after(clean);
     it('should watch non-existent file and detect add', function(done) {
       var spy = sinon.spy();
-      var testPath = getFixturePath('add.txt');
-      var watcher = chokidar.watch(testPath, options).on('add', spy);
       var readySpy = sinon.spy();
-      watcher.on('ready', readySpy);
+      var testPath = getFixturePath('add.txt');
+      var watcher = chokidar.watch(testPath, options)
+        .on('add', spy)
+        .on('ready', readySpy);
       // polling takes a bit longer here
       ddelay(function() {
         fs.writeFileSync(testPath, 'a');
@@ -318,11 +320,12 @@ function runTests (options) {
     });
     it('should watch non-existent dir and detect addDir/add', function(done) {
       var spy = sinon.spy();
+      var readySpy = sinon.spy();
       var testDir = getFixturePath('subdir');
       var testPath = getFixturePath('subdir/add.txt');
-      var watcher = chokidar.watch(testDir, options).on('all', spy);
-      var readySpy = sinon.spy();
-      watcher.on('ready', readySpy);
+      var watcher = chokidar.watch(testDir, options)
+        .on('all', spy)
+        .on('ready', readySpy);
       ddelay(function() {
         spy.should.not.have.been.called;
         readySpy.should.have.been.calledOnce;
@@ -356,11 +359,11 @@ function runTests (options) {
     it('should watch symlinked dirs', function(done) {
       var dirSpy = sinon.spy(function dirSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
-      var watcher = chokidar.watch(linkedDir, options);
-      watcher.on('addDir', dirSpy);
-      watcher.on('add', addSpy);
       var readySpy = sinon.spy(function readySpy(){});
-      watcher.on('ready', readySpy);
+      var watcher = chokidar.watch(linkedDir, options)
+        .on('addDir', dirSpy)
+        .on('add', addSpy)
+        .on('ready', readySpy);
       delay(function() {
         watcher.close();
         readySpy.should.have.been.calledOnce;
@@ -393,8 +396,8 @@ function runTests (options) {
       var linkPath = getFixturePath('subdir/link.txt');
       try {fs.symlinkSync(changePath, linkPath);} catch(err) {}
       delay(function() {
-        var watcher = chokidar.watch(getFixturePath('subdir'), options);
-        watcher.on('all', spy);
+        var watcher = chokidar.watch(getFixturePath('subdir'), options)
+          .on('all', spy);
         delay(function() {
           fs.writeFileSync(changePath, 'c');
           delay(function() {
@@ -487,8 +490,7 @@ function runTests (options) {
       delay(function () {
         var previousWatcher = chokidar.watch(getFixturePath('subdir'), options);
         var watchedPath = getFixturePath('subdir/subsub/text.txt');
-        var watcher = chokidar.watch(watchedPath, options);
-        watcher.on('all', spy);
+        var watcher = chokidar.watch(watchedPath, options).on('all', spy);
         delay(function () {
           fs.writeFileSync(linkedFilePath, 'd');
           delay(function () {
@@ -521,8 +523,7 @@ function runTests (options) {
       after(function() { delete options.ignoreInitial; });
       it('should ignore inital add events', function(done) {
         var spy = sinon.spy();
-        var watcher = chokidar.watch(fixturesPath, options);
-        watcher.on('add', spy);
+        var watcher = chokidar.watch(fixturesPath, options).on('add', spy);
         var readySpy = sinon.spy();
         watcher.on('ready', readySpy);
         delay(function() {
@@ -604,8 +605,7 @@ function runTests (options) {
           return stats.isDirectory();
         }
         options.ignored = ignoredFn;
-        var watcher = chokidar.watch(testDir, options);
-        watcher.on('add', spy);
+        var watcher = chokidar.watch(testDir, options).on('add', spy);
         delay(function() {
           watcher.close();
           spy.should.have.been.calledOnce;
