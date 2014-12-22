@@ -82,7 +82,7 @@ function runTests (options) {
       fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
-      this.watcher.should.be.an["instanceof"](chokidar.FSWatcher);
+      this.watcher.should.be.an['instanceof'](chokidar.FSWatcher);
     });
     it('should expose public API methods', function() {
       this.watcher.on.should.be.a('function');
@@ -614,7 +614,7 @@ function runTests (options) {
         });
       });
       it('should not choke on an ignored watch path', function(done) {
-        options.ignored = function() {return true;};
+        options.ignored = function() { return true; };
         var watcher = chokidar.watch(fixturesPath, options);
         delay(done);
       });
