@@ -8,6 +8,7 @@ var sinon = require('sinon');
 chai.use(require('sinon-chai'));
 var fs = require('fs');
 var sysPath = require('path');
+var os = require('os').platform();
 
 function getFixturePath (subPath) {
   return sysPath.join(__dirname, 'test-fixtures', subPath);
@@ -31,10 +32,8 @@ describe('chokidar', function() {
     chokidar.watch.should.be.a('function');
   });
 
-  if (require('os').platform() === 'darwin') {
-    describe('fsevents', runTests.bind(this, {useFsEvents: true}));
-  }
   describe('non-polling', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+  if (os === 'darwin') describe('fsevents', runTests.bind(this, {useFsEvents: true}));
   describe('polling', runTests.bind(this, {usePolling: true}));
 });
 
@@ -341,7 +340,7 @@ function runTests (options) {
     });
   });
   describe('watch symlinks', function() {
-    if (require('os').platform() === 'win32') return;
+    if (os === 'win32') return;
     var linkedDir = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
     before(function() {
       try {fs.symlinkSync(fixturesPath, linkedDir);} catch(err) {}
@@ -660,7 +659,9 @@ function runTests (options) {
             spy.should.have.been.calledWith('change', getFixturePath('subdir/add.txt'));
             spy.should.not.have.been.calledWith('add', getFixturePath('subdir/dir/ignored.txt'));
             spy.should.not.have.been.calledWith('change', getFixturePath('subdir/dir/ignored.txt'));
-            spy.callCount.should.equal(8);
+            if (os === 'darwin' && (options.useFsEvents || options.usePolling)) {
+              spy.callCount.should.equal(8);
+            }
             done();
           });
         });
