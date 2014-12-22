@@ -110,6 +110,8 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
     * `options.atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
     Automatically filters out artifacts that occur when using editors that use
     "atomic writes" instead of writing directly to the source file.
+    * `options.depth` (default: `undefined`). If set, limits how many levels of
+    subdirectories will be traversed.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
