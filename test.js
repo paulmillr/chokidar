@@ -619,11 +619,12 @@ function runTests (options) {
       });
     });
     describe('depth', function() {
-      beforeEach(function() {
+      beforeEach(function(done) {
         try{ fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err){}
         try{ fs.mkdirSync(getFixturePath('subdir/dir'), 0x1ed); } catch(err){}
         try{ fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b'); } catch(err){}
         try{ fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'b'); } catch(err){}
+        delay(done);
       });
       after(function() { delete options.depth; });
       it('should not recurse if depth is 0', function(done) {
