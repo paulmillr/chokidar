@@ -635,12 +635,12 @@ function runTests (options) {
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           delay(function() {
             watcher.close();
-            spy.callCount.should.equal(4);
             spy.should.have.been.calledWith('addDir', fixturesPath);
             spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
             spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
             spy.should.have.been.calledWith('add', getFixturePath('unlink.txt'));
             spy.should.not.have.been.calledWith('change');
+            spy.callCount.should.equal(4);
             done();
           });
         });
@@ -655,12 +655,12 @@ function runTests (options) {
           fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'c');
           delay(function() {
             watcher.close();
-            spy.callCount.should.equal(8);
             spy.should.have.been.calledWith('addDir', getFixturePath('subdir/dir'));
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.have.been.calledWith('change', getFixturePath('subdir/add.txt'));
             spy.should.not.have.been.calledWith('add', getFixturePath('subdir/dir/ignored.txt'));
             spy.should.not.have.been.calledWith('change', getFixturePath('subdir/dir/ignored.txt'));
+            spy.callCount.should.equal(8);
             done();
           });
         });
