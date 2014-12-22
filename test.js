@@ -377,13 +377,13 @@ function runTests (options) {
       var spy = sinon.spy();
       var changePath = getFixturePath('change.txt');
       var linkPath = getFixturePath('link.txt');
-      try {fs.symlinkSync(changePath, linkPath);} catch(err) {}
+      fs.symlinkSync(changePath, linkPath);
       var watcher = chokidar.watch(linkPath, options).on('all', spy);
       ddelay(function() {
         fs.writeFileSync(changePath, 'c');
         delay(function() {
           watcher.close();
-          try {fs.unlinkSync(linkPath);} catch(err) {}
+          fs.unlinkSync(linkPath);
           spy.should.have.been.calledWith('add', linkPath);
           spy.should.have.been.calledWith('change', linkPath);
           done();
@@ -394,7 +394,7 @@ function runTests (options) {
       var spy = sinon.spy();
       var changePath = getFixturePath('change.txt');
       var linkPath = getFixturePath('subdir/link.txt');
-      try {fs.symlinkSync(changePath, linkPath);} catch(err) {}
+      fs.symlinkSync(changePath, linkPath);
       delay(function() {
         var watcher = chokidar.watch(getFixturePath('subdir'), options)
           .on('all', spy);
@@ -402,7 +402,7 @@ function runTests (options) {
           fs.writeFileSync(changePath, 'c');
           delay(function() {
             watcher.close();
-            try {fs.unlinkSync(linkPath);} catch(err) {}
+            fs.unlinkSync(linkPath);
             spy.should.have.been.calledWith('add', linkPath);
             spy.should.have.been.calledWith('change', linkPath);
             done();
@@ -596,7 +596,7 @@ function runTests (options) {
       it('should check ignore after stating', function(done) {
         var testDir = getFixturePath('subdir');
         var spy = sinon.spy();
-        try {fs.mkdirSync(testDir, 0x1ed);} catch(err) {}
+        fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testDir + '/add.txt', '');
         fs.mkdirSync(testDir + '/dir', 0x1ed);
         fs.writeFileSync(testDir + '/dir/ignored.txt', '');
