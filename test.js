@@ -626,8 +626,10 @@ function runTests (options) {
         try{ fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'b'); } catch(err){}
         delay(done);
       });
-      after(function() {
+      afterEach(function(){
         try{ fs.unlinkSync(getFixturePath('link')); } catch(err){}
+      })
+      after(function() {
         delete options.depth;
         delete options.ignoreInitial;
       });
