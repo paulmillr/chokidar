@@ -674,6 +674,23 @@ function runTests (options) {
       it('should respect depth setting when following symlinks', function(done) {
         if (os === 'win32') return done(); // skip on windows
         options.depth = 1;
+        var spy = sinon.spy();
+        fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
+        delay(function() {
+          var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+          delay(function() {
+            watcher.close();
+            spy.should.have.been.calledWith('addDir', getFixturePath('link'));
+            spy.should.have.been.calledWith('addDir', getFixturePath('link/dir'));
+            spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
+            spy.should.not.have.been.calledWith('add', getFixturePath('link/dir/ignored.txt'));
+            done();
+          });
+        });
+      });
+      it('should respect depth setting when following a new symlink', function(done) {
+        if (os === 'win32') return done(); // skip on windows
+        options.depth = 1;
         options.ignoreInitial = true;
         var spy = sinon.spy();
         var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
