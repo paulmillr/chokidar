@@ -79,12 +79,12 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 
 ## API
 * `chokidar.watch(paths, options)`: takes paths to be watched recursively and options:
-    * `options.ignored` (regexp or function) files to be ignored.
-      This function or regexp is tested against the **whole path**,
-      not just filename. If it is a function with two arguments, it gets called
-      twice per path - once with a single argument (the path), second time with
-      two arguments (the path and the [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
-      object of that path).
+    * `options.ignored` ([anymatch](https://github.com/es128/anymatch)-compatible definition)
+    Defines files/paths to be ignored. The **whole path** is tested, not just
+    filename. If a function with two arguments is provided, it gets called
+    twice per path - once with a single argument (the path), second time with
+    two arguments (the path and the [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
+    object of that path).
     * `options.persistent` (default: `true`). Indicates whether the process
     should continue to run as long as files are being watched. If set to
     `false` when using `fsevents` to watch, no more events will be emitted
