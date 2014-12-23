@@ -626,7 +626,11 @@ function runTests (options) {
         try{ fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'b'); } catch(err){}
         delay(done);
       });
-      after(function() { delete options.depth; });
+      after(function() {
+        try{ fs.unlinkSync(getFixturePath('link')); } catch(err){}
+        delete options.depth;
+        delete options.ignoreInitial;
+      });
       it('should not recurse if depth is 0', function(done) {
         options.depth = 0;
         var spy = sinon.spy();
@@ -663,6 +667,24 @@ function runTests (options) {
             if (os === 'darwin' && (options.useFsEvents || options.usePolling)) {
               spy.callCount.should.equal(8);
             }
+            done();
+          });
+        });
+      });
+      it('should respect depth setting when following symlinks', function(done) {
+        if (os === 'win32') return done(); // skip on windows
+        options.depth = 1;
+        options.ignoreInitial = true;
+        var spy = sinon.spy();
+        var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+        delay(function() {
+          fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
+          delay(function() {
+            watcher.close();
+            spy.should.have.been.calledWith('addDir', getFixturePath('link'));
+            spy.should.have.been.calledWith('addDir', getFixturePath('link/dir'));
+            spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
+            spy.should.have.been.calledThrice;
             done();
           });
         });
