@@ -628,7 +628,7 @@ function runTests (options) {
       });
       afterEach(function(){
         try{ fs.unlinkSync(getFixturePath('link')); } catch(err){}
-      })
+      });
       after(function() {
         delete options.depth;
         delete options.ignoreInitial;
@@ -696,7 +696,7 @@ function runTests (options) {
         options.ignoreInitial = true;
         var spy = sinon.spy();
         var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-        delay(function() {
+        ddelay(function() {
           fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
           delay(function() {
             watcher.close();
