@@ -659,7 +659,7 @@ function runTests (options) {
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'c');
-          delay(function() {
+          ddelay(function() {
             watcher.close();
             spy.should.have.been.calledWith('addDir', getFixturePath('subdir/dir'));
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
