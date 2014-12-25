@@ -652,10 +652,11 @@ function runTests (options) {
         });
       });
       it('should recurse to specified depth', function(done) {
+        this.timeout(2500);
         options.depth = 1;
         var spy = sinon.spy();
         var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-        delay(function() {
+        ddelay(function() {
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'c');
@@ -680,7 +681,7 @@ function runTests (options) {
         fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
         delay(function() {
           var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-          delay(function() {
+          ddelay(function() {
             watcher.close();
             spy.should.have.been.calledWith('addDir', getFixturePath('link'));
             spy.should.have.been.calledWith('addDir', getFixturePath('link/dir'));
@@ -691,6 +692,7 @@ function runTests (options) {
         });
       });
       it('should respect depth setting when following a new symlink', function(done) {
+        this.timeout(2500);
         if (os === 'win32') return done(); // skip on windows
         options.depth = 1;
         options.ignoreInitial = true;
