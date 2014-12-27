@@ -97,13 +97,15 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
     * `options.binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
     * `options.useFsEvents` (default: `true` on OS X). Whether to use the
-    `fsevents` watching interface if available. When set to `true` and 
-    `fsevents` is available this supercedes the `usePolling` setting.
-    * `options.usePolling` (default: `false` on Windows, `true` on Linux and OS X).
+    `fsevents` watching interface if available. When set to `true` explicitly 
+    and `fsevents` is available this supercedes the `usePolling` setting. When
+    set to `false` on OS X, `usePolling: true` becomes the default.
+    * `options.usePolling` (default: `false`).
     Whether to use fs.watchFile (backed by polling), or fs.watch. If polling
     leads to high CPU utilization, consider setting this to `false`. Polling
     may be necessary to successfully watch files in certain situation, such as
-    network mounted drives.
+    network mounted drives. Setting to `true` explicitly on OS X overrides the
+    `useFsEvents` default.
     * `options.followSymlinks` (default: `true`). When `false`, only the
     symlinks themselves will be watched for changes instead of following
     the link references and bubbling events through the link's path.
