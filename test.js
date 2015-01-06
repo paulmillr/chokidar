@@ -479,6 +479,7 @@ function runTests (options) {
       });
     });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
+      this.timeout(2500);
       var spy = sinon.spy();
       var linkedPath = getFixturePath('outty_dir');
       var linkedFilePath = sysPath.join(linkedPath, 'text.txt');
@@ -490,9 +491,9 @@ function runTests (options) {
         var previousWatcher = chokidar.watch(getFixturePath('subdir'), options);
         var watchedPath = getFixturePath('subdir/subsub/text.txt');
         var watcher = chokidar.watch(watchedPath, options).on('all', spy);
-        delay(function () {
+        ddelay(function () {
           fs.writeFileSync(linkedFilePath, 'd');
-          delay(function () {
+          ddelay(function () {
             watcher.close();
             previousWatcher.close();
             fs.unlinkSync(linkPath);
