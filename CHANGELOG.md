@@ -1,3 +1,6 @@
+# Chokidar 0.12.6 (6 January 2015)
+* Fix bug which breaks `persistent: false` mode when change events occur
+
 # Chokidar 0.12.5 (17 December 2014)
 * Fix bug with matching parent path detection for fsevents instance sharing
 * Fix bug with ignored watch path in nodefs modes
