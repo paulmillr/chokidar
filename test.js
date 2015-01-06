@@ -487,13 +487,13 @@ function runTests (options) {
       fs.writeFileSync(linkedFilePath, 'c');
       var linkPath = getFixturePath('subdir/subsub');
       fs.symlinkSync(linkedPath, linkPath);
-      delay(function () {
+      delay(function() {
         var previousWatcher = chokidar.watch(getFixturePath('subdir'), options);
         var watchedPath = getFixturePath('subdir/subsub/text.txt');
         var watcher = chokidar.watch(watchedPath, options).on('all', spy);
-        ddelay(function () {
+        ddelay(function() {
           fs.writeFileSync(linkedFilePath, 'd');
-          ddelay(function () {
+          ddelay(function() {
             watcher.close();
             previousWatcher.close();
             fs.unlinkSync(linkPath);
