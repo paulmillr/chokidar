@@ -46,6 +46,18 @@ function runTests (options) {
 
   options.persistent = true;
 
+  function clean(done) {
+    fs.writeFileSync(getFixturePath('change.txt'), 'b');
+    fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+    try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
+    try {fs.unlinkSync(getFixturePath('moved.txt'));} catch(err) {}
+    try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
+    try {fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));} catch(err) {}
+    try {fs.rmdirSync(getFixturePath('subdir/dir'));} catch(err) {}
+    try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
+    if (done) delay(done);
+  }
+
   describe('watch', function() {
     var rawSpy;
     beforeEach(function(done) {
@@ -63,18 +75,7 @@ function runTests (options) {
       delete this.watcher;
       delay(done);
     });
-    function clean() {
-      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-      try {fs.unlinkSync(getFixturePath('moved.txt'));} catch(err) {}
-      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
-      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
-    }
-    before(function(done) {
-      clean();
-      fs.writeFileSync(getFixturePath('change.txt'), 'b');
-      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
-      delay(done);
-    });
+    before(clean);
     after(function() {
       clean();
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
@@ -212,12 +213,6 @@ function runTests (options) {
     });
   });
   describe('watch individual files', function() {
-    function clean(done) {
-      fs.writeFileSync(getFixturePath('change.txt'), 'b');
-      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
-      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-      delay(done);
-    }
     beforeEach(clean);
     after(clean);
     it('should detect changes', function(done) {
@@ -289,14 +284,6 @@ function runTests (options) {
     });
   });
   describe('watch non-existent paths', function() {
-    function clean(done) {
-      fs.writeFileSync(getFixturePath('change.txt'), 'b');
-      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
-      try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
-      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
-      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
-      delay(done);
-    }
     beforeEach(clean);
     after(clean);
     it('should watch non-existent file and detect add', function(done) {
@@ -343,10 +330,9 @@ function runTests (options) {
     if (os === 'win32') return;
     var linkedDir = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
     before(function() {
+      clean();
       try {fs.symlinkSync(fixturesPath, linkedDir);} catch(err) {}
       try {fs.mkdirSync(getFixturePath('subdir'), 0x1ed);} catch(err) {}
-      fs.writeFileSync(getFixturePath('change.txt'), 'b');
-      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b');
     });
     after(function() {
@@ -507,15 +493,6 @@ function runTests (options) {
     });
   });
   describe('watch options', function() {
-    function clean(done) {
-      fs.writeFileSync(getFixturePath('change.txt'), 'b');
-      fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
-      try {fs.unlinkSync(getFixturePath('subdir/add.txt'));} catch(err) {}
-      try {fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));} catch(err) {}
-      try {fs.rmdirSync(getFixturePath('subdir/dir'));} catch(err) {}
-      try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
-      delay(done);
-    }
     beforeEach(clean);
     after(clean);
     describe('ignoreInitial:true', function() {
