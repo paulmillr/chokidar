@@ -79,40 +79,40 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 
 ## API
 * `chokidar.watch(paths, options)`: takes paths to be watched recursively and options:
-    * `options.ignored` ([anymatch](https://github.com/es128/anymatch)-compatible definition)
+    * `ignored` ([anymatch](https://github.com/es128/anymatch)-compatible definition)
     Defines files/paths to be ignored. The **whole path** is tested, not just
     filename. If a function with two arguments is provided, it gets called
     twice per path - once with a single argument (the path), second time with
     two arguments (the path and the [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
     object of that path).
-    * `options.persistent` (default: `true`). Indicates whether the process
+    * `persistent` (default: `true`). Indicates whether the process
     should continue to run as long as files are being watched. If set to
     `false` when using `fsevents` to watch, no more events will be emitted
     after `ready`, even if the process continues to run.
-    * `options.ignorePermissionErrors` (default: `false`). Indicates
+    * `ignorePermissionErrors` (default: `false`). Indicates
     whether to watch files that don't have read permissions.
-    * `options.ignoreInitial` (default: `false`). Indicates whether chokidar
+    * `ignoreInitial` (default: `false`). Indicates whether chokidar
     should ignore the initial `add` events or not.
-    * `options.interval` (default: `100`). Interval of file system polling.
-    * `options.binaryInterval` (default: `300`). Interval of file system
+    * `interval` (default: `100`). Interval of file system polling.
+    * `binaryInterval` (default: `300`). Interval of file system
     polling for binary files (see extensions in src/is-binary).
-    * `options.useFsEvents` (default: `true` on OS X). Whether to use the
+    * `useFsEvents` (default: `true` on OS X). Whether to use the
     `fsevents` watching interface if available. When set to `true` explicitly 
     and `fsevents` is available this supercedes the `usePolling` setting. When
     set to `false` on OS X, `usePolling: true` becomes the default.
-    * `options.usePolling` (default: `false`).
+    * `usePolling` (default: `false`).
     Whether to use fs.watchFile (backed by polling), or fs.watch. If polling
     leads to high CPU utilization, consider setting this to `false`. Polling
     may be necessary to successfully watch files in certain situation, such as
     network mounted drives. Setting to `true` explicitly on OS X overrides the
     `useFsEvents` default.
-    * `options.followSymlinks` (default: `true`). When `false`, only the
+    * `followSymlinks` (default: `true`). When `false`, only the
     symlinks themselves will be watched for changes instead of following
     the link references and bubbling events through the link's path.
-    * `options.atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
+    * `atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
     Automatically filters out artifacts that occur when using editors that use
     "atomic writes" instead of writing directly to the source file.
-    * `options.depth` (default: `undefined`). If set, limits how many levels of
+    * `depth` (default: `undefined`). If set, limits how many levels of
     subdirectories will be traversed.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
