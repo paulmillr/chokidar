@@ -58,10 +58,10 @@ watcher
   .on('ready', function() {console.info('Initial scan complete. Ready for changes.')})
   .on('raw', function(event, path, details) {console.info('Raw event info:', event, path, details)})
 
-// 'add', 'addDir' and 'change' events also receive stat() results as second argument.
-// http://nodejs.org/api/fs.html#fs_class_fs_stats
+// 'add', 'addDir' and 'change' events also receive stat() results as second
+// argument when available: http://nodejs.org/api/fs.html#fs_class_fs_stats
 watcher.on('change', function(path, stats) {
-  console.log('File', path, 'changed size to', stats.size);
+  if (stats) console.log('File', path, 'changed size to', stats.size);
 });
 
 watcher.add('new-file');
