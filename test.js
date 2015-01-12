@@ -212,6 +212,30 @@ function runTests (options) {
       });
     });
   });
+  describe('watch glob patterns', function() {
+    beforeEach(clean);
+    after(clean);
+    it('should correctly watch and emit based on glob input', function(done) {
+      var spy = sinon.spy();
+      var readySpy = sinon.spy();
+      var testPath = getFixturePath('*a*.txt');
+      var addPath = getFixturePath('add.txt');
+      var watcher = chokidar.watch(testPath, options)
+        .on('all', spy)
+        .on('ready', readySpy);
+      delay(function() {
+        spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
+        fs.writeFileSync(addPath, 'a');
+        delay(function() {
+          spy.should.have.been.calledWith('add', addPath);
+          spy.should.not.have.been.calledWith('add', getFixturePath('unlink.txt'));
+          spy.should.not.have.been.calledWith('addDir');
+          readySpy.should.have.been.calledOnce;
+          done();
+        });
+      });
+    });
+  });
   describe('watch individual files', function() {
     beforeEach(clean);
     after(clean);
