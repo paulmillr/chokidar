@@ -238,6 +238,23 @@ function runTests (options) {
         });
       });
     });
+    it('should respect negated glob patterns', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('*');
+      var negatedPath = '!' + getFixturePath('*a*.txt');
+      var unlinkPath = getFixturePath('unlink.txt');
+      var watcher = chokidar.watch([testPath, negatedPath], options).on('all', spy);
+      delay(function() {
+        spy.should.have.been.calledOnce;
+        spy.should.have.been.calledWith('add', unlinkPath);
+        fs.unlinkSync(unlinkPath);
+        ddelay(function() {
+          spy.should.have.been.calledTwice;
+          spy.should.have.been.calledWith('unlink', unlinkPath);
+          done();
+        });
+      });
+    });
   });
   describe('watch individual files', function() {
     beforeEach(clean);
