@@ -330,6 +330,7 @@ function runTests (options) {
     beforeEach(clean);
     after(clean);
     it('should correctly watch and emit based on glob input', function(done) {
+      this.timeout(2500);
       var spy = sinon.spy();
       var readySpy = sinon.spy();
       var testPath = getFixturePath('*a*.txt');
@@ -338,7 +339,7 @@ function runTests (options) {
       var watcher = chokidar.watch(testPath, options)
         .on('all', spy)
         .on('ready', readySpy);
-      delay(function() {
+      ddelay(function() {
         spy.should.have.been.calledWith('add', changePath);
         fs.writeFileSync(addPath, 'a');
         fs.writeFileSync(changePath, 'c');
