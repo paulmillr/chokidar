@@ -43,8 +43,9 @@
     "fsevents": "~0.3.1"
   },
   "dependencies": {
-    "readdirp": "~1.3.0",
+    "anymatch": "~1.1.0",
     "async-each": "~0.1.5",
-    "anymatch": "~1.1.0"
+    "glob-parent": "~1.0.0",
+    "readdirp": "~1.3.0"
   }
 }
