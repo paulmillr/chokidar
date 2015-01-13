@@ -220,14 +220,17 @@ function runTests (options) {
       var readySpy = sinon.spy();
       var testPath = getFixturePath('*a*.txt');
       var addPath = getFixturePath('add.txt');
+      var changePath = getFixturePath('change.txt');
       var watcher = chokidar.watch(testPath, options)
         .on('all', spy)
         .on('ready', readySpy);
       delay(function() {
-        spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
+        spy.should.have.been.calledWith('add', changePath);
         fs.writeFileSync(addPath, 'a');
-        delay(function() {
+        fs.writeFileSync(changePath, 'c');
+        ddelay(function() {
           spy.should.have.been.calledWith('add', addPath);
+          spy.should.have.been.calledWith('change', changePath);
           spy.should.not.have.been.calledWith('add', getFixturePath('unlink.txt'));
           spy.should.not.have.been.calledWith('addDir');
           readySpy.should.have.been.calledOnce;
