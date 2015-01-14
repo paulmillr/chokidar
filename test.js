@@ -579,6 +579,20 @@ function runTests (options) {
           });
         });
       });
+      it('should emit a change on a preexisting file as a change', function(done) {
+        var spy = sinon.spy();
+        var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+        delay(function() {
+          spy.should.not.have.been.called;
+          fs.writeFileSync(getFixturePath('change.txt'), 'c');
+          delay(function() {
+            watcher.close();
+            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+            spy.should.not.have.been.calledWith('add');
+            done();
+          });
+        });
+      });
     });
     describe('ignoreInitial:false', function() {
       var watcher;
