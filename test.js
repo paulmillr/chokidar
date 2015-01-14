@@ -561,6 +561,22 @@ function runTests (options) {
           done();
         });
       });
+      it('should ignore add events on a subsequent .add()', function(done) {
+        var spy = sinon.spy();
+        var readySpy = sinon.spy();
+        var watcher = chokidar.watch(getFixturePath('subdir'), options)
+          .on('add', spy)
+          .on('ready', readySpy);
+        delay(function() {
+          watcher.add(fixturesPath);
+          delay(function() {
+            watcher.close();
+            readySpy.should.have.been.calledOnce;
+            spy.should.not.have.been.called;
+            done();
+          });
+        });
+      });
       it('should notice when a file appears in an empty directory', function(done) {
         var spy = sinon.spy();
         var testDir = getFixturePath('subdir');
