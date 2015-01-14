@@ -6,3 +6,5 @@ node_js:
 os:
   - linux
   - osx
+before_install:
+  - npm install -g npm
