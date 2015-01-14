@@ -344,6 +344,7 @@ function runTests (options) {
         fs.writeFileSync(addPath, 'a');
         fs.writeFileSync(changePath, 'c');
         ddelay(function() {
+          watcher.close();
           spy.should.have.been.calledWith('add', addPath);
           spy.should.have.been.calledWith('change', changePath);
           spy.should.not.have.been.calledWith('add', getFixturePath('unlink.txt'));
@@ -364,6 +365,7 @@ function runTests (options) {
         spy.should.have.been.calledWith('add', unlinkPath);
         fs.unlinkSync(unlinkPath);
         ddelay(function() {
+          watcher.close();
           spy.should.have.been.calledTwice;
           spy.should.have.been.calledWith('unlink', unlinkPath);
           done();
