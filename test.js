@@ -550,9 +550,10 @@ function runTests (options) {
       after(function() { delete options.ignoreInitial; });
       it('should ignore inital add events', function(done) {
         var spy = sinon.spy();
-        var watcher = chokidar.watch(fixturesPath, options).on('add', spy);
         var readySpy = sinon.spy();
-        watcher.on('ready', readySpy);
+        var watcher = chokidar.watch(fixturesPath, options)
+          .on('add', spy)
+          .on('ready', readySpy);
         delay(function() {
           watcher.close();
           readySpy.should.have.been.calledOnce;
@@ -564,8 +565,7 @@ function runTests (options) {
         var spy = sinon.spy();
         var testDir = getFixturePath('subdir');
         var testPath = getFixturePath('subdir/add.txt');
-        var watcher = chokidar.watch(fixturesPath, options);
-        watcher.on('add', spy);
+        var watcher = chokidar.watch(fixturesPath, options).on('add', spy);
         delay(function() {
           spy.should.not.have.been.called;
           fs.mkdirSync(testDir, 0x1ed);
