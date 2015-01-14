@@ -32,9 +32,9 @@ describe('chokidar', function() {
     chokidar.watch.should.be.a('function');
   });
 
-  if (os === 'darwin') describe('fsevents', runTests.bind(this, {useFsEvents: true}));
   describe('non-polling', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   describe('polling', runTests.bind(this, {usePolling: true}));
+  if (os === 'darwin') describe('fsevents', runTests.bind(this, {useFsEvents: true}));
 });
 
 function runTests (options) {
