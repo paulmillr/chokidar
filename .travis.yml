@@ -7,4 +7,4 @@ os:
   - linux
   - osx
 before_install:
-  - npm install -g npm
+  - npm update -g npm
