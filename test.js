@@ -288,7 +288,7 @@ function runTests (options) {
     beforeEach(clean);
     after(clean);
     it('should watch non-existent file and detect add', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var readySpy = sinon.spy();
       var testPath = getFixturePath('add.txt');
@@ -307,7 +307,7 @@ function runTests (options) {
       });
     });
     it('should watch non-existent dir and detect addDir/add', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var readySpy = sinon.spy();
       var testDir = getFixturePath('subdir');
@@ -335,7 +335,7 @@ function runTests (options) {
     beforeEach(clean);
     after(clean);
     it('should correctly watch and emit based on glob input', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var readySpy = sinon.spy();
       var testPath = getFixturePath('*a*.txt');
@@ -413,7 +413,7 @@ function runTests (options) {
       });
     });
     it('should watch symlinked files', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var changePath = getFixturePath('change.txt');
       var linkPath = getFixturePath('link.txt');
@@ -433,7 +433,7 @@ function runTests (options) {
       });
     });
     it('should follow symlinked files within a normal dir', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var changePath = getFixturePath('change.txt');
       var linkPath = getFixturePath('subdir/link.txt');
@@ -452,7 +452,7 @@ function runTests (options) {
       });
     });
     it('should watch paths with a symlinked parent', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var testDir = sysPath.join(linkedDir, 'subdir');
       var testFile = sysPath.join(testDir, 'add.txt');
@@ -521,7 +521,7 @@ function runTests (options) {
       });
     });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
-      this.timeout(2500);
+      this.timeout(3000);
       var spy = sinon.spy();
       var linkedPath = getFixturePath('outty_dir');
       var linkedFilePath = sysPath.join(linkedPath, 'text.txt');
@@ -686,7 +686,7 @@ function runTests (options) {
         });
       });
       it('should recurse to specified depth', function(done) {
-        this.timeout(2500);
+        this.timeout(3000);
         options.depth = 1;
         var spy = sinon.spy();
         delay(function() {
@@ -728,7 +728,7 @@ function runTests (options) {
         });
       });
       it('should respect depth setting when following a new symlink', function(done) {
-        this.timeout(2500);
+        this.timeout(3000);
         if (os === 'win32') return done(); // skip on windows
         options.depth = 1;
         options.ignoreInitial = true;
