@@ -569,7 +569,6 @@ function runTests (options) {
         delay(function() {
           spy.should.not.have.been.called;
           fs.mkdirSync(testDir, 0x1ed);
-          watcher.add(testDir);
           fs.writeFileSync(testPath, 'hello');
           delay(function() {
             watcher.close();
