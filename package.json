@@ -27,15 +27,18 @@
     }
   ],
   "scripts": {
-    "test": "mocha"
+    "test": "istanbul test _mocha",
+    "ci-test": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls"
   },
   "main": "lib",
   "files": [
     "lib"
   ],
   "devDependencies": {
-    "mocha": "~2.0.0",
     "chai": "~1.9.2",
+    "coveralls": "~2.11.2",
+    "istanbul": "~0.3.5",
+    "mocha": "~2.0.0",
     "sinon": "~1.10.3",
     "sinon-chai": "~2.6.0"
   },

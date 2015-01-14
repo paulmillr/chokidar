@@ -1,4 +1,4 @@
-# Chokidar [![Build Status](https://travis-ci.org/paulmillr/chokidar.svg?branch=master)](https://travis-ci.org/paulmillr/chokidar)
+# Chokidar [![Build Status](https://travis-ci.org/paulmillr/chokidar.svg?branch=master)](https://travis-ci.org/paulmillr/chokidar) [![Coverage Status](https://coveralls.io/repos/paulmillr/chokidar/badge.svg)](https://coveralls.io/r/paulmillr/chokidar)
 A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.
 
 [![NPM](https://nodei.co/npm-dl/chokidar.png)](https://nodei.co/npm/chokidar/)
