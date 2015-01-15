@@ -42,7 +42,7 @@ function runTests (options) {
   if (!options) options = {};
 
   var delayTime = options.usePolling ? 300 : options.useFsEvents ? 200 : 250;
-  var ddmult = options.usePolling ? 2 : 1;
+  var ddmult = options.usePolling ? 3 : 1.5;
   function delay (fn) { return setTimeout(fn, delayTime); }
   function ddelay (fn) { return setTimeout(fn, delayTime * ddmult); }
 
