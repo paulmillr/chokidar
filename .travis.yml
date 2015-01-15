@@ -2,7 +2,7 @@ language: c
 env:
   - NODE_VERSION="0.11"
   - NODE_VERSION="0.10"
-  - NODE_VERSION="0.8"
+#  - NODE_VERSION="0.8"
 os:
   - linux
   - osx
@@ -13,7 +13,7 @@ before_install:
   - source ~/.nvm/nvm.sh
   - nvm install $NODE_VERSION
   - nvm use $NODE_VERSION
-  - if [ "$NODE_VERSION" == "0.8" ]; then npm update -g npm; fi
+#  - if [ "$NODE_VERSION" == "0.8" ]; then npm update -g npm; fi
 install:
   - npm install
 script:
