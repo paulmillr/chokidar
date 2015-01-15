@@ -377,6 +377,36 @@ function runTests (options) {
         });
       });
     });
+    it('should traverse subdirs to match globstar patterns', function(done) {
+      var spy = sinon.spy();
+      spy.withArgs('add');
+      spy.withArgs('unlink');
+      spy.withArgs('change');
+      fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
+      fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
+      fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
+      fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
+      delay(function() {
+        var watchPath = getFixturePath('**/a*.txt');
+        var watcher = chokidar.watch(watchPath, options).on('all', spy);
+        delay(function() {
+          fs.writeFileSync(getFixturePath('add.txt'), 'a');
+          fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
+          fs.unlinkSync(getFixturePath('subdir/a.txt'));
+          fs.unlinkSync(getFixturePath('subdir/b.txt'));
+          delay(function() {
+            watcher.close();
+            fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt'));
+            fs.rmdirSync(getFixturePath('subdir/subsub'));
+            spy.withArgs('add').should.have.been.calledThrice;
+            spy.withArgs('unlink').should.have.been.calledOnce;
+            spy.withArgs('change').should.have.been.calledOnce;
+            done();
+          })
+        });
+      });
+    });
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
