@@ -7,4 +7,14 @@ os:
   - linux
   - osx
 before_install:
+  - echo $TRAVIS_OS_NAME
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export PATH=./node_modules/.bin/:$PATH; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then rm -rf ~/.nvm/ && git clone --depth 1 https://github.com/creationix/nvm.git ~/.nvm; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then source ~/.nvm/nvm.sh; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then nvm install 0.10; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then nvm use 0.10; fi
   - npm update -g npm
+install:
+  - npm install
+script:
+  - npm test
