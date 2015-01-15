@@ -41,9 +41,9 @@ function runTests (options) {
   this.timeout(3000);
   if (!options) options = {};
 
-  var delayTime = options.usePolling ? 350 : 250;
+  var delayTime = options.usePolling ? 300 : options.useFsEvents ? 200 : 250;
+  var ddmult = options.usePolling ? 2 : 1;
   function delay (fn) { return setTimeout(fn, delayTime); }
-  var ddmult = options.usePolling ? 3 : options.useFsEvents ? 2 : 1;
   function ddelay (fn) { return setTimeout(fn, delayTime * ddmult); }
 
   options.persistent = true;
