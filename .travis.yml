@@ -1,19 +1,19 @@
 language: node_js
-node_js:
-  - "0.11"
-  - "0.10"
-  - "0.8"
+env:
+  - NODE_VERSION="0.11"
+  - NODE_VERSION="0.10"
+  - NODE_VERSION="0.8"
 os:
   - linux
   - osx
 before_install:
   - echo $TRAVIS_OS_NAME
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then export PATH=./node_modules/.bin/:$PATH; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then rm -rf ~/.nvm/ && git clone --depth 1 https://github.com/creationix/nvm.git ~/.nvm; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then source ~/.nvm/nvm.sh; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then nvm install 0.10; fi
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then nvm use 0.10; fi
-  - npm update -g npm
+  - export PATH=./node_modules/.bin/:$PATH
+  - rm -rf ~/.nvm/ && git clone --depth 1 https://github.com/creationix/nvm.git ~/.nvm
+  - source ~/.nvm/nvm.sh
+  - nvm install $NODE_VERSION
+  - nvm use $NODE_VERSION
+  - if [ "$NODE_VERSION" == "0.8" ]; then npm update -g npm; fi
 install:
   - npm install
 script:
