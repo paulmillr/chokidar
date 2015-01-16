@@ -549,6 +549,28 @@ function runTests (options) {
         done();
       });
     });
+    it('should watch symlinks within a watched dir as files when followSymlinks:false', function(done) {
+      var spy = sinon.spy();
+      options.followSymlinks = false;
+      try{fs.unlinkSync(getFixturePath('link'));} catch(e) {}
+      fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
+      var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+      delay(function() {
+        fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+        fs.unlinkSync(getFixturePath('link'));
+        fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
+        delay(function() {
+          watcher.close();
+          delete options.followSymlinks;
+          fs.unlinkSync(getFixturePath('link'));
+          spy.should.not.have.been.calledWith('addDir', getFixturePath('link'));
+          spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
+          spy.should.have.been.calledWith('add', getFixturePath('link'));
+          spy.should.have.been.calledWith('change', getFixturePath('link'));
+          done();
+        });
+      });
+    });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
       var spy = sinon.spy();
       var linkedPath = getFixturePath('outty_dir');
