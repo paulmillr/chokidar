@@ -402,8 +402,8 @@ function runTests (options) {
             fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt'));
             fs.rmdirSync(getFixturePath('subdir/subsub'));
             spy.withArgs('add').should.have.been.calledThrice;
-            spy.withArgs('unlink').should.have.been.calledWith(getFixturePath('subdir/a.txt'));
-            spy.withArgs('change').should.have.been.calledWith(getFixturePath('subdir/subsub/ab.txt'));
+            spy.withArgs('unlink').should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
+            spy.withArgs('change').should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
             if (!osXFsWatch) spy.withArgs('unlink').should.have.been.calledOnce;
             if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
             done();
