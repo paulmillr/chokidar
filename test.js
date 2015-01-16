@@ -42,6 +42,10 @@ function runTests (options) {
   this.timeout(5000);
   if (!options) options = {};
 
+  // use to prevent failures caused by known issue with fs.watch on OS X
+  // unpredictably emitting extra change and unlink events
+  var osXFsWatch = os === 'darwin' && !options.usePolling && !options.useFsEvents;
+
   var delayTime = options.usePolling ? 300 : options.useFsEvents ? 200 : 250;
   var ddmult = options.usePolling ? 3 : 1.5;
   function delay (fn) { return setTimeout(fn, delayTime); }
@@ -131,10 +135,7 @@ function runTests (options) {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'c');
         delay(function() {
-          // prevent stray unpredictable fs.watch events from making test fail
-          if (options.usePolling || options.useFsEvents) {
-            spy.should.have.been.calledOnce;
-          }
+          if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           rawSpy.should.have.been.called;
           done();
@@ -149,7 +150,7 @@ function runTests (options) {
         spy.should.not.have.been.called;
         fs.unlinkSync(testPath);
         delay(function() {
-          spy.should.have.been.calledOnce;
+          if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           rawSpy.should.have.been.called;
           done();
@@ -163,7 +164,7 @@ function runTests (options) {
       delay(function() {
         fs.rmdirSync(testDir);
         delay(function() {
-          spy.should.have.been.calledOnce;
+          if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
           rawSpy.should.have.been.called;
           done();
@@ -181,7 +182,7 @@ function runTests (options) {
         addSpy.should.not.have.been.called;
         fs.renameSync(testPath, newPath);
         delay(function() {
-          unlinkSpy.should.have.been.calledOnce;
+          if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
           unlinkSpy.should.have.been.calledWith(testPath);
           addSpy.should.have.been.calledOnce;
           addSpy.should.have.been.calledWith(newPath);
@@ -372,7 +373,7 @@ function runTests (options) {
         fs.unlinkSync(unlinkPath);
         ddelay(function() {
           watcher.close();
-          spy.should.have.been.calledTwice;
+          if (!osXFsWatch) spy.should.have.been.calledTwice;
           spy.should.have.been.calledWith('unlink', unlinkPath);
           done();
         });
@@ -401,8 +402,10 @@ function runTests (options) {
             fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt'));
             fs.rmdirSync(getFixturePath('subdir/subsub'));
             spy.withArgs('add').should.have.been.calledThrice;
-            spy.withArgs('unlink').should.have.been.calledOnce;
-            spy.withArgs('change').should.have.been.calledOnce;
+            spy.withArgs('unlink').should.have.been.calledWith(getFixturePath('subdir/a.txt'));
+            spy.withArgs('change').should.have.been.calledWith(getFixturePath('subdir/subsub/ab.txt'));
+            if (!osXFsWatch) spy.withArgs('unlink').should.have.been.calledOnce;
+            if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
             done();
           })
         });
@@ -672,7 +675,10 @@ function runTests (options) {
         delay(function() {
           watcher = chokidar.watch(fixturesPath, options).on('addDir', spy);
           delay(function(){
-            spy.should.have.been.calledThrice;
+            spy.should.have.been.calledWith(fixturesPath);
+            spy.should.have.been.calledWith(getFixturePath('subdir'));
+            spy.should.have.been.calledWith(getFixturePath('subdir/dir'));
+            if (!osXFsWatch) spy.should.have.been.calledThrice;
             done();
           });
         });
@@ -794,7 +800,7 @@ function runTests (options) {
               spy.should.have.been.calledWith('addDir', getFixturePath('link'));
               spy.should.have.been.calledWith('addDir', getFixturePath('link/dir'));
               spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
-              spy.should.have.been.calledThrice;
+              if (!osXFsWatch) spy.should.have.been.calledThrice;
               done();
             });
           });
