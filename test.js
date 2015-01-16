@@ -554,11 +554,11 @@ function runTests (options) {
       try{fs.unlinkSync(getFixturePath('link'));} catch(e) {}
       fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
       var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-      delay(function() {
+      ddelay(function() {
         fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
         fs.unlinkSync(getFixturePath('link'));
         fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
-        delay(function() {
+        ddelay(function() {
           watcher.close();
           delete options.followSymlinks;
           fs.unlinkSync(getFixturePath('link'));
