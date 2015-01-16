@@ -17,6 +17,7 @@ function getFixturePath (subPath) {
 var fixturesPath = getFixturePath('');
 
 before(function() {
+  try {require('rimraf').Sync(fixturesPath);} catch(err) {}
   try {fs.mkdirSync(fixturesPath, 0x1ed);} catch(err) {}
 });
 
