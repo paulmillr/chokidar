@@ -388,15 +388,15 @@ function runTests (options) {
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
-      delay(function() {
+      ddelay(function() {
         var watchPath = getFixturePath('**/a*.txt');
         var watcher = chokidar.watch(watchPath, options).on('all', spy);
-        delay(function() {
+        ddelay(function() {
           fs.writeFileSync(getFixturePath('add.txt'), 'a');
           fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
           fs.unlinkSync(getFixturePath('subdir/a.txt'));
           fs.unlinkSync(getFixturePath('subdir/b.txt'));
-          delay(function() {
+          ddelay(function() {
             watcher.close();
             fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt'));
             fs.rmdirSync(getFixturePath('subdir/subsub'));
