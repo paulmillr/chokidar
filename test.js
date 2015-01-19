@@ -579,20 +579,22 @@ function runTests (options) {
       options.followSymlinks = false;
       try{fs.unlinkSync(getFixturePath('link'));} catch(e) {}
       fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-      var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-      ddelay(function() {
-        fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-        fs.unlinkSync(getFixturePath('link'));
-        fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
+      delay(function() {
+        var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
         ddelay(function() {
-          watcher.close();
-          delete options.followSymlinks;
+          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.unlinkSync(getFixturePath('link'));
-          spy.should.not.have.been.calledWith('addDir', getFixturePath('link'));
-          spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
-          spy.should.have.been.calledWith('add', getFixturePath('link'));
-          spy.should.have.been.calledWith('change', getFixturePath('link'));
-          done();
+          fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
+          ddelay(function() {
+            watcher.close();
+            delete options.followSymlinks;
+            fs.unlinkSync(getFixturePath('link'));
+            spy.should.not.have.been.calledWith('addDir', getFixturePath('link'));
+            spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
+            spy.should.have.been.calledWith('add', getFixturePath('link'));
+            spy.should.have.been.calledWith('change', getFixturePath('link'));
+            done();
+          });
         });
       });
     });
