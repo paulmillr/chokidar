@@ -46,7 +46,7 @@ Then just require the package in your code:
 ```javascript
 var chokidar = require('chokidar');
 
-var watcher = chokidar.watch('file or dir', {ignored: /[\/\\]\./, persistent: true});
+var watcher = chokidar.watch('file, dir, or glob', {ignored: /[\/\\]\./, persistent: true});
 
 watcher
   .on('add', function(path) {console.log('File', path, 'has been added');})
@@ -65,7 +65,7 @@ watcher.on('change', function(path, stats) {
 });
 
 watcher.add('new-file');
-watcher.add(['new-file-2', 'new-file-3']);
+watcher.add(['new-file-2', 'new-file-3', '**/other-file*']);
 
 // Only needed if watching is persistent.
 watcher.close();
@@ -78,7 +78,8 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 ```
 
 ## API
-* `chokidar.watch(paths, options)`: takes paths to be watched recursively and options:
+* `chokidar.watch(paths, options)`: takes one or more paths (which may be paths to files,
+  dirs to be watched recursively, or glob patterns) and options:
     * `ignored` ([anymatch](https://github.com/es128/anymatch)-compatible definition)
     Defines files/paths to be ignored. The **whole path** is tested, not just
     filename. If a function with two arguments is provided, it gets called
@@ -117,8 +118,8 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
-* `.add(file / files)`: Add directories / files for tracking.
-Takes an array of strings (file paths) or just one path.
+* `.add(path / paths)`: Add files, directories, or glob patterns for tracking.
+Takes an array of strings or just one string.
 * `.on(event, callback)`: Listen for an FS event.
 Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`, `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event name
