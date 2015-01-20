@@ -426,23 +426,24 @@ function runTests (options) {
       var testPath = 'test-*/*a*.txt';
       var addPath = 'test-fixtures/add.txt';
       var changePath = 'test-fixtures/change.txt';
+      var watcher = chokidar.watch(testPath, options)
+        .on('all', spy)
+        .on('ready', readySpy);
       delay(function() {
-        var watcher = chokidar.watch(testPath, options)
-          .on('all', spy)
-          .on('ready', readySpy);
+        spy.should.have.been.calledWith('add', changePath);
+        fs.writeFileSync(addPath, 'a');
+        fs.writeFileSync(changePath, 'c');
         ddelay(function() {
-          spy.should.have.been.calledWith('add', changePath);
-          fs.writeFileSync(addPath, 'a');
-          fs.writeFileSync(changePath, 'c');
-          ddelay(function() {
-            watcher.close();
-            spy.should.have.been.calledWith('add', addPath);
-            spy.should.have.been.calledWith('change', changePath);
-            spy.should.not.have.been.calledWith('add', 'test-fixtures/unlink.txt');
-            spy.should.not.have.been.calledWith('addDir');
-            readySpy.should.have.been.calledOnce;
-            done();
-          });
+          watcher.close();
+          spy.should.have.been.calledWith('add', addPath);
+          spy.should.have.been.calledWith('change', changePath);
+          spy.should.not.have.been.calledWith('add', 'test-fixtures/unlink.txt');
+          spy.should.not.have.been.calledWith('addDir');
+          readySpy.should.have.been.calledOnce;
+          done();
+        });
+      });
+    });
     it('should correctly handle conflicting glob patterns', function(done) {
       var spy = sinon.spy();
       var readySpy = sinon.spy();
