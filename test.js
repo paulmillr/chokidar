@@ -863,19 +863,21 @@ function runTests (options) {
         try {fs.mkdirSync(subDirPath, 0x1ed);} catch(err) {}
         var watchPaths = [subDirPath, getFixturePath('change.txt')];
         options.ignoreInitial = true;
-        var watcher = chokidar.watch(watchPaths, options).on('all', spy);
         delay(function() {
-          watcher.unwatch(getFixturePath('subdir'));
+          var watcher = chokidar.watch(watchPaths, options).on('all', spy);
           delay(function() {
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            ddelay(function() {
-              watcher.close();
-              delete options.ignoreInitial;
-              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-              spy.should.not.have.been.calledWith('add');
-              if (!osXFsWatch) spy.should.have.been.calledOnce;
-              done();
+            watcher.unwatch(getFixturePath('subdir'));
+            delay(function() {
+              fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+              fs.writeFileSync(getFixturePath('change.txt'), 'c');
+              ddelay(function() {
+                watcher.close();
+                delete options.ignoreInitial;
+                spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+                spy.should.not.have.been.calledWith('add');
+                if (!osXFsWatch) spy.should.have.been.calledOnce;
+                done();
+              });
             });
           });
         });
@@ -892,7 +894,8 @@ function runTests (options) {
     });
     it('should ignore further events on close', function(done) {
       var spy = sinon.spy();
-      var watcher = chokidar.watch(fixturesPath, options);
+      // this.watcher binding is needed for the after() function
+      var watcher = this.watcher = chokidar.watch(fixturesPath, options);
       watcher.once('add', function() {
         watcher.once('add', function() {
           watcher.close();
