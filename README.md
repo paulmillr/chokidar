@@ -67,6 +67,8 @@ watcher.on('change', function(path, stats) {
 watcher.add('new-file');
 watcher.add(['new-file-2', 'new-file-3', '**/other-file*']);
 
+watcher.unwatch('new-file*');
+
 // Only needed if watching is persistent.
 watcher.close();
 
@@ -124,6 +126,8 @@ Takes an array of strings or just one string.
 Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`, `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event name
 and path for every event other than `ready`, `raw`, and `error`.
+* `.unwatch(path /paths)`: Stop watching files, directories, or glob patterns.
+Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
 
 ## License
