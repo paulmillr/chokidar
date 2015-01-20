@@ -117,6 +117,10 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
     "atomic writes" instead of writing directly to the source file.
     * `depth` (default: `undefined`). If set, limits how many levels of
     subdirectories will be traversed.
+    * `alwaysStat` (default: `false`). If relying upon the `fs.Stat` object
+    that may get passed with `add`, `addDir`, and `change` events, set this to
+    `true` to ensure it is provided even in cases where it wasn't already
+    available from the underlying watch events.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
