@@ -443,6 +443,30 @@ function runTests (options) {
             readySpy.should.have.been.calledOnce;
             done();
           });
+    it('should correctly handle conflicting glob patterns', function(done) {
+      var spy = sinon.spy();
+      var readySpy = sinon.spy();
+      var changePath = getFixturePath('change.txt');
+      var unlinkPath = getFixturePath('unlink.txt');
+      var addPath = getFixturePath('add.txt');
+      var watchPaths = [getFixturePath('change*'), getFixturePath('unlink*')];
+      var watcher = chokidar.watch(watchPaths, options)
+        .on('all', spy)
+        .on('ready', readySpy);
+      delay(function() {
+        spy.should.have.been.calledWith('add', changePath);
+        spy.should.have.been.calledWith('add', unlinkPath);
+        if (!osXFsWatch) spy.should.have.been.calledTwice;
+        fs.writeFileSync(addPath, 'a');
+        fs.writeFileSync(changePath, 'c');
+        fs.unlinkSync(unlinkPath);
+        ddelay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith('change', changePath);
+          spy.should.have.been.calledWith('unlink', unlinkPath);
+          spy.should.not.have.been.calledWith('add', addPath);
+          readySpy.should.have.been.calledOnce;
+          done();
         });
       });
     });
