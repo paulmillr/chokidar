@@ -69,6 +69,7 @@ function runTests (options) {
     beforeEach(function(done) {
       this.readySpy = sinon.spy(function readySpy(){});
       rawSpy = sinon.spy(function rawSpy(){});
+      options.alwaysStat = true;
       this.watcher = chokidar.watch(fixturesPath, options)
         .on('ready', this.readySpy)
         .on('raw', rawSpy);
@@ -86,6 +87,7 @@ function runTests (options) {
       clean();
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
+      delete options.alwaysStat;
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
       this.watcher.should.be.an['instanceof'](chokidar.FSWatcher);
@@ -106,6 +108,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
@@ -121,6 +124,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
+          expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
@@ -136,6 +140,7 @@ function runTests (options) {
         delay(function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
@@ -151,6 +156,7 @@ function runTests (options) {
         delay(function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          expect(spy.args[0][1]).to.not.be.ok; // no stats
           rawSpy.should.have.been.called;
           done();
         });
@@ -165,6 +171,7 @@ function runTests (options) {
         delay(function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
+          expect(spy.args[0][1]).to.not.be.ok; // no stats
           rawSpy.should.have.been.called;
           done();
         });
@@ -183,8 +190,10 @@ function runTests (options) {
         delay(function() {
           if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
           unlinkSpy.should.have.been.calledWith(testPath);
+          expect(unlinkSpy.args[0][1]).to.not.be.ok; // no stats
           addSpy.should.have.been.calledOnce;
           addSpy.should.have.been.calledWith(newPath);
+          expect(addSpy.args[0][1]).to.be.ok; // stats
           fs.renameSync(newPath, testPath);
           rawSpy.should.have.been.called;
           done();
@@ -209,6 +218,7 @@ function runTests (options) {
         delay(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
+          expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
