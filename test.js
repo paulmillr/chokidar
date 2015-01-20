@@ -856,8 +856,32 @@ function runTests (options) {
         });
       });
     });
+    describe('unwatch', function() {
+      it('should stop watching unwatched paths', function(done) {
+        var spy = sinon.spy();
+        var subDirPath = getFixturePath('subdir');
+        try {fs.mkdirSync(subDirPath, 0x1ed);} catch(err) {}
+        var watchPaths = [subDirPath, getFixturePath('change.txt')];
+        options.ignoreInitial = true;
+        var watcher = chokidar.watch(watchPaths, options).on('all', spy);
+        delay(function() {
+          watcher.unwatch(getFixturePath('subdir'));
+          delay(function() {
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            ddelay(function() {
+              watcher.close();
+              delete options.ignoreInitial;
+              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+              spy.should.not.have.been.calledWith('add');
+              if (!osXFsWatch) spy.should.have.been.calledOnce;
+              done();
+            });
+          });
+        });
+      });
+    });
   });
-
   describe('close', function() {
     before(function() {
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
@@ -867,8 +891,8 @@ function runTests (options) {
       try {fs.unlinkSync(getFixturePath('add.txt'));} catch(err) {}
     });
     it('should ignore further events on close', function(done) {
-      var watcher = this.watcher = chokidar.watch(fixturesPath, options);
       var spy = sinon.spy();
+      var watcher = chokidar.watch(fixturesPath, options);
       watcher.once('add', function() {
         watcher.once('add', function() {
           watcher.close();
