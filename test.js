@@ -27,6 +27,8 @@ after(function() {
 });
 
 describe('chokidar', function() {
+  this.timeout(5000);
+
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
@@ -38,7 +40,6 @@ describe('chokidar', function() {
 });
 
 function runTests (options) {
-  this.timeout(5000);
   if (!options) options = {};
 
   // use to prevent failures caused by known issue with fs.watch on OS X
