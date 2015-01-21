@@ -86,7 +86,8 @@ require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, 
 ```
 
 ## API
-* `chokidar.watch(paths, options)`: takes one or more paths (which may be paths to files,
+
+`chokidar.watch(paths, options)`: takes one or more paths (which may be paths to files,
   dirs to be watched recursively, or glob patterns) and options:
 
 #### Persistence
