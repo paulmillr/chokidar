@@ -1,3 +1,15 @@
+# Chokidar 1.0.0-rc1 (21 January 2015)
+* Glob support for `watch` and `add` methods
+* New `unwatch` method to turn off watching of previously watched paths
+* More flexible `ignored` option allowing regex, function, glob, or array
+* New options:
+  * `depth` for limiting recursion
+  * `alwaysStat` to ensure `fs.Stats` gets passed with every add/change event
+* ICYMI
+  * 0.12 added full symlink support, `followSymlinks` and `atomic` options, and
+  `raw` event
+  * 0.11 added the `ready` event
+
 # Chokidar 0.12.6 (6 January 2015)
 * Fix bug which breaks `persistent: false` mode when change events occur
 
