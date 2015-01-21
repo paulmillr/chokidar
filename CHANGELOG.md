@@ -1,3 +1,6 @@
+# Chokidar 1.0.0-rc2 (21 January 2015)
+* Fixing a botched `npm publish`
+
 # Chokidar 1.0.0-rc1 (21 January 2015)
 * Glob support for `watch` and `add` methods
 * New `unwatch` method to turn off watching of previously watched paths
