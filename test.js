@@ -425,8 +425,9 @@ function runTests (options) {
       var spy = sinon.spy();
       var readySpy = sinon.spy();
       var testPath = 'test-*/*a*.txt';
-      var addPath = 'test-fixtures/add.txt';
-      var changePath = 'test-fixtures/change.txt';
+      var addPath = sysPath.join('test-fixtures', 'add.txt');
+      var changePath = sysPath.join('test-fixtures', 'change.txt');
+      var unlinkPath = sysPath.join('test-fixtures', 'unlink.txt');
       var watcher = chokidar.watch(testPath, options)
         .on('all', spy)
         .on('ready', readySpy);
@@ -438,7 +439,7 @@ function runTests (options) {
           watcher.close();
           spy.should.have.been.calledWith('add', addPath);
           spy.should.have.been.calledWith('change', changePath);
-          spy.should.not.have.been.calledWith('add', 'test-fixtures/unlink.txt');
+          spy.should.not.have.been.calledWith('add', unlinkPath);
           spy.should.not.have.been.calledWith('addDir');
           readySpy.should.have.been.calledOnce;
           done();
