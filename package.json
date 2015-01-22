@@ -27,7 +27,7 @@
     }
   ],
   "scripts": {
-    "test": "istanbul test _mocha",
+    "test": "istanbul test node_modules/.bin/_mocha",
     "ci-test": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls"
   },
   "main": "lib",
