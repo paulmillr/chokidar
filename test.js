@@ -973,10 +973,3 @@ function runTests (options) {
     });
   });
 }
-
-describe('is-binary', function() {
-  var isBinary = chokidar.isBinaryPath;
-  it('should be a function', function() {
-    isBinary.should.be.a('function');
-  });
-});
