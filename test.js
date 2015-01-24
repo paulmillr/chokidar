@@ -979,11 +979,4 @@ describe('is-binary', function() {
   it('should be a function', function() {
     isBinary.should.be.a('function');
   });
-  it('should correctly determine binary files', function() {
-    isBinary('a.jpg').should.equal(true);
-    isBinary('a.jpeg').should.equal(true);
-    isBinary('a.zip').should.equal(true);
-    isBinary('ajpg').should.equal(false);
-    isBinary('a.txt').should.equal(false);
-  });
 });
