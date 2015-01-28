@@ -893,6 +893,55 @@ function runTests (options) {
         });
       });
     });
+    describe('atomic', function() {
+      before(function() {
+        options.atomic = true;
+        options.ignoreInitial = true;
+      });
+      after(function() {
+        delete options.atomic;
+        delete options.ignoreInitial;
+      });
+      it('should ignore vim/emacs/Sublime swapfiles', function(done) {
+        var spy = sinon.spy();
+        var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+        watcher.on('ready', function() {
+          fs.writeFileSync(getFixturePath('.change.txt.swp'), 'a'); // vim
+          fs.writeFileSync(getFixturePath('add.txt\~'), 'a'); // vim/emacs
+          fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'a'); // sublime
+          delay(function() {
+            fs.writeFileSync(getFixturePath('.change.txt.swp'), 'c');
+            fs.writeFileSync(getFixturePath('add.txt\~'), 'c');
+            fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'c');
+            delay(function() {
+              fs.unlinkSync(getFixturePath('.change.txt.swp'));
+              fs.unlinkSync(getFixturePath('add.txt\~'));
+              fs.unlinkSync(getFixturePath('.subl5f4.tmp'));
+              delay(function() {
+                watcher.close();
+                spy.should.not.have.been.called;
+                done();
+              });
+            });
+          });
+        });
+      });
+      it('should ignore stale tilde files', function(done) {
+        options.ignoreInitial = false;
+        fs.writeFileSync(getFixturePath('old.txt~'), 'a');
+        var spy = sinon.spy();
+        delay(function() {
+          var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
+          watcher.on('ready', function() {
+            watcher.close();
+            fs.unlinkSync(getFixturePath('old.txt~'));
+            spy.should.not.have.been.calledWith(getFixturePath('old.txt'));
+            spy.should.not.have.been.calledWith(getFixturePath('old.txt~'));
+            done();
+          });
+        });
+      });
+    });
   });
   describe('unwatch', function() {
     var watcher;
