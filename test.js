@@ -65,7 +65,7 @@ function runTests (options) {
     if (done) ddelay(done);
   }
 
-  describe('watch', function() {
+  describe('watch a directory', function() {
     var rawSpy;
     beforeEach(function(done) {
       this.readySpy = sinon.spy(function readySpy(){});
