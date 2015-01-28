@@ -897,13 +897,16 @@ function runTests (options) {
   describe('unwatch', function() {
     var watcher;
     beforeEach(function(done) {
-      try {fs.mkdirSync(getFixturePath('subdir'), 0x1ed);} catch(err) {}
       options.ignoreInitial = true;
-      delay(done);
+      clean(function() {
+        try {fs.mkdirSync(getFixturePath('subdir'), 0x1ed);} catch(err) {}
+        delay(done);
+      });
     });
-    after(function() {
+    after(function(done) {
       watcher.close();
       delete options.ignoreInitial;
+      clean(done);
     });
     it('should stop watching unwatched paths', function(done) {
       var spy = sinon.spy();
