@@ -1,3 +1,6 @@
+# Chokidar 1.0.0-rc3 (30 January 2015)
+* Add `cwd` option
+
 # Chokidar 1.0.0-rc2 (21 January 2015)
 * Fixing a botched `npm publish`
 
