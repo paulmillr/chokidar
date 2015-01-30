@@ -112,6 +112,8 @@ should ignore the initial `add` events or not.
 * `followSymlinks` (default: `true`). When `false`, only the
 symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
+* `cwd` (no default). The base directory from which watch `paths` are to be
+derived. Paths emitted with events will be relative to this.
 
 #### Performance
 
