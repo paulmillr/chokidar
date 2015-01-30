@@ -942,6 +942,59 @@ function runTests (options) {
         });
       });
     });
+    describe('cwd', function() {
+      after(function() {
+        delete options.cwd;
+      });
+      it('should emit relative paths based on cwd', function(done) {
+        var spy = sinon.spy();
+        options.cwd = fixturesPath;
+        var watcher = chokidar.watch('**', options)
+          .on('all', spy)
+          .on('ready', function() {
+            fs.unlinkSync(getFixturePath('unlink.txt'));
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            ddelay(function() {
+              watcher.close();
+              spy.should.have.been.calledWith('add', 'change.txt');
+              spy.should.have.been.calledWith('add', 'unlink.txt');
+              spy.should.have.been.calledWith('change', 'change.txt');
+              spy.should.have.been.calledWith('unlink', 'unlink.txt');
+              spy.callCount.should.equal(4);
+              done();
+            });
+          });
+      });
+      it('should allow separate watchers to have different cwds', function(done) {
+        var spy1 = sinon.spy();
+        var spy2 = sinon.spy();
+        options.cwd = fixturesPath;
+        var options2 = {};
+        Object.keys(options).forEach(function(key) { options2[key] = options[key] });
+        options2.cwd = sysPath.join('..', 'chokidar');
+        var watcher1 = chokidar.watch('**', options)
+          .on('all', spy1)
+          .on('ready', function() {
+            var watcher2 = chokidar.watch('test-fixtures', options2)
+              .on('all', spy2)
+              .on('ready', function() {
+                fs.unlinkSync(getFixturePath('unlink.txt'));
+                fs.writeFileSync(getFixturePath('change.txt'), 'c');
+                ddelay(function() {
+                  watcher1.close();
+                  watcher2.close();
+                  spy1.should.have.been.calledWith('change', 'change.txt');
+                  spy1.should.have.been.calledWith('unlink', 'unlink.txt');
+                  spy2.should.have.been.calledWith('add', sysPath.join('test-fixtures', 'change.txt'));
+                  spy2.should.have.been.calledWith('add', sysPath.join('test-fixtures', 'unlink.txt'));
+                  spy2.should.have.been.calledWith('change', sysPath.join('test-fixtures', 'change.txt'));
+                  spy2.should.have.been.calledWith('unlink', sysPath.join('test-fixtures', 'unlink.txt'));
+                  done();
+                });
+              });
+          });
+      });
+    });
   });
   describe('unwatch', function() {
     var watcher;
