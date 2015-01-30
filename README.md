@@ -143,7 +143,7 @@ whether to watch files that don't have read permissions.
 Automatically filters out artifacts that occur when using editors that use
 "atomic writes" instead of writing directly to the source file.
 
-### Events
+### Methods & Events
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
@@ -153,7 +153,7 @@ Takes an array of strings or just one string.
 Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`, `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event name
 and path for every event other than `ready`, `raw`, and `error`.
-* `.unwatch(path /paths)`: Stop watching files, directories, or glob patterns.
+* `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
 
