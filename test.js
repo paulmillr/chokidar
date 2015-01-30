@@ -952,16 +952,18 @@ function runTests (options) {
         var watcher = chokidar.watch('**', options)
           .on('all', spy)
           .on('ready', function() {
-            fs.unlinkSync(getFixturePath('unlink.txt'));
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            ddelay(function() {
-              watcher.close();
-              spy.should.have.been.calledWith('add', 'change.txt');
-              spy.should.have.been.calledWith('add', 'unlink.txt');
-              spy.should.have.been.calledWith('change', 'change.txt');
-              spy.should.have.been.calledWith('unlink', 'unlink.txt');
-              spy.callCount.should.equal(4);
-              done();
+            delay(function() {
+              fs.unlinkSync(getFixturePath('unlink.txt'));
+              fs.writeFileSync(getFixturePath('change.txt'), 'c');
+              ddelay(function() {
+                watcher.close();
+                spy.should.have.been.calledWith('add', 'change.txt');
+                spy.should.have.been.calledWith('add', 'unlink.txt');
+                spy.should.have.been.calledWith('change', 'change.txt');
+                spy.should.have.been.calledWith('unlink', 'unlink.txt');
+                spy.callCount.should.equal(4);
+                done();
+              });
             });
           });
       });
