@@ -961,7 +961,7 @@ function runTests (options) {
                 spy.should.have.been.calledWith('add', 'unlink.txt');
                 spy.should.have.been.calledWith('change', 'change.txt');
                 spy.should.have.been.calledWith('unlink', 'unlink.txt');
-                spy.callCount.should.equal(4);
+                if (!osXFsWatch) spy.callCount.should.equal(4);
                 done();
               });
             });
