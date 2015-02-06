@@ -123,7 +123,7 @@ polling for binary files (see extensions in src/is-binary).
 * `usePolling` (default: `false`).
 Whether to use fs.watchFile (backed by polling), or fs.watch. If polling
 leads to high CPU utilization, consider setting this to `false`. Polling
-may be necessary to successfully watch files in certain situation, such as
+may be necessary to successfully watch files in certain situations, such as
 network mounted drives. Setting to `true` explicitly on OS X overrides the
 `useFsEvents` default.
 * `useFsEvents` (default: `true` on OS X). Whether to use the
