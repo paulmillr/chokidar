@@ -473,6 +473,27 @@ function runTests (options) {
         });
       });
     });
+    it('should correctly handle intersecting glob patterns', function(done) {
+      var spy = sinon.spy();
+      var readySpy = sinon.spy(function ready() {});
+      var changePath = getFixturePath('change.txt');
+      var watchPaths = [getFixturePath('cha*'), getFixturePath('*nge.*')];
+      var watcher = chokidar.watch(watchPaths, options)
+        .on('all', spy)
+        .on('ready', readySpy);
+      delay(function() {
+        spy.should.have.been.calledWith('add', changePath);
+        if (!osXFsWatch) spy.should.have.been.calledOnce;
+        fs.writeFileSync(changePath, 'c');
+        ddelay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith('change', changePath);
+          if (!osXFsWatch) spy.should.have.been.calledTwice;
+          readySpy.should.have.been.calledOnce;
+          done();
+        });
+      });
+    });
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
