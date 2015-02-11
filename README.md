@@ -117,9 +117,6 @@ derived. Paths emitted with events will be relative to this.
 
 #### Performance
 
-* `interval` (default: `100`). Interval of file system polling.
-* `binaryInterval` (default: `300`). Interval of file system
-polling for binary files (see extensions in src/is-binary).
 * `usePolling` (default: `false`).
 Whether to use fs.watchFile (backed by polling), or fs.watch. If polling
 leads to high CPU utilization, consider setting this to `false`. It is
@@ -138,6 +135,11 @@ this to `true` to ensure it is provided even in cases where it wasn't
 already available from the underlying watch events.
 * `depth` (default: `undefined`). If set, limits how many levels of
 subdirectories will be traversed.
+* _Polling-specific settings_ (effective when `usePolling: true`)
+  * `interval` (default: `100`). Interval of file system polling.
+  * `binaryInterval` (default: `300`). Interval of file system
+  polling for binary files.
+  ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
 
 #### Errors
 * `ignorePermissionErrors` (default: `false`). Indicates
