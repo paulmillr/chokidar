@@ -494,6 +494,25 @@ function runTests (options) {
         });
       });
     });
+    it('should not confuse glob-like filenames with globs', function(done) {
+      var spy = sinon.spy();
+      var readySpy = sinon.spy(function ready() {});
+      var filePath = getFixturePath('notaglob[*].txt');
+      fs.writeFileSync(filePath, 'b');
+      var watcher = chokidar.watch(fixturesPath, options)
+        .on('all', spy)
+        .on('ready', readySpy);
+      delay(function() {
+        readySpy.should.have.been.calledOnce;
+        spy.should.have.been.calledWith('add', filePath);
+        fs.writeFileSync(filePath, 'c');
+        ddelay(function() {
+          watcher.close();
+          spy.should.have.been.calledWith('change', filePath);
+          done();
+        });
+      });
+    });
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
