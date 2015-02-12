@@ -507,6 +507,7 @@ function runTests (options) {
         spy.should.have.been.calledWith('add', filePath);
         fs.writeFileSync(filePath, 'c');
         ddelay(function() {
+          fs.unlinkSync(filePath);
           watcher.close();
           spy.should.have.been.calledWith('change', filePath);
           done();
