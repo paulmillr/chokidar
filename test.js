@@ -502,11 +502,11 @@ function runTests (options) {
       var watcher = chokidar.watch(fixturesPath, options)
         .on('all', spy)
         .on('ready', readySpy);
-      delay(function() {
+      ddelay(function() {
         readySpy.should.have.been.calledOnce;
         spy.should.have.been.calledWith('add', filePath);
         fs.writeFileSync(filePath, 'c');
-        ddelay(function() {
+        delay(function() {
           fs.unlinkSync(filePath);
           watcher.close();
           spy.should.have.been.calledWith('change', filePath);
