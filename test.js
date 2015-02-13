@@ -368,7 +368,7 @@ function runTests (options) {
           spy.should.have.been.calledWith('add', changePath);
           fs.writeFileSync(addPath, 'a');
           fs.writeFileSync(changePath, 'c');
-          waitFor([[spy, 3]], function() {
+          waitFor([[spy, 3], spy.withArgs('add', addPath)], function() {
             watcher.close();
             spy.should.have.been.calledWith('add', addPath);
             spy.should.have.been.calledWith('change', changePath);
@@ -442,12 +442,13 @@ function runTests (options) {
           spy.should.have.been.calledWith('add', changePath);
           fs.writeFileSync(addPath, 'a');
           fs.writeFileSync(changePath, 'c');
-          waitFor([[spy, 3]], function() {
+          waitFor([[spy, 3], spy.withArgs('add', addPath)], function() {
             watcher.close();
             spy.should.have.been.calledWith('add', addPath);
             spy.should.have.been.calledWith('change', changePath);
             spy.should.not.have.been.calledWith('add', unlinkPath);
             spy.should.not.have.been.calledWith('addDir');
+            if (!osXFsWatch) spy.should.have.been.calledThrice;
             done();
           });
         }, true));
@@ -467,11 +468,12 @@ function runTests (options) {
           fs.writeFileSync(addPath, 'a');
           fs.writeFileSync(changePath, 'c');
           fs.unlinkSync(unlinkPath);
-          waitFor([[spy, 4]], function() {
+          waitFor([[spy, 4], spy.withArgs('unlink', unlinkPath)], function() {
             watcher.close();
             spy.should.have.been.calledWith('change', changePath);
             spy.should.have.been.calledWith('unlink', unlinkPath);
             spy.should.not.have.been.calledWith('add', addPath);
+            if (!osXFsWatch) spy.callCount.should.be(4);
             done();
           });
         }));
@@ -510,7 +512,7 @@ function runTests (options) {
             spy.should.have.been.calledWith('change', filePath);
             done();
           });
-        }, true));
+        }));
     });
   });
   describe('watch symlinks', function() {
