@@ -50,6 +50,25 @@ function runTests (options) {
   var ddmult = options.usePolling ? 3 : 1.5;
   function delay (fn) { return setTimeout(fn, delayTime); }
   function ddelay (fn) { return setTimeout(fn, delayTime * ddmult); }
+  function waitFor (spies, fn) {
+    var intrvl = setInterval(function() {
+      if (spies.every(function(spy) { return spy.callCount; })) {
+        clearInterval(intrvl);
+        fn();
+        fn = Function.prototype;
+      }
+    }, 5);
+  }
+  function d (fn) {
+    if (options.usePolling) {
+      console.log('d');
+      return function() {
+        setTimeout(fn, 900);
+      }
+    } else {
+      return fn;
+    }
+  }
 
   options.persistent = true;
 
@@ -62,38 +81,44 @@ function runTests (options) {
     try {fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));} catch(err) {}
     try {fs.rmdirSync(getFixturePath('subdir/dir'));} catch(err) {}
     try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
-    if (done) ddelay(done);
+    if (done) delay(done);
   }
 
   describe('watch a directory', function() {
     var rawSpy;
-    beforeEach(function(done) {
+    beforeEach(function() {
       this.readySpy = sinon.spy(function readySpy(){});
       rawSpy = sinon.spy(function rawSpy(){});
+      options.ignoreInitial = true;
       options.alwaysStat = true;
-      this.watcher = chokidar.watch(fixturesPath, options)
-        .on('ready', this.readySpy)
-        .on('raw', rawSpy);
-      ddelay(done);
+      this.initWatcher = function() {
+        return this.watcher = chokidar.watch(fixturesPath, options)
+          .on('ready', this.readySpy)
+          .on('raw', rawSpy);
+      }.bind(this);
     });
     afterEach(function(done) {
-      this.watcher.close();
-      this.readySpy.should.have.been.calledOnce;
-      rawSpy = undefined;
-      delete this.watcher;
-      ddelay(done);
+      delay(function() {
+        this.watcher.close();
+        this.readySpy.should.have.been.calledOnce;
+        rawSpy = undefined;
+        delete this.watcher;
+        done()
+      }.bind(this))
     });
     before(clean);
     after(function() {
       clean();
       fs.writeFileSync(getFixturePath('change.txt'), 'a');
       fs.writeFileSync(getFixturePath('unlink.txt'), 'a');
+      delete options.ignoreInitial;
       delete options.alwaysStat;
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
-      this.watcher.should.be.an['instanceof'](chokidar.FSWatcher);
+      this.initWatcher().should.be.an['instanceof'](chokidar.FSWatcher);
     });
     it('should expose public API methods', function() {
+      this.initWatcher();
       this.watcher.on.should.be.a('function');
       this.watcher.emit.should.be.a('function');
       this.watcher.add.should.be.a('function');
@@ -102,11 +127,9 @@ function runTests (options) {
     it('should emit `add` event when file was added', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
-      this.watcher.on('add', spy);
-      delay(function() {
-        spy.should.not.have.been.called;
+      this.initWatcher().on('add', spy).on('ready', function() {
         fs.writeFileSync(testPath, 'hello');
-        delay(function() {
+        waitFor([spy], function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           expect(spy.args[0][1]).to.be.ok; // stats
@@ -118,27 +141,25 @@ function runTests (options) {
     it('should emit `addDir` event when directory was added', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
-      this.watcher.on('addDir', spy);
-      delay(function() {
+      this.initWatcher().on('addDir', spy).on('ready', d(function() {
         spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
-        delay(function() {
+        waitFor([spy], function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
           expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
-      });
+      }));
     });
     it('should emit `change` event when file was changed', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
-      this.watcher.on('change', spy);
-      delay(function() {
+      this.initWatcher().on('change', spy).on('ready', function() {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'c');
-        delay(function() {
+        waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           expect(spy.args[0][1]).to.be.ok; // stats
@@ -150,11 +171,10 @@ function runTests (options) {
     it('should emit `unlink` event when file was removed', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('unlink.txt');
-      this.watcher.on('unlink', spy);
-      delay(function() {
+      this.initWatcher().on('unlink', spy).on('ready', function() {
         spy.should.not.have.been.called;
         fs.unlinkSync(testPath);
-        delay(function() {
+        waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           expect(spy.args[0][1]).to.not.be.ok; // no stats
@@ -166,64 +186,66 @@ function runTests (options) {
     it('should emit `unlinkDir` event when a directory was removed', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
-      this.watcher.on('unlinkDir', spy);
-      delay(function() {
+      this.initWatcher().on('unlinkDir', spy).on('ready', d(function() {
         fs.rmdirSync(testDir);
-        delay(function() {
+        waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
           expect(spy.args[0][1]).to.not.be.ok; // no stats
           rawSpy.should.have.been.called;
           done();
         });
-      });
+      }));
     });
     it('should emit `unlink` and `add` events when a file is renamed', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
       var addSpy = sinon.spy(function add(){});
       var testPath = getFixturePath('change.txt');
       var newPath = getFixturePath('moved.txt');
-      this.watcher.on('unlink', unlinkSpy).on('add', addSpy);
-      delay(function() {
-        unlinkSpy.should.not.have.been.called;
-        addSpy.should.not.have.been.called;
-        fs.renameSync(testPath, newPath);
-        delay(function() {
-          if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
-          unlinkSpy.should.have.been.calledWith(testPath);
-          expect(unlinkSpy.args[0][1]).to.not.be.ok; // no stats
-          addSpy.should.have.been.calledOnce;
-          addSpy.should.have.been.calledWith(newPath);
-          expect(addSpy.args[0][1]).to.be.ok; // stats
-          fs.renameSync(newPath, testPath);
-          rawSpy.should.have.been.called;
-          done();
-        });
-      });
+      this.initWatcher()
+        .on('unlink', unlinkSpy)
+        .on('add', addSpy)
+        .on('ready', d(function() {
+          unlinkSpy.should.not.have.been.called;
+          addSpy.should.not.have.been.called;
+          fs.renameSync(testPath, newPath);
+          waitFor([unlinkSpy, addSpy], function() {
+            if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
+            unlinkSpy.should.have.been.calledWith(testPath);
+            expect(unlinkSpy.args[0][1]).to.not.be.ok; // no stats
+            addSpy.should.have.been.calledOnce;
+            addSpy.should.have.been.calledWith(newPath);
+            expect(addSpy.args[0][1]).to.be.ok; // stats
+            fs.renameSync(newPath, testPath);
+            rawSpy.should.have.been.called;
+            done();
+          });
+        }));
     });
     it('should survive ENOENT for missing subdirectories', function(done) {
       var testDir;
-      testDir = getFixturePath('subdir');
-      this.watcher.add(testDir);
-      delay(done);
+      testDir = getFixturePath('notadir');
+      this.initWatcher().on('ready', function() {
+        this.watcher.add(testDir);
+        done();
+      }.bind(this));
     });
     it('should notice when a file appears in a new directory', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
       var testPath = getFixturePath('subdir/add.txt');
-      this.watcher.on('add', spy);
-      delay(function() {
+      this.initWatcher().on('add', spy).on('ready', d(function() {
         spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testPath, 'hello');
-        delay(function() {
+        waitFor([spy], function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
-      });
+      }));
     });
   });
   describe('watch individual files', function() {
