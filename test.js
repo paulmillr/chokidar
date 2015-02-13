@@ -287,8 +287,9 @@ function runTests (options) {
       var watcher = chokidar.watch(testPath, options)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
-        .on('ready', d(function() {
+        .on('ready', function() {
           waitFor([unlinkSpy], d(function() {
+            unlinkSpy.should.have.been.calledWith(testPath);
             waitFor([addSpy], function() {
               watcher.close();
               delete options.ignoreInitial;
@@ -296,28 +297,25 @@ function runTests (options) {
               done();
             });
             fs.writeFileSync(testPath, 'ra');
-            unlinkSpy.should.have.been.calledWith(testPath);
           }));
           fs.unlinkSync(testPath);
-        }));
+        });
     });
     it('should ignore unwatched siblings', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
       var siblingPath = getFixturePath('change.txt');
-      var watcher = chokidar.watch(testPath, options).on('all', spy);
-      delay(function() {
-        fs.writeFileSync(siblingPath, 'c');
-        delay(function() {
-          spy.should.not.have.been.called;
+      var watcher = chokidar.watch(testPath, options)
+        .on('all', spy)
+        .on('ready', d(function() {
+          fs.writeFileSync(siblingPath, 'c');
           fs.writeFileSync(testPath, 'a');
-          delay(function() {
-            spy.should.have.been.calledWith('add', testPath);
+          waitFor([spy], function() {
             watcher.close();
+            spy.should.have.always.been.calledWith('add', testPath);
             done();
           });
-        });
-      });
+        }));
     });
   });
   describe('watch non-existent paths', function() {
