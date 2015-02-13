@@ -51,22 +51,22 @@ function runTests (options) {
   function delay (fn) { return setTimeout(fn, delayTime); }
   function ddelay (fn) { return setTimeout(fn, delayTime * ddmult); }
   function waitFor (spies, fn) {
+    function isSpyReady(spy) {
+      return Array.isArray(spy) ? spy[0].callCount >= spy[1] : spy.callCount;
+    }
     var intrvl = setInterval(function() {
-      if (spies.every(function(spy) { return spy.callCount; })) {
+      if (spies.every(isSpyReady)) {
         clearInterval(intrvl);
         fn();
         fn = Function.prototype;
       }
     }, 5);
   }
-  function d (fn) {
+  function d(fn, quicker) {
     if (options.usePolling) {
-      console.log('d');
-      return function() {
-        setTimeout(fn, 900);
-      }
+      return setTimeout.bind(null, fn, quicker ? 300 : 900);
     } else {
-      return fn;
+      return setImmediate.bind(null, fn);
     }
   }
 
@@ -81,7 +81,7 @@ function runTests (options) {
     try {fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt'));} catch(err) {}
     try {fs.rmdirSync(getFixturePath('subdir/dir'));} catch(err) {}
     try {fs.rmdirSync(getFixturePath('subdir'));} catch(err) {}
-    if (done) delay(done);
+    if (done) d(done, true)();
   }
 
   describe('watch a directory', function() {
