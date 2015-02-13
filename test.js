@@ -253,33 +253,31 @@ function runTests (options) {
     after(clean);
     it('should detect changes', function(done) {
       var spy = sinon.spy();
-      var readySpy = sinon.spy();
       var testPath = getFixturePath('change.txt');
       var watcher = chokidar.watch(testPath, options)
         .on('change', spy)
-        .on('ready', readySpy);
-      ddelay(function() {
-        fs.writeFileSync(testPath, 'c');
-        delay(function() {
-          watcher.close();
-          readySpy.should.have.been.calledOnce;
-          spy.should.have.always.been.calledWith(testPath);
-          done();
-        });
-      });
+        .on('ready', d(function() {
+          fs.writeFileSync(testPath, 'c');
+          waitFor([spy], function() {
+            watcher.close();
+            spy.should.have.always.been.calledWith(testPath);
+            done();
+          });
+        }));
     });
     it('should detect unlinks', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('unlink.txt');
-      var watcher = chokidar.watch(testPath, options).on('unlink', spy);
-      delay(function() {
-        fs.unlinkSync(testPath);
-        delay(function() {
-          spy.should.have.been.calledWith(testPath);
-          watcher.close();
-          done();
-        });
-      });
+      var watcher = chokidar.watch(testPath, options)
+        .on('unlink', spy)
+        .on('ready', d(function() {
+          fs.unlinkSync(testPath);
+          waitFor([spy], function() {
+            watcher.close();
+            spy.should.have.been.calledWith(testPath);
+            done();
+          });
+        }));
     });
     it('should detect unlink and re-add', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
