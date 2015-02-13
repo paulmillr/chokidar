@@ -473,7 +473,7 @@ function runTests (options) {
             spy.should.have.been.calledWith('change', changePath);
             spy.should.have.been.calledWith('unlink', unlinkPath);
             spy.should.not.have.been.calledWith('add', addPath);
-            if (!osXFsWatch) spy.callCount.should.be(4);
+            if (!osXFsWatch) spy.callCount.should.equal(4);
             done();
           });
         }));
