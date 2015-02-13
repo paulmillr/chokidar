@@ -280,23 +280,26 @@ function runTests (options) {
         }));
     });
     it('should detect unlink and re-add', function(done) {
-      var unlinkSpy = sinon.spy(function unlink(){});
-      var addSpy = sinon.spy(function add(){});
+      var unlinkSpy = sinon.spy(function unlinkSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
+      options.ignoreInitial = true;
       var watcher = chokidar.watch(testPath, options)
         .on('unlink', unlinkSpy)
-        .on('add', addSpy);
-      delay(function() {
-        fs.unlinkSync(testPath);
-        delay(function() {
-          unlinkSpy.should.have.been.calledWith(testPath);
-          delay(function() {
-            addSpy.should.have.been.calledWith(testPath);
-            watcher.close();
-            done();
-          });
-        });
-      });
+        .on('add', addSpy)
+        .on('ready', d(function() {
+          waitFor([unlinkSpy], d(function() {
+            waitFor([addSpy], function() {
+              watcher.close();
+              delete options.ignoreInitial;
+              addSpy.should.have.been.calledWith(testPath);
+              done();
+            });
+            fs.writeFileSync(testPath, 'ra');
+            unlinkSpy.should.have.been.calledWith(testPath);
+          }));
+          fs.unlinkSync(testPath);
+        }));
     });
     it('should ignore unwatched siblings', function(done) {
       var spy = sinon.spy();
