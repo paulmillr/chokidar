@@ -323,44 +323,35 @@ function runTests (options) {
     after(clean);
     it('should watch non-existent file and detect add', function(done) {
       var spy = sinon.spy();
-      var readySpy = sinon.spy();
       var testPath = getFixturePath('add.txt');
       var watcher = chokidar.watch(testPath, options)
         .on('add', spy)
-        .on('ready', readySpy);
-      // polling takes a bit longer here
-      ddelay(function() {
-        fs.writeFileSync(testPath, 'a');
-        ddelay(function() {
-          watcher.close();
-          spy.should.have.been.calledWith(testPath);
-          readySpy.should.have.been.calledOnce;
-          done();
-        });
-      });
+        .on('ready', d(function() {
+          waitFor([spy], function() {
+            watcher.close();
+            spy.should.have.been.calledWith(testPath);
+            done();
+          });
+          fs.writeFileSync(testPath, 'a');
+        }));
     });
     it('should watch non-existent dir and detect addDir/add', function(done) {
       var spy = sinon.spy();
-      var readySpy = sinon.spy();
       var testDir = getFixturePath('subdir');
       var testPath = getFixturePath('subdir/add.txt');
-      delay(function() {
-        var watcher = chokidar.watch(testDir, options)
-          .on('all', spy)
-          .on('ready', readySpy);
-        ddelay(function() {
+      var watcher = chokidar.watch(testDir, options)
+        .on('all', spy)
+        .on('ready', d(function() {
           spy.should.not.have.been.called;
-          readySpy.should.have.been.calledOnce;
-          fs.mkdirSync(testDir, 0x1ed);
-          fs.writeFileSync(testPath, 'hello');
-          ddelay(function() {
+          waitFor([[spy, 2]], function() {
             watcher.close();
             spy.should.have.been.calledWith('addDir', testDir);
             spy.should.have.been.calledWith('add', testPath);
             done();
           });
-        });
-      });
+          fs.mkdirSync(testDir, 0x1ed);
+          fs.writeFileSync(testPath, 'hello');
+        }));
     });
   });
   describe('watch glob patterns', function() {
