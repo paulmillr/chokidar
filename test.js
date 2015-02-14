@@ -1051,39 +1051,37 @@ function runTests (options) {
     it('should stop watching unwatched paths', function(done) {
       var spy = sinon.spy();
       var watchPaths = [getFixturePath('subdir'), getFixturePath('change.txt')];
-      watcher = chokidar.watch(watchPaths, options).on('all', spy);
-      delay(function() {
-        watcher.unwatch(getFixturePath('subdir'));
-        delay(function() {
+      watcher = chokidar.watch(watchPaths, options)
+        .on('all', spy)
+        .on('ready', function() {
+          watcher.unwatch(getFixturePath('subdir'));
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          ddelay(function() {
+          waitFor([spy], function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add');
             if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
           });
         });
-      });
     });
     it('should ignore unwatched paths that are a subset of watched paths', function(done) {
       var spy = sinon.spy();
-      watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-      delay(function() {
-        watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
-        delay(function() {
+      watcher = chokidar.watch(fixturesPath, options)
+        .on('all', spy)
+        .on('ready', d(function() {
+          watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
           fs.unlinkSync(getFixturePath('unlink.txt'));
-          ddelay(function() {
+          waitFor([spy], function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add');
             spy.should.not.have.been.calledWith('unlink');
             if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
           });
-        });
-      });
+        }, true));
     });
   });
   describe('close', function() {
@@ -1100,14 +1098,11 @@ function runTests (options) {
       var watcher = this.watcher = chokidar.watch(fixturesPath, options);
       watcher.once('add', function() {
         watcher.once('add', function() {
-          watcher.close();
+          watcher.on('add', spy).close();
+          fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
           delay(function() {
-            watcher.on('add', spy);
-            fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
-            delay(function() {
-              spy.should.not.have.been.called;
-              done();
-            });
+            spy.should.not.have.been.called;
+            done();
           });
         });
       });
