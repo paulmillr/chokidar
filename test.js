@@ -533,30 +533,27 @@ function runTests (options) {
     it('should watch symlinked dirs', function(done) {
       var dirSpy = sinon.spy(function dirSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
-      var readySpy = sinon.spy(function readySpy(){});
       var watcher = chokidar.watch(linkedDir, options)
         .on('addDir', dirSpy)
         .on('add', addSpy)
-        .on('ready', readySpy);
-      delay(function() {
-        watcher.close();
-        readySpy.should.have.been.calledOnce;
-        dirSpy.should.have.been.calledWith(linkedDir);
-        addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
-        addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'unlink.txt'));
-        done();
-      });
+        .on('ready', d(function() {
+          watcher.close();
+          dirSpy.should.have.been.calledWith(linkedDir);
+          addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
+          addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'unlink.txt'));
+          done();
+        }));
     });
     it('should watch symlinked files', function(done) {
       var spy = sinon.spy();
       var changePath = getFixturePath('change.txt');
       var linkPath = getFixturePath('link.txt');
       fs.symlinkSync(changePath, linkPath);
-      delay(function() {
-        var watcher = chokidar.watch(linkPath, options).on('all', spy);
-        ddelay(function() {
+      var watcher = chokidar.watch(linkPath, options)
+        .on('all', spy)
+        .on('ready', function() {
           fs.writeFileSync(changePath, 'c');
-          ddelay(function() {
+          waitFor([spy.withArgs('change')], function() {
             watcher.close();
             fs.unlinkSync(linkPath);
             spy.should.have.been.calledWith('add', linkPath);
@@ -564,7 +561,6 @@ function runTests (options) {
             done();
           });
         });
-      });
     });
     it('should follow symlinked files within a normal dir', function(done) {
       var spy = sinon.spy();
@@ -572,10 +568,10 @@ function runTests (options) {
       var linkPath = getFixturePath('subdir/link.txt');
       fs.symlinkSync(changePath, linkPath);
       var watcher = chokidar.watch(getFixturePath('subdir'), options)
-        .on('all', spy);
-      ddelay(function() {
+        .on('all', spy)
+        .on('ready', function() {
         fs.writeFileSync(changePath, 'c');
-        ddelay(function() {
+        waitFor([spy.withArgs('change')], function() {
           watcher.close();
           fs.unlinkSync(linkPath);
           spy.should.have.been.calledWith('add', linkPath);
@@ -588,82 +584,84 @@ function runTests (options) {
       var spy = sinon.spy();
       var testDir = sysPath.join(linkedDir, 'subdir');
       var testFile = sysPath.join(testDir, 'add.txt');
-      var watcher = chokidar.watch(testDir, options).on('all', spy);
-      ddelay(function() {
-        spy.should.have.been.calledWith('addDir', testDir);
-        spy.should.have.been.calledWith('add', testFile);
-        fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-        ddelay(function() {
-          watcher.close();
-          spy.should.have.been.calledWith('change', testFile);
-          done();
+      var watcher = chokidar.watch(testDir, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('addDir', testDir);
+          spy.should.have.been.calledWith('add', testFile);
+          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+          waitFor([spy.withArgs('change')], function() {
+            watcher.close();
+            spy.should.have.been.calledWith('change', testFile);
+            done();
+          });
         });
-      });
     });
     it('should not recurse indefinitely on circular symlinks', function(done) {
-      var spy = sinon.spy();
       fs.symlinkSync(fixturesPath, getFixturePath('subdir/circular'));
-      var watcher = chokidar.watch(fixturesPath, options).on('ready', spy);
-      delay(function() {
-        fs.unlinkSync(getFixturePath('subdir/circular'));
-        watcher.close();
-        spy.should.have.been.calledOnce;
-        done();
-      });
+      var watcher = chokidar.watch(fixturesPath, options)
+        .on('ready', function() {
+          fs.unlinkSync(getFixturePath('subdir/circular'));
+          watcher.close();
+          done();
+        });
     });
     it('should recognize changes following symlinked dirs', function(done) {
       var spy = sinon.spy(function changeSpy(){});
-      var watcher = chokidar.watch(linkedDir, options).on('change', spy);
-      delay(function() {
-        fs.writeFileSync(getFixturePath('change.txt'), 'c');
-        delay(function() {
-          watcher.close();
-          spy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
-          done();
+      var watcher = chokidar.watch(linkedDir, options)
+        .on('change', spy)
+        .on('ready', function() {
+          fs.writeFileSync(getFixturePath('change.txt'), 'c');
+          waitFor([spy], function() {
+            watcher.close();
+            spy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
+            done();
+          });
         });
-      });
     });
     it('should follow newly created symlinks', function(done) {
       var spy = sinon.spy();
       options.ignoreInitial = true;
-      var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-      delay(function() {
-        fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-        delay(function() {
-          watcher.close();
-          delete options.ignoreInitial;
-          spy.should.have.been.calledWith('addDir', getFixturePath('link'));
-          spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
-          done();
+      var watcher = chokidar.watch(fixturesPath, options)
+        .on('all', spy)
+        .on('ready', function() {
+          fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
+          waitFor([[spy, 2]], function() {
+            watcher.close();
+            delete options.ignoreInitial;
+            spy.should.have.been.calledWith('addDir', getFixturePath('link'));
+            spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
+            done();
+          });
         });
-      });
     });
     it('should watch symlinks as files when followSymlinks:false', function(done) {
       var spy = sinon.spy();
       options.followSymlinks = false;
-      var watcher = chokidar.watch(linkedDir, options).on('all', spy);
-      delay(function() {
-        watcher.close();
-        delete options.followSymlinks;
-        spy.should.not.have.been.calledWith('addDir');
-        spy.should.have.been.calledWith('add', linkedDir);
-        spy.should.have.been.calledOnce;
-        fs.unlinkSync(linkedDir);
-        done();
-      });
+      var watcher = chokidar.watch(linkedDir, options)
+        .on('all', spy)
+        .on('ready', function() {
+          watcher.close();
+          fs.unlinkSync(linkedDir);
+          delete options.followSymlinks;
+          spy.should.not.have.been.calledWith('addDir');
+          spy.should.have.been.calledWith('add', linkedDir);
+          spy.should.have.been.calledOnce;
+          done();
+        });
     });
     it('should watch symlinks within a watched dir as files when followSymlinks:false', function(done) {
       var spy = sinon.spy();
       options.followSymlinks = false;
       try{fs.unlinkSync(getFixturePath('link'));} catch(e) {}
       fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-      delay(function() {
-        var watcher = chokidar.watch(fixturesPath, options).on('all', spy);
-        ddelay(function() {
+      var watcher = chokidar.watch(fixturesPath, options)
+        .on('all', spy)
+        .on('ready', function() {
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.unlinkSync(getFixturePath('link'));
           fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
-          ddelay(function() {
+          waitFor([spy.withArgs('change')], function() {
             watcher.close();
             delete options.followSymlinks;
             fs.unlinkSync(getFixturePath('link'));
@@ -674,7 +672,6 @@ function runTests (options) {
             done();
           });
         });
-      });
     });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
       var spy = sinon.spy();
@@ -684,23 +681,24 @@ function runTests (options) {
       fs.writeFileSync(linkedFilePath, 'c');
       var linkPath = getFixturePath('subdir/subsub');
       fs.symlinkSync(linkedPath, linkPath);
-      var previousWatcher = chokidar.watch(getFixturePath('subdir'), options);
-      delay(function() {
-        var watchedPath = getFixturePath('subdir/subsub/text.txt');
-        var watcher = chokidar.watch(watchedPath, options).on('all', spy);
-        ddelay(function() {
-          fs.writeFileSync(linkedFilePath, 'd');
-          ddelay(function() {
-            watcher.close();
-            previousWatcher.close();
-            fs.unlinkSync(linkPath);
-            fs.unlinkSync(linkedFilePath);
-            fs.rmdirSync(linkedPath);
-            spy.should.have.been.calledWith('change', watchedPath);
-            done();
-          });
+      var previousWatcher = chokidar.watch(getFixturePath('subdir'), options)
+        .on('ready', function() {
+          var watchedPath = getFixturePath('subdir/subsub/text.txt');
+          var watcher = chokidar.watch(watchedPath, options)
+            .on('all', spy)
+            .on('ready', function() {
+              fs.writeFileSync(linkedFilePath, 'd');
+              waitFor([spy.withArgs('change')], function() {
+                watcher.close();
+                previousWatcher.close();
+                fs.unlinkSync(linkPath);
+                fs.unlinkSync(linkedFilePath);
+                fs.rmdirSync(linkedPath);
+                spy.should.have.been.calledWith('change', watchedPath);
+                done();
+              });
+            });
         });
-      });
     });
   });
   describe('watch options', function() {
