@@ -569,16 +569,16 @@ function runTests (options) {
       fs.symlinkSync(changePath, linkPath);
       var watcher = chokidar.watch(getFixturePath('subdir'), options)
         .on('all', spy)
-        .on('ready', function() {
-        fs.writeFileSync(changePath, 'c');
-        waitFor([spy.withArgs('change')], function() {
-          watcher.close();
-          fs.unlinkSync(linkPath);
-          spy.should.have.been.calledWith('add', linkPath);
-          spy.should.have.been.calledWith('change', linkPath);
-          done();
-        });
-      });
+        .on('ready', d(function() {
+          fs.writeFileSync(changePath, 'c');
+          waitFor([spy.withArgs('change')], function() {
+            watcher.close();
+            fs.unlinkSync(linkPath);
+            spy.should.have.been.calledWith('add', linkPath);
+            spy.should.have.been.calledWith('change', linkPath);
+            done();
+          });
+        }));
     });
     it('should watch paths with a symlinked parent', function(done) {
       var spy = sinon.spy();
@@ -608,16 +608,18 @@ function runTests (options) {
     });
     it('should recognize changes following symlinked dirs', function(done) {
       var spy = sinon.spy(function changeSpy(){});
-      var watcher = chokidar.watch(linkedDir, options)
-        .on('change', spy)
-        .on('ready', function() {
-          fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          waitFor([spy], function() {
-            watcher.close();
-            spy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
-            done();
+      d(function(){
+        var watcher = chokidar.watch(linkedDir, options)
+          .on('change', spy)
+          .on('ready', function() {
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            waitFor([spy], function() {
+              watcher.close();
+              spy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
+              done();
+            });
           });
-        });
+      })();
     });
     it('should follow newly created symlinks', function(done) {
       var spy = sinon.spy();
@@ -626,7 +628,7 @@ function runTests (options) {
         .on('all', spy)
         .on('ready', function() {
           fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-          waitFor([[spy, 2]], function() {
+          waitFor([spy.withArgs('add'), spy.withArgs('addDir')], function() {
             watcher.close();
             delete options.ignoreInitial;
             spy.should.have.been.calledWith('addDir', getFixturePath('link'));
@@ -661,7 +663,7 @@ function runTests (options) {
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.unlinkSync(getFixturePath('link'));
           fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
-          waitFor([spy.withArgs('change')], function() {
+          waitFor([[spy.withArgs('change'), 2]], function() {
             watcher.close();
             delete options.followSymlinks;
             fs.unlinkSync(getFixturePath('link'));
@@ -755,7 +757,7 @@ function runTests (options) {
           .on('ready', function() {
             spy.should.not.have.been.called;
             fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            waitFor([spy.withArgs('change')], function() {
+            waitFor([spy.withArgs('change', getFixturePath('change.txt'))], function() {
               watcher.close();
               spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
               spy.should.not.have.been.calledWith('add');
@@ -997,7 +999,6 @@ function runTests (options) {
               spy.should.have.been.calledWith('add', 'unlink.txt');
               spy.should.have.been.calledWith('change', 'change.txt');
               spy.should.have.been.calledWith('unlink', 'unlink.txt');
-              if (!osXFsWatch) spy.callCount.should.equal(4);
               done();
             });
           }));
