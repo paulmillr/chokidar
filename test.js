@@ -16,8 +16,14 @@ function getFixturePath (subPath) {
 
 var fixturesPath = getFixturePath('');
 
+var watcher;
+
 before(function() {
   try {fs.mkdirSync(fixturesPath, 0x1ed);} catch(err) {}
+});
+
+afterEach(function() {
+  watcher && watcher.close && watcher.close();
 });
 
 after(function() {
@@ -40,6 +46,10 @@ describe('chokidar', function() {
 
 function runTests(options) {
   if (!options) options = {};
+
+  function stdWatcher() {
+    return watcher = chokidar.watch(fixturesPath, options);
+  }
 
   // use to prevent failures caused by known issue with fs.watch on OS X
   // unpredictably emitting extra change and unlink events
@@ -84,24 +94,18 @@ function runTests(options) {
   }
 
   describe('watch a directory', function() {
-    var rawSpy;
+    var readySpy, rawSpy;
     beforeEach(function() {
-      this.readySpy = sinon.spy(function readySpy(){});
+      readySpy = sinon.spy(function readySpy(){});
       rawSpy = sinon.spy(function rawSpy(){});
       options.ignoreInitial = true;
       options.alwaysStat = true;
-      this.initWatcher = function() {
-        return this.watcher = chokidar.watch(fixturesPath, options)
-          .on('ready', this.readySpy)
-          .on('raw', rawSpy);
-      }.bind(this);
+      stdWatcher().on('ready', readySpy).on('raw', rawSpy);
     });
     afterEach(function(done) {
       delay(function() {
-        this.watcher.close();
-        this.readySpy.should.have.been.calledOnce;
+        readySpy.should.have.been.calledOnce;
         rawSpy = undefined;
-        delete this.watcher;
         done()
       }.bind(this))
     });
@@ -114,19 +118,18 @@ function runTests(options) {
       delete options.alwaysStat;
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
-      this.initWatcher().should.be.an['instanceof'](chokidar.FSWatcher);
+      watcher.should.be.an['instanceof'](chokidar.FSWatcher);
     });
     it('should expose public API methods', function() {
-      this.initWatcher();
-      this.watcher.on.should.be.a('function');
-      this.watcher.emit.should.be.a('function');
-      this.watcher.add.should.be.a('function');
-      this.watcher.close.should.be.a('function');
+      watcher.on.should.be.a('function');
+      watcher.emit.should.be.a('function');
+      watcher.add.should.be.a('function');
+      watcher.close.should.be.a('function');
     });
     it('should emit `add` event when file was added', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
-      this.initWatcher().on('add', spy).on('ready', d(function() {
+      watcher.on('add', spy).on('ready', d(function() {
         fs.writeFileSync(testPath, 'hello');
         waitFor([spy], function() {
           spy.should.have.been.calledOnce;
@@ -140,7 +143,7 @@ function runTests(options) {
     it('should emit `addDir` event when directory was added', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
-      this.initWatcher().on('addDir', spy).on('ready', d(function() {
+      watcher.on('addDir', spy).on('ready', d(function() {
         spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
         waitFor([spy], function() {
@@ -155,7 +158,7 @@ function runTests(options) {
     it('should emit `change` event when file was changed', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
-      this.initWatcher().on('change', spy).on('ready', function() {
+      watcher.on('change', spy).on('ready', function() {
         spy.should.not.have.been.called;
         fs.writeFileSync(testPath, 'c');
         waitFor([spy], function() {
@@ -170,7 +173,7 @@ function runTests(options) {
     it('should emit `unlink` event when file was removed', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('unlink.txt');
-      this.initWatcher().on('unlink', spy).on('ready', function() {
+      watcher.on('unlink', spy).on('ready', function() {
         spy.should.not.have.been.called;
         fs.unlinkSync(testPath);
         waitFor([spy], function() {
@@ -185,7 +188,7 @@ function runTests(options) {
     it('should emit `unlinkDir` event when a directory was removed', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
-      this.initWatcher().on('unlinkDir', spy).on('ready', d(function() {
+      watcher.on('unlinkDir', spy).on('ready', d(function() {
         fs.rmdirSync(testDir);
         waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
@@ -201,7 +204,7 @@ function runTests(options) {
       var addSpy = sinon.spy(function add(){});
       var testPath = getFixturePath('change.txt');
       var newPath = getFixturePath('moved.txt');
-      this.initWatcher()
+      watcher
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', d(function() {
@@ -224,16 +227,16 @@ function runTests(options) {
     it('should survive ENOENT for missing subdirectories', function(done) {
       var testDir;
       testDir = getFixturePath('notadir');
-      this.initWatcher().on('ready', function() {
-        this.watcher.add(testDir);
+      watcher.on('ready', function() {
+        watcher.add(testDir);
         done();
-      }.bind(this));
+      });
     });
     it('should notice when a file appears in a new directory', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
       var testPath = getFixturePath('subdir/add.txt');
-      this.initWatcher().on('add', spy).on('ready', d(function() {
+      watcher.on('add', spy).on('ready', d(function() {
         spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testPath, 'hello');
