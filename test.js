@@ -16,7 +16,7 @@ function getFixturePath (subPath) {
 
 var fixturesPath = getFixturePath('');
 
-var watcher;
+var watcher, watcher2;
 
 before(function() {
   try {fs.mkdirSync(fixturesPath, 0x1ed);} catch(err) {}
@@ -24,6 +24,7 @@ before(function() {
 
 afterEach(function() {
   watcher && watcher.close && watcher.close();
+  watcher2 && watcher2.close && watcher2.close();
 });
 
 after(function() {
@@ -663,7 +664,7 @@ function runTests(options) {
       fs.writeFileSync(linkedFilePath, 'c');
       var linkPath = getFixturePath('subdir/subsub');
       fs.symlinkSync(linkedPath, linkPath);
-      var previousWatcher = chokidar.watch(getFixturePath('subdir'), options)
+      watcher2 = chokidar.watch(getFixturePath('subdir'), options)
         .on('ready', d(function() {
           var watchedPath = getFixturePath('subdir/subsub/text.txt');
           watcher = chokidar.watch(watchedPath, options)
@@ -671,7 +672,6 @@ function runTests(options) {
             .on('ready', d(function() {
               fs.writeFileSync(linkedFilePath, 'd');
               waitFor([spy.withArgs('change')], function() {
-                previousWatcher.close();
                 fs.unlinkSync(linkPath);
                 fs.unlinkSync(linkedFilePath);
                 fs.rmdirSync(linkedPath);
@@ -976,17 +976,15 @@ function runTests(options) {
         var options2 = {};
         Object.keys(options).forEach(function(key) { options2[key] = options[key] });
         options2.cwd = sysPath.join('..', 'chokidar');
-        var watcher1 = chokidar.watch('**', options)
+        watcher = chokidar.watch('**', options)
           .on('all', spy1)
           .on('ready', d(function() {
-            var watcher2 = chokidar.watch('test-fixtures', options2)
+            watcher2 = chokidar.watch('test-fixtures', options2)
               .on('all', spy2)
               .on('ready', d(function() {
                 fs.writeFileSync(getFixturePath('change.txt'), 'c');
                 fs.unlinkSync(getFixturePath('unlink.txt'));
                 waitFor([spy1.withArgs('unlink'), spy2.withArgs('unlink')], function() {
-                  watcher1.close();
-                  watcher2.close();
                   spy1.should.have.been.calledWith('change', 'change.txt');
                   spy1.should.have.been.calledWith('unlink', 'unlink.txt');
                   spy2.should.have.been.calledWith('add', sysPath.join('test-fixtures', 'change.txt'));
