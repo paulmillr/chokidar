@@ -407,7 +407,7 @@ function runTests (options) {
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
-      d(function() {
+      ddelay(function() {
         var watchPath = getFixturePath('../test-*/**/a*.txt');
         var watcher = chokidar.watch(watchPath, options)
           .on('all', spy)
@@ -428,7 +428,7 @@ function runTests (options) {
               done();
             })
           }, true));
-      })();
+      });
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
@@ -684,7 +684,7 @@ function runTests (options) {
       var linkPath = getFixturePath('subdir/subsub');
       fs.symlinkSync(linkedPath, linkPath);
       var previousWatcher = chokidar.watch(getFixturePath('subdir'), options)
-        .on('ready', function() {
+        .on('ready', d(function() {
           var watchedPath = getFixturePath('subdir/subsub/text.txt');
           var watcher = chokidar.watch(watchedPath, options)
             .on('all', spy)
@@ -700,7 +700,7 @@ function runTests (options) {
                 done();
               });
             }));
-        });
+        }, true));
     });
   });
   describe('watch options', function() {
@@ -892,7 +892,7 @@ function runTests (options) {
               if (!osXFsWatch) spy.callCount.should.equal(8);
               done();
             });
-          }, true));
+          }));
       });
       it('should respect depth setting when following symlinks', function(done) {
         if (os === 'win32') return done(); // skip on windows
@@ -927,7 +927,7 @@ function runTests (options) {
               if (!osXFsWatch) spy.should.have.been.calledThrice;
               done();
             });
-          }, true));
+          }));
       });
     });
     describe('atomic', function() {
@@ -959,9 +959,9 @@ function runTests (options) {
                   watcher.close();
                   spy.should.not.have.been.called;
                   done();
-                })();
-              })();
-            })();
+                }, true)();
+              }, true)();
+            }, true)();
           });
       });
       it('should ignore stale tilde files', function(done) {
@@ -1012,10 +1012,10 @@ function runTests (options) {
         options2.cwd = sysPath.join('..', 'chokidar');
         var watcher1 = chokidar.watch('**', options)
           .on('all', spy1)
-          .on('ready', function() {
+          .on('ready', d(function() {
             var watcher2 = chokidar.watch('test-fixtures', options2)
               .on('all', spy2)
-              .on('ready', function() {
+              .on('ready', d(function() {
                 fs.writeFileSync(getFixturePath('change.txt'), 'c');
                 fs.unlinkSync(getFixturePath('unlink.txt'));
                 waitFor([spy1.withArgs('unlink'), spy2.withArgs('unlink')], function() {
@@ -1029,8 +1029,8 @@ function runTests (options) {
                   spy2.should.have.been.calledWith('unlink', sysPath.join('test-fixtures', 'unlink.txt'));
                   done();
                 });
-              });
-          });
+              }, true));
+          }, true));
       });
     });
   });
@@ -1053,7 +1053,7 @@ function runTests (options) {
       var watchPaths = [getFixturePath('subdir'), getFixturePath('change.txt')];
       watcher = chokidar.watch(watchPaths, options)
         .on('all', spy)
-        .on('ready', function() {
+        .on('ready', d(function() {
           watcher.unwatch(getFixturePath('subdir'));
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
@@ -1063,7 +1063,7 @@ function runTests (options) {
             if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
           });
-        });
+        }));
     });
     it('should ignore unwatched paths that are a subset of watched paths', function(done) {
       var spy = sinon.spy();
