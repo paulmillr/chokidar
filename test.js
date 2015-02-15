@@ -26,9 +26,8 @@ after(function() {
   try {fs.rmdirSync(fixturesPath, 0x1ed);} catch(err) {}
 });
 
-describe('chokidar', function() {
-  this.timeout(5000);
 
+describe('chokidar', function() {
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
