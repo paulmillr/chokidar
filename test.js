@@ -38,7 +38,7 @@ describe('chokidar', function() {
   if (os === 'darwin') describe('fsevents', runTests.bind(this, {useFsEvents: true}));
 });
 
-function runTests (options) {
+function runTests(options) {
   if (!options) options = {};
 
   // use to prevent failures caused by known issue with fs.watch on OS X
@@ -47,9 +47,9 @@ function runTests (options) {
 
   var delayTime = options.usePolling ? 300 : options.useFsEvents ? 200 : 250;
   var ddmult = options.usePolling ? 3 : 1.5;
-  function delay (fn) { return setTimeout(fn, delayTime); }
-  function ddelay (fn) { return setTimeout(fn, delayTime * ddmult); }
-  function waitFor (spies, fn) {
+  function delay(fn) { return setTimeout(fn, delayTime); }
+  function ddelay(fn) { return setTimeout(fn, delayTime * ddmult); }
+  function waitFor(spies, fn) {
     function isSpyReady(spy) {
       return Array.isArray(spy) ? spy[0].callCount >= spy[1] : spy.callCount;
     }
