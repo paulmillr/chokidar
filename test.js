@@ -337,7 +337,7 @@ function runTests(options) {
             });
             fs.writeFileSync(testPath, 'a');
           }));
-      }, true)();
+      })();
     });
     it('should watch non-existent dir and detect addDir/add', function(done) {
       var spy = sinon.spy();
@@ -356,7 +356,7 @@ function runTests(options) {
             fs.mkdirSync(testDir, 0x1ed);
             fs.writeFileSync(testPath, 'hello');
           }));
-      }, true)();
+      })();
     });
   });
   describe('watch glob patterns', function() {
@@ -837,20 +837,22 @@ function runTests(options) {
       it('should not recurse if depth is 0', function(done) {
         options.depth = 0;
         var spy = sinon.spy();
-        stdWatcher()
-          .on('all', spy)
-          .on('ready', function() {
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            waitFor([[spy, 4]], function() {
-              spy.should.have.been.calledWith('addDir', fixturesPath);
-              spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
-              spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
-              spy.should.have.been.calledWith('add', getFixturePath('unlink.txt'));
-              spy.should.not.have.been.calledWith('change');
-              if (!osXFsWatch) spy.callCount.should.equal(4);
-              done();
+        dd(function() {
+          stdWatcher()
+            .on('all', spy)
+            .on('ready', function() {
+              fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+              waitFor([[spy, 4]], function() {
+                spy.should.have.been.calledWith('addDir', fixturesPath);
+                spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
+                spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
+                spy.should.have.been.calledWith('add', getFixturePath('unlink.txt'));
+                spy.should.not.have.been.calledWith('change');
+                if (!osXFsWatch) spy.callCount.should.equal(4);
+                done();
+              });
             });
-          });
+        })();
       });
       it('should recurse to specified depth', function(done) {
         options.depth = 1;
@@ -881,7 +883,7 @@ function runTests(options) {
         options.depth = 1;
         var spy = sinon.spy();
         fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-        d(function() {
+        dd(function() {
           stdWatcher()
             .on('all', spy)
             .on('ready', d(function() {
@@ -891,7 +893,7 @@ function runTests(options) {
               spy.should.not.have.been.calledWith('add', getFixturePath('link/dir/ignored.txt'));
               done();
             }, true));
-        }, true)();
+        })();
       });
       it('should respect depth setting when following a new symlink', function(done) {
         if (os === 'win32') return done(); // skip on windows
