@@ -69,10 +69,6 @@ function runTests(options) {
   // unpredictably emitting extra change and unlink events
   var osXFsWatch = os === 'darwin' && !options.usePolling && !options.useFsEvents;
 
-  var delayTime = options.usePolling ? 300 : options.useFsEvents ? 200 : 250;
-  var ddmult = options.usePolling ? 3 : 1.5;
-  function delay(fn) { return setTimeout(fn, delayTime); }
-  function ddelay(fn) { return setTimeout(fn, delayTime * ddmult); }
   function waitFor(spies, fn) {
     function isSpyReady(spy) {
       return Array.isArray(spy) ? spy[0].callCount >= spy[1] : spy.callCount;
@@ -122,11 +118,11 @@ function runTests(options) {
       stdWatcher().on('ready', readySpy).on('raw', rawSpy);
     });
     afterEach(function(done) {
-      delay(function() {
+      dd(function() {
         readySpy.should.have.been.calledOnce;
         rawSpy = undefined;
         done()
-      });
+      })();
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
       watcher.should.be.an['instanceof'](chokidar.FSWatcher);
@@ -407,7 +403,7 @@ function runTests(options) {
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
-      ddelay(function() {
+      dd(function() {
         var watchPath = getFixturePath('../test-*/**/a*.txt');
         watcher = chokidar.watch(watchPath, options)
           .on('all', spy)
@@ -423,9 +419,9 @@ function runTests(options) {
               if (!osXFsWatch) spy.withArgs('unlink').should.have.been.calledOnce;
               if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
               done();
-      });
             });
           }));
+      })();
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
@@ -1055,10 +1051,10 @@ function runTests(options) {
         watcher.once('add', function() {
           watcher.on('add', spy).close();
           fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
-          delay(function() {
+          dd(function() {
             spy.should.not.have.been.called;
             done();
-          });
+          })();
         });
       });
       fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
