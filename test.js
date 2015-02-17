@@ -362,7 +362,7 @@ function runTests(options) {
       var changePath = getFixturePath('change.txt');
       watcher = chokidar.watch(testPath, options)
         .on('all', spy)
-        .on('ready', d(function() {
+        .on('ready', dd(function() {
           spy.should.have.been.calledWith('add', changePath);
           fs.writeFileSync(addPath, 'a');
           fs.writeFileSync(changePath, 'c');
@@ -412,7 +412,7 @@ function runTests(options) {
             fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
             fs.unlinkSync(getFixturePath('subdir/a.txt'));
             fs.unlinkSync(getFixturePath('subdir/b.txt'));
-            waitFor([[spy, 5]], function() {
+            waitFor([[spy, 5], [spy.withArgs('add'), 3], spy.withArgs('unlink', getFixturePath('subdir/a.txt')), spy.withArgs('change', getFixturePath('subdir/subsub/ab.txt'))], function() {
               spy.withArgs('add').should.have.been.calledThrice;
               spy.withArgs('unlink').should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
               spy.withArgs('change').should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
@@ -913,27 +913,29 @@ function runTests(options) {
       });
       it('should ignore vim/emacs/Sublime swapfiles', function(done) {
         var spy = sinon.spy();
-        stdWatcher()
-          .on('all', spy)
-          .on('ready', function() {
-            fs.writeFileSync(getFixturePath('.change.txt.swp'), 'a'); // vim
-            fs.writeFileSync(getFixturePath('add.txt\~'), 'a'); // vim/emacs
-            fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'a'); // sublime
-            d(function() {
-              fs.writeFileSync(getFixturePath('.change.txt.swp'), 'c');
-              fs.writeFileSync(getFixturePath('add.txt\~'), 'c');
-              fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'c');
+        dd(function() {
+          stdWatcher()
+            .on('all', spy)
+            .on('ready', function() {
+              fs.writeFileSync(getFixturePath('.change.txt.swp'), 'a'); // vim
+              fs.writeFileSync(getFixturePath('add.txt\~'), 'a'); // vim/emacs
+              fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'a'); // sublime
               d(function() {
-                fs.unlinkSync(getFixturePath('.change.txt.swp'));
-                fs.unlinkSync(getFixturePath('add.txt\~'));
-                fs.unlinkSync(getFixturePath('.subl5f4.tmp'));
+                fs.writeFileSync(getFixturePath('.change.txt.swp'), 'c');
+                fs.writeFileSync(getFixturePath('add.txt\~'), 'c');
+                fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'c');
                 d(function() {
-                  spy.should.not.have.been.called;
-                  done();
+                  fs.unlinkSync(getFixturePath('.change.txt.swp'));
+                  fs.unlinkSync(getFixturePath('add.txt\~'));
+                  fs.unlinkSync(getFixturePath('.subl5f4.tmp'));
+                  d(function() {
+                    spy.should.not.have.been.called;
+                    done();
+                  }, true)();
                 }, true)();
               }, true)();
-            }, true)();
-          });
+            });
+        })();
       });
       it('should ignore stale tilde files', function(done) {
         options.ignoreInitial = false;
