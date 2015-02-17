@@ -84,9 +84,8 @@ function runTests(options) {
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
       return setTimeout.bind(null, fn, quicker ? 300 : 900);
-    } else if (process.version.substr(0, 4) === 'v0.8.') {
     } else {
-      return process.nextTick.bind(process, fn);
+      return setTimeout.bind(null, fn, 50);
     }
   }
   function dd(fn) {
