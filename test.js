@@ -314,7 +314,7 @@ function runTests(options) {
       var siblingPath = getFixturePath('change.txt');
       watcher = chokidar.watch(testPath, options)
         .on('all', spy)
-        .on('ready', d(function() {
+        .on('ready', dd(function() {
           fs.writeFileSync(siblingPath, 'c');
           fs.writeFileSync(testPath, 'a');
           waitFor([spy], function() {
@@ -423,9 +423,9 @@ function runTests(options) {
               if (!osXFsWatch) spy.withArgs('unlink').should.have.been.calledOnce;
               if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
               done();
-            })
-          }, true));
       });
+            });
+          }));
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
@@ -530,7 +530,7 @@ function runTests(options) {
         symlinkClean();
         done();
       });
-    })
+    });
     after(function() {
       symlinkClean();
       try { fs.unlinkSync(linkedDir); } catch(err) {}
@@ -586,17 +586,19 @@ function runTests(options) {
       var spy = sinon.spy();
       var testDir = sysPath.join(linkedDir, 'subdir');
       var testFile = sysPath.join(testDir, 'add.txt');
-      watcher = chokidar.watch(testDir, options)
-        .on('all', spy)
-        .on('ready', d(function() {
-          spy.should.have.been.calledWith('addDir', testDir);
-          spy.should.have.been.calledWith('add', testFile);
-          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-          waitFor([spy.withArgs('change')], function() {
-            spy.should.have.been.calledWith('change', testFile);
-            done();
-          });
-        }));
+      d(function() {
+        watcher = chokidar.watch(testDir, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            spy.should.have.been.calledWith('addDir', testDir);
+            spy.should.have.been.calledWith('add', testFile);
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+            waitFor([spy.withArgs('change')], function() {
+              spy.should.have.been.calledWith('change', testFile);
+              done();
+            });
+          }));
+      }, true)();
     });
     it('should not recurse indefinitely on circular symlinks', function(done) {
       fs.symlinkSync(fixturesPath, getFixturePath('subdir/circular'));
@@ -623,16 +625,18 @@ function runTests(options) {
     it('should follow newly created symlinks', function(done) {
       var spy = sinon.spy();
       options.ignoreInitial = true;
-      stdWatcher()
-        .on('all', spy)
-        .on('ready', d(function() {
-          fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-          waitFor([spy.withArgs('add'), spy.withArgs('addDir')], function() {
-            spy.should.have.been.calledWith('addDir', getFixturePath('link'));
-            spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
-            done();
-          });
-        }));
+      d(function() {
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
+            waitFor([spy.withArgs('add'), spy.withArgs('addDir')], function() {
+              spy.should.have.been.calledWith('addDir', getFixturePath('link'));
+              spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
+              done();
+            });
+          }));
+      })();
     });
     it('should watch symlinks as files when followSymlinks:false', function(done) {
       // TODO: figure out why fsevents watcher.close() hangs after this test
@@ -651,21 +655,24 @@ function runTests(options) {
     it('should watch symlinks within a watched dir as files when followSymlinks:false', function(done) {
       var spy = sinon.spy();
       options.followSymlinks = false;
-      fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-      stdWatcher()
-        .on('all', spy)
-        .on('ready', d(function() {
-          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-          fs.unlinkSync(getFixturePath('link'));
-          fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
-          waitFor([spy.withArgs('change', getFixturePath('link'))], function() {
-            spy.should.not.have.been.calledWith('addDir', getFixturePath('link'));
-            spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
-            spy.should.have.been.calledWith('add', getFixturePath('link'));
-            spy.should.have.been.calledWith('change', getFixturePath('link'));
-            done();
-          });
-        }));
+      var linkPath = getFixturePath('link');
+      fs.symlinkSync(getFixturePath('subdir'), linkPath);
+      d(function() {
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+            fs.unlinkSync(linkPath);
+            fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
+            waitFor([spy.withArgs('change', linkPath)], function() {
+              spy.should.not.have.been.calledWith('addDir', linkPath);
+              spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
+              spy.should.have.been.calledWith('add', linkPath);
+              spy.should.have.been.calledWith('change', linkPath);
+              done();
+            });
+          }));
+      }, true)();
     });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
       var spy = sinon.spy();
@@ -844,17 +851,19 @@ function runTests(options) {
       it('should recurse to specified depth', function(done) {
         options.depth = 1;
         var spy = sinon.spy();
+        var addPath = getFixturePath('subdir/add.txt');
+        var changePath = getFixturePath('change.txt');
         dd(function() {
           stdWatcher()
             .on('all', spy)
             .on('ready', d(function() {
               fs.writeFileSync(getFixturePath('change.txt'), 'c');
-              fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+              fs.writeFileSync(addPath, 'c');
               fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'c');
-              waitFor([spy.withArgs('change', getFixturePath('subdir/add.txt'))], function() {
+              waitFor([spy.withArgs('change', addPath), spy.withArgs('change', changePath)], function() {
                 spy.should.have.been.calledWith('addDir', getFixturePath('subdir/dir'));
-                spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-                spy.should.have.been.calledWith('change', getFixturePath('subdir/add.txt'));
+                spy.should.have.been.calledWith('change', changePath);
+                spy.should.have.been.calledWith('change', addPath);
                 spy.should.not.have.been.calledWith('add', getFixturePath('subdir/dir/ignored.txt'));
                 spy.should.not.have.been.calledWith('change', getFixturePath('subdir/dir/ignored.txt'));
                 if (!osXFsWatch) spy.callCount.should.equal(8);
@@ -883,19 +892,21 @@ function runTests(options) {
         options.depth = 1;
         options.ignoreInitial = true;
         var spy = sinon.spy();
+        var linkPath = getFixturePath('link');
+        var dirPath = getFixturePath('link/dir');
         dd(function() {
           stdWatcher()
             .on('all', spy)
-            .on('ready', function() {
-              fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-              waitFor([[spy, 3]], function() {
-                spy.should.have.been.calledWith('addDir', getFixturePath('link'));
-                spy.should.have.been.calledWith('addDir', getFixturePath('link/dir'));
+            .on('ready', d(function() {
+              fs.symlinkSync(getFixturePath('subdir'), linkPath);
+              waitFor([[spy, 3], spy.withArgs('addDir', dirPath)], function() {
+                spy.should.have.been.calledWith('addDir', linkPath);
+                spy.should.have.been.calledWith('addDir', dirPath);
                 spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
                 if (!osXFsWatch) spy.should.have.been.calledThrice;
                 done();
               });
-            });
+            }, true));
         })();
       });
     });
