@@ -90,7 +90,7 @@ function runTests(options) {
     }
   }
   function dd(fn) {
-    return d(fn, true, true);
+    return d(fn, false, true);
   }
 
   options.persistent = true;
@@ -328,7 +328,7 @@ function runTests(options) {
       var testPath = getFixturePath('add.txt');
       watcher = chokidar.watch(testPath, options)
         .on('add', spy)
-        .on('ready', d(function() {
+        .on('ready', dd(function() {
           waitFor([spy], function() {
             spy.should.have.been.calledWith(testPath);
             done();
@@ -342,7 +342,7 @@ function runTests(options) {
       var testPath = getFixturePath('subdir/add.txt');
       watcher = chokidar.watch(testDir, options)
         .on('all', spy)
-        .on('ready', d(function() {
+        .on('ready', dd(function() {
           spy.should.not.have.been.called;
           waitFor([[spy, 2]], function() {
             spy.should.have.been.calledWith('addDir', testDir);
@@ -408,7 +408,7 @@ function runTests(options) {
         var watchPath = getFixturePath('../test-*/**/a*.txt');
         watcher = chokidar.watch(watchPath, options)
           .on('all', spy)
-          .on('ready', d(function() {
+          .on('ready', dd(function() {
             fs.writeFileSync(getFixturePath('add.txt'), 'a');
             fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
             fs.unlinkSync(getFixturePath('subdir/a.txt'));
