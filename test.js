@@ -576,7 +576,6 @@ function runTests(options) {
         .on('ready', d(function() {
           fs.writeFileSync(changePath, 'c');
           waitFor([spy.withArgs('change')], function() {
-            fs.unlinkSync(linkPath);
             spy.should.have.been.calledWith('add', linkPath);
             spy.should.have.been.calledWith('change', linkPath);
             done();
@@ -628,7 +627,6 @@ function runTests(options) {
         .on('ready', function() {
           fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
           waitFor([spy.withArgs('add'), spy.withArgs('addDir')], function() {
-            delete options.ignoreInitial;
             spy.should.have.been.calledWith('addDir', getFixturePath('link'));
             spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
             done();
@@ -641,8 +639,6 @@ function runTests(options) {
       watcher = chokidar.watch(linkedDir, options)
         .on('all', spy)
         .on('ready', d(function() {
-          delete options.followSymlinks;
-          fs.unlinkSync(linkedDir);
           spy.should.not.have.been.calledWith('addDir');
           spy.should.have.been.calledWith('add', linkedDir);
           spy.should.have.been.calledOnce;
@@ -652,7 +648,6 @@ function runTests(options) {
     it('should watch symlinks within a watched dir as files when followSymlinks:false', function(done) {
       var spy = sinon.spy();
       options.followSymlinks = false;
-      try{fs.unlinkSync(getFixturePath('link'));} catch(e) {}
       fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
       stdWatcher()
         .on('all', spy)
@@ -661,8 +656,6 @@ function runTests(options) {
           fs.unlinkSync(getFixturePath('link'));
           fs.symlinkSync(getFixturePath('subdir/add.txt'), getFixturePath('link'));
           waitFor([[spy.withArgs('change'), 2]], function() {
-            delete options.followSymlinks;
-            fs.unlinkSync(getFixturePath('link'));
             spy.should.not.have.been.calledWith('addDir', getFixturePath('link'));
             spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
             spy.should.have.been.calledWith('add', getFixturePath('link'));
@@ -714,7 +707,6 @@ function runTests(options) {
           .on('ready', function() {
             watcher.add(fixturesPath);
             d(function() {
-              watcher.close();
               spy.should.not.have.been.called;
               done();
             })();
