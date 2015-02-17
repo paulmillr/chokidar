@@ -1001,7 +1001,7 @@ function runTests(options) {
                   spy2.should.have.been.calledWith('unlink', sysPath.join('test-fixtures', 'unlink.txt'));
                   done();
                 });
-              }, true));
+              }));
           }, true));
       });
     });
