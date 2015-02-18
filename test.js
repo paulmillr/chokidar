@@ -503,7 +503,7 @@ function runTests(options) {
     it('should not confuse glob-like filenames with globs', function(done) {
       var spy = sinon.spy();
       var readySpy = sinon.spy(function ready() {});
-      var filePath = getFixturePath('notaglob[*].txt');
+      var filePath = getFixturePath('nota[glob].txt');
       fs.writeFileSync(filePath, 'b');
       d(function() {
         stdWatcher()
