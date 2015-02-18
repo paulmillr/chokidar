@@ -293,7 +293,7 @@ function runTests(options) {
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', function() {
-          waitFor([unlinkSpy], d(function() {
+          waitFor([unlinkSpy], dd(function() {
             unlinkSpy.should.have.been.calledWith(testPath);
             waitFor([addSpy], function() {
               addSpy.should.have.been.calledWith(testPath);
@@ -390,16 +390,16 @@ function runTests(options) {
       var unlinkPath = getFixturePath('unlink.txt');
       watcher = chokidar.watch([testPath, negatedPath], options)
         .on('all', spy)
-        .on('ready', function() {
+        .on('ready', d(function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith('add', unlinkPath);
           fs.unlinkSync(unlinkPath);
-          waitFor([[spy, 2]], function() {
+          waitFor([[spy, 2], spy.withArgs('unlink')], function() {
             if (!osXFsWatch) spy.should.have.been.calledTwice;
             spy.should.have.been.calledWith('unlink', unlinkPath);
             done();
           });
-        });
+        }, true));
     });
     it('should traverse subdirs to match globstar patterns', function(done) {
       var spy = sinon.spy();
@@ -639,7 +639,7 @@ function runTests(options) {
               spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
               done();
             });
-          }));
+          }, true));
       })();
     });
     it('should watch symlinks as files when followSymlinks:false', function(done) {
@@ -892,7 +892,7 @@ function runTests(options) {
               spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
               spy.should.not.have.been.calledWith('add', getFixturePath('link/dir/ignored.txt'));
               done();
-            }, true));
+            }));
         })();
       });
       it('should respect depth setting when following a new symlink', function(done) {
