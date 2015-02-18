@@ -808,7 +808,7 @@ function runTests(options) {
       it('should check ignore after stating', function(done) {
         var testDir = getFixturePath('subdir');
         var spy = sinon.spy();
-        fs.mkdirSync(testDir, 0x1ed);
+        try { fs.mkdirSync(testDir, 0x1ed); } catch(e) {}
         fs.writeFileSync(testDir + '/add.txt', '');
         fs.mkdirSync(testDir + '/dir', 0x1ed);
         fs.writeFileSync(testDir + '/dir/ignored.txt', '');
