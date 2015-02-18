@@ -392,18 +392,20 @@ function runTests(options) {
       var testPath = getFixturePath('*');
       var negatedPath = '!' + getFixturePath('*a*.txt');
       var unlinkPath = getFixturePath('unlink.txt');
-      watcher = chokidar.watch([testPath, negatedPath], options)
-        .on('all', spy)
-        .on('ready', d(function() {
-          spy.should.have.been.calledOnce;
-          spy.should.have.been.calledWith('add', unlinkPath);
-          fs.unlinkSync(unlinkPath);
-          waitFor([[spy, 2], spy.withArgs('unlink')], function() {
-            if (!osXFsWatch) spy.should.have.been.calledTwice;
-            spy.should.have.been.calledWith('unlink', unlinkPath);
-            done();
-          });
-        }, true));
+      dd(function() {
+        watcher = chokidar.watch([testPath, negatedPath], options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            spy.should.have.been.calledOnce;
+            spy.should.have.been.calledWith('add', unlinkPath);
+            fs.unlinkSync(unlinkPath);
+            waitFor([[spy, 2], spy.withArgs('unlink')], function() {
+              if (!osXFsWatch) spy.should.have.been.calledTwice;
+              spy.should.have.been.calledWith('unlink', unlinkPath);
+              done();
+            });
+          }, true));
+      })();
     });
     it('should traverse subdirs to match globstar patterns', function(done) {
       var spy = sinon.spy();
