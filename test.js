@@ -83,7 +83,7 @@ function runTests(options) {
     var intrvl = setInterval(function() {
       if (spies.every(isSpyReady)) finish();
     }, 5);
-    var to = setTimeout(finish, 1000);
+    var to = setTimeout(finish, 1500);
   }
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
@@ -92,8 +92,8 @@ function runTests(options) {
       return setTimeout.bind(null, fn, 25);
     }
   }
-  function dd(fn) {
-    return d(fn, true, true);
+  function dd(fn, slower) {
+    return d(fn, !slower, true);
   }
 
   options.persistent = true;
@@ -297,14 +297,14 @@ function runTests(options) {
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', d(function() {
-          waitFor([unlinkSpy], function() {
+          waitFor([unlinkSpy], d(function() {
             unlinkSpy.should.have.been.calledWith(testPath);
             waitFor([addSpy], function() {
               addSpy.should.have.been.calledWith(testPath);
               done();
             });
-            fs.writeFileSync(testPath, 'ra');
-          });
+            d(function() { fs.writeFileSync(testPath, 'ra'); })();
+          }, true));
           fs.unlinkSync(testPath);
         }));
     });
@@ -720,15 +720,17 @@ function runTests(options) {
       });
       it('should ignore add events on a subsequent .add()', function(done) {
         var spy = sinon.spy();
-        watcher = chokidar.watch(getFixturePath('subdir'), options)
-          .on('add', spy)
-          .on('ready', function() {
-            watcher.add(fixturesPath);
-            dd(function() {
-              spy.should.not.have.been.called;
-              done();
-            })();
-        });
+        d(function() {
+          watcher = chokidar.watch(getFixturePath('subdir'), options)
+            .on('add', spy)
+            .on('ready', function() {
+              watcher.add(fixturesPath);
+              dd(function() {
+                spy.should.not.have.been.called;
+                done();
+              })();
+          });
+        })();
       });
       it('should notice when a file appears in an empty directory', function(done) {
         var spy = sinon.spy();
@@ -897,7 +899,7 @@ function runTests(options) {
               spy.should.not.have.been.calledWith('add', getFixturePath('link/dir/ignored.txt'));
               done();
             }));
-        })();
+        }, true)();
       });
       it('should respect depth setting when following a new symlink', function(done) {
         if (os === 'win32') return done(); // skip on windows
