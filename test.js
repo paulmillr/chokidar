@@ -880,7 +880,7 @@ function runTests(options) {
                 spy.should.have.been.calledWith('change', addPath);
                 spy.should.not.have.been.calledWith('add', getFixturePath('subdir/dir/ignored.txt'));
                 spy.should.not.have.been.calledWith('change', getFixturePath('subdir/dir/ignored.txt'));
-                if (!osXFsWatch) spy.callCount.should.equal(8);
+                if (options.usePolling || options.useFsEvents) spy.callCount.should.equal(8);
                 done();
               });
             }));
