@@ -922,7 +922,7 @@ function runTests(options) {
                 if (!osXFsWatch) spy.should.have.been.calledThrice;
                 done();
               });
-            }, true));
+            }));
         })();
       });
     });
