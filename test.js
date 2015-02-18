@@ -296,17 +296,17 @@ function runTests(options) {
       watcher = chokidar.watch(testPath, options)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
-        .on('ready', function() {
-          waitFor([unlinkSpy], dd(function() {
+        .on('ready', d(function() {
+          waitFor([unlinkSpy], function() {
             unlinkSpy.should.have.been.calledWith(testPath);
             waitFor([addSpy], function() {
               addSpy.should.have.been.calledWith(testPath);
               done();
             });
             fs.writeFileSync(testPath, 'ra');
-          }));
+          });
           fs.unlinkSync(testPath);
-        });
+        }));
     });
     it('should ignore unwatched siblings', function(done) {
       var spy = sinon.spy();
