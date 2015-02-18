@@ -48,6 +48,7 @@ after(function() {
 
 
 describe('chokidar', function() {
+  this.timeout(3000);
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
@@ -73,13 +74,16 @@ function runTests(options) {
     function isSpyReady(spy) {
       return Array.isArray(spy) ? spy[0].callCount >= spy[1] : spy.callCount;
     }
+    function finish() {
+      clearInterval(intrvl);
+      clearTimeout(to);
+      fn();
+      fn = Function.prototype;
+    }
     var intrvl = setInterval(function() {
-      if (spies.every(isSpyReady)) {
-        clearInterval(intrvl);
-        fn();
-        fn = Function.prototype;
-      }
+      if (spies.every(isSpyReady)) finish();
     }, 5);
+    var to = setTimeout(finish, 1000);
   }
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
