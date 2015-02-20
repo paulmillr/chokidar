@@ -31,6 +31,7 @@ function rmFixtures() {
   try { fs.unlinkSync(getFixturePath('link')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('add.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('moved.txt')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('movedagain.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/add.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/dir')); } catch(err) {}
@@ -233,6 +234,27 @@ function runTests(options) {
             done();
           });
         }));
+    });
+    it('should not emit `unlink` for previously moved files', function(done) {
+      var unlinkSpy = sinon.spy(function unlink(){});
+      var testPath = getFixturePath('change.txt');
+      var newPath1 = getFixturePath('moved.txt');
+      var newPath2 = getFixturePath('movedagain.txt');
+      fs.writeFileSync(testPath, 'b');
+      watcher
+        .on('unlink', unlinkSpy)
+        .on('ready', d(function() {
+          waitFor([unlinkSpy], d(function() {
+            waitFor([unlinkSpy.withArgs(newPath1)], dd(function() {
+              unlinkSpy.withArgs(testPath).should.have.been.calledOnce;
+              unlinkSpy.withArgs(newPath1).should.have.been.calledOnce;
+              unlinkSpy.withArgs(newPath2).should.not.have.been.called;
+              done();
+            }));
+            fs.renameSync(newPath1, newPath2);
+          }, true));
+          fs.renameSync(testPath, newPath1);
+        }, true));
     });
     it('should survive ENOENT for missing subdirectories', function(done) {
       var testDir;
