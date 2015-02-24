@@ -788,6 +788,24 @@ function runTests(options) {
             });
           }));
       });
+      it('should not emit for preexisting dirs when depth=0', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('add.txt');
+        fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+        options.depth = 0
+        dd(function() {
+          stdWatcher()
+            .on('all', spy)
+            .on('ready', d(function() {
+              fs.writeFileSync(testPath, 'c');
+              waitFor([spy], dd(function() {
+                spy.should.have.been.calledWith('add', testPath);
+                spy.should.not.have.been.calledWith('addDir');
+                done();
+              }));
+            }));
+        })();
+      });
     });
     describe('ignoreInitial:false', function() {
       beforeEach(function() { options.ignoreInitial = false; });
