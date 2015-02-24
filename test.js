@@ -775,13 +775,14 @@ function runTests(options) {
       });
       it('should emit a change on a preexisting file as a change', function(done) {
         var spy = sinon.spy();
+        var testPath = getFixturePath('change.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', d(function() {
             spy.should.not.have.been.called;
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            waitFor([spy.withArgs('change', getFixturePath('change.txt'))], function() {
-              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+            fs.writeFileSync(testPath, 'c');
+            waitFor([spy.withArgs('change', testPath)], function() {
+              spy.should.have.been.calledWith('change', testPath);
               spy.should.not.have.been.calledWith('add');
               done();
             });
