@@ -162,6 +162,20 @@ and path for every event other than `ready`, `raw`, and `error`.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
 
+## Other things
+
+- Q: I'm on windows and I have errors like that. What should I do?
+
+```
+> fsevents@0.3.1 install /usr/local/www/node_modules/grunt-polyfill-service/node_modules/polyfill-service/node_modules/6to5/node_modules/chokidar/node_modules/fsevents
+> node-gyp rebuild
+
+gyp ERR! configure error 
+ERR! stack Error: Python executable "python" is v3.4.1, which is not supported by gyp.
+gyp ERR! stack You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.
+```
+- A: Execute `npm config set python python2.7`. That should be enough to fix the crashes.
+
 ## License
 The MIT license.
 
