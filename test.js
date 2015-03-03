@@ -742,7 +742,7 @@ function runTests(options) {
       });
       it('should ignore add events on a subsequent .add()', function(done) {
         var spy = sinon.spy();
-        d(function() {
+        dd(function() {
           watcher = chokidar.watch(getFixturePath('subdir'), options)
             .on('add', spy)
             .on('ready', function() {
