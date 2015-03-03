@@ -162,19 +162,19 @@ and path for every event other than `ready`, `raw`, and `error`.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
 
-## Other things
+## Install Troubleshooting
 
-- Q: I'm on windows and I have errors like that. What should I do?
+* `npm WARN optional dep failed, continuing fsevents@n.n.n`
+  * This message is normal part of how `npm` handles optional dependencies and is
+    not indicative of a problem. Even if accompanied by other related error messages,
+    Chokidar should function properly.
 
-```
-> fsevents@0.3.1 install /usr/local/www/node_modules/grunt-polyfill-service/node_modules/polyfill-service/node_modules/6to5/node_modules/chokidar/node_modules/fsevents
-> node-gyp rebuild
+* `ERR! stack Error: Python executable "python" is v3.4.1, which is not supported by gyp.`
+  * You should be able to resolve this by installing python 2.7 and running:
+    `npm config set python python2.7`
 
-gyp ERR! configure error 
-ERR! stack Error: Python executable "python" is v3.4.1, which is not supported by gyp.
-gyp ERR! stack You can pass the --python switch to point to Python >= v2.5.0 & < 3.0.0.
-```
-- A: Execute `npm config set python python2.7`. That should be enough to fix the crashes.
+* `gyp ERR! stack Error: not found: make`
+  * On Mac, install the XCode command-line tools
 
 ## License
 The MIT license.
