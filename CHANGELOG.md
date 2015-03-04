@@ -1,3 +1,6 @@
+# Chokidar 1.0.0-rc4 (4 March 2015)
+* Fix some bugs (#224, #230, #236, #238)
+
 # Chokidar 1.0.0-rc3 (30 January 2015)
 * Add `cwd` option
 
