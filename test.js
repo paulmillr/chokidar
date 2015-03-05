@@ -35,6 +35,8 @@ function rmFixtures() {
   try { fs.unlinkSync(getFixturePath('subdir/add.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/dir')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('subdir/subsub/subsubsub/a.txt')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('subdir/subsub/subsubsub')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/subsub')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
@@ -539,6 +541,27 @@ function runTests(options) {
             });
           }));
       }, true)();
+    });
+    it('should not prematurely filter dirs against complex globstar patterns', function(done) {
+      var spy = sinon.spy();
+      fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), 0x1ed);
+      var deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
+      fs.writeFileSync(deepFile, 'b');
+      dd(function() {
+        var watchPath = getFixturePath('../test-*/**/subsubsub/*.txt');
+        watcher = chokidar.watch(watchPath, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.writeFileSync(deepFile, 'a');
+            waitFor([[spy, 2]], function() {
+              spy.should.have.been.calledWith('add', deepFile);
+              spy.should.have.been.calledWith('change', deepFile);
+              done();
+            });
+          }));
+      })();
     });
   });
   describe('watch symlinks', function() {
