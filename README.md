@@ -102,10 +102,11 @@ after `ready`, even if the process continues to run.
 #### Path filtering
 
 * `ignored` ([anymatch](https://github.com/es128/anymatch)-compatible definition)
-Defines files/paths to be ignored. The **whole path** is tested, not just
-filename. If a function with two arguments is provided, it gets called
-twice per path - once with a single argument (the path), second time with
-two arguments (the path and the [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
+Defines files/paths to be ignored. The whole relative or absolute path is
+tested, not just filename. If a function with two arguments is provided, it
+gets called twice per path - once with a single argument (the path), second
+time with two arguments (the path and the
+[`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
 object of that path).
 * `ignoreInitial` (default: `false`). Indicates whether chokidar
 should ignore the initial `add` events or not.
