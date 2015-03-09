@@ -890,6 +890,25 @@ function runTests(options) {
         options.ignored = function() { return true; };
         stdWatcher().on('ready', done);
       });
+      it('should ignore the contents of ignored dirs', function(done) {
+        var spy = sinon.spy();
+        var testDir = getFixturePath('subdir');
+        var testFile = sysPath.join(testDir, 'add.txt');
+        try { fs.mkdirSync(testDir, 0x1ed); } catch(e) {}
+        fs.writeFileSync(testFile, 'b');
+        options.ignored = testDir;
+        watcher = chokidar.watch(fixturesPath, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.writeFileSync(testFile, 'a');
+            dd(function() {
+              spy.should.not.have.been.calledWith('addDir', testDir);
+              spy.should.not.have.been.calledWith('add', testFile);
+              spy.should.not.have.been.calledWith('change', testFile);
+              done();
+            })();
+          }));
+      });
     });
     describe('depth', function() {
       beforeEach(function(done) {
