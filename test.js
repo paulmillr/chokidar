@@ -867,8 +867,8 @@ function runTests(options) {
     });
     describe('ignored', function() {
       it('should check ignore after stating', function(done) {
-        var testDir = getFixturePath('subdir');
         var spy = sinon.spy();
+        var testDir = getFixturePath('subdir');
         try { fs.mkdirSync(testDir, 0x1ed); } catch(e) {}
         fs.writeFileSync(testDir + '/add.txt', '');
         fs.mkdirSync(testDir + '/dir', 0x1ed);
@@ -888,10 +888,7 @@ function runTests(options) {
       });
       it('should not choke on an ignored watch path', function(done) {
         options.ignored = function() { return true; };
-        stdWatcher()
-          .on('ready', function() {
-            done();
-          });
+        stdWatcher().on('ready', done);
       });
     });
     describe('depth', function() {
