@@ -46,6 +46,12 @@ Install chokidar via node.js package manager:
 Then just require the package in your code:
 
 ```javascript
+// One-liner
+require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, path) {
+  console.log(event, path);
+});
+
+
 var chokidar = require('chokidar');
 
 var watcher = chokidar.watch('file, dir, or glob', {
@@ -79,11 +85,6 @@ watcher.unwatch('new-file*');
 
 // Only needed if watching is `persistent: true`.
 watcher.close();
-
-// One-liner
-require('chokidar').watch('.', {ignored: /[\/\\]\./}).on('all', function(event, path) {
-  console.log(event, path);
-});
 
 ```
 
