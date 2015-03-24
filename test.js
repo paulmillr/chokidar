@@ -32,6 +32,7 @@ function rmFixtures() {
   try { fs.unlinkSync(getFixturePath('add.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('moved.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('movedagain.txt')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('cantread.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/add.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/dir')); } catch(err) {}
@@ -108,6 +109,7 @@ function runTests(options) {
     delete options.followSymlinks;
     delete options.cwd;
     delete options.depth;
+    delete options.ignorePermissionErrors;
     fs.writeFileSync(getFixturePath('change.txt'), 'b');
     fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
     rmFixtures();
@@ -1094,6 +1096,46 @@ function runTests(options) {
                 });
               }));
           }, true));
+      });
+    });
+    describe('ignorePermissionErrors', function() {
+      var filePath = getFixturePath('cantread.txt');
+      beforeEach(function() { fs.writeFileSync(filePath, 'b', {mode: 128}); });
+      describe('false', function() {
+        beforeEach(function() { options.ignorePermissionErrors = false; });
+        it('should not watch files without read permissions', function(done) {
+          var spy = sinon.spy();
+          stdWatcher()
+            .on('all', spy)
+            .on('ready', function() {
+              spy.should.not.have.been.calledWith('add', filePath);
+              fs.writeFileSync(filePath, 'a');
+              dd(function() {
+                spy.should.not.have.been.calledWith('change', filePath);
+                done();
+              })();
+            });
+        });
+      });
+      describe('true', function() {
+        beforeEach(function() { options.ignorePermissionErrors = true; });
+        it('should watch unreadable files', function(done) {
+          var spy = sinon.spy();
+          stdWatcher()
+            .on('raw', console.log)
+            .on('all', spy)
+            .on('ready', function() {
+              spy.should.have.been.calledWith('add', filePath);
+              fs.writeFileSync(filePath, 'a');
+              dd(function() {
+                spy.should.have.been.calledWith('change', filePath);
+                done();
+              })();
+            });
+        });
+        it('should not choke on non-existent files', function(done) {
+          chokidar.watch(getFixturePath('nope.txt'), options).on('ready', done);
+        });
       });
     });
   });
