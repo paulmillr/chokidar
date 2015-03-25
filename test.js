@@ -1013,23 +1013,26 @@ function runTests(options) {
         var addSpy = spy.withArgs('addDir');
         var unlinkSpy = spy.withArgs('unlinkDir');
         var subdir2 = getFixturePath('subdir2');
-        stdWatcher()
-          .on('all', console.log)
-          .on('all', spy)
-          .on('ready', d(function() {
-            spy.should.have.been.calledWith('addDir', fixturesPath);
-            spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
-            fs.mkdirSync(subdir2, 0x1ed);
-            waitFor([[addSpy, 3]], dd(function() {
-              addSpy.should.have.been.calledThrice;
-              fs.rmdirSync(subdir2);
-              waitFor([unlinkSpy], dd(function() {
-                unlinkSpy.should.have.been.calledOnce;
-                unlinkSpy.should.have.been.calledWith('unlinkDir', subdir2);
-                done();
+        dd(function() {
+          stdWatcher()
+            .on('raw', console.log)
+            .on('all', console.log)
+            .on('all', spy)
+            .on('ready', d(function() {
+              spy.should.have.been.calledWith('addDir', fixturesPath);
+              spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
+              fs.mkdirSync(subdir2, 0x1ed);
+              waitFor([[addSpy, 3]], dd(function() {
+                addSpy.should.have.been.calledThrice;
+                fs.rmdirSync(subdir2);
+                waitFor([unlinkSpy], dd(function() {
+                  unlinkSpy.should.have.been.calledOnce;
+                  unlinkSpy.should.have.been.calledWith('unlinkDir', subdir2);
+                  done();
+                }));
               }));
             }));
-          }));
+        })();
       });
     });
     describe('atomic', function() {
