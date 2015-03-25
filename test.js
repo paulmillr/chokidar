@@ -1015,8 +1015,6 @@ function runTests(options) {
         var subdir2 = getFixturePath('subdir2');
         dd(function() {
           stdWatcher()
-            .on('raw', console.log)
-            .on('all', console.log)
             .on('all', spy)
             .on('ready', d(function() {
               spy.should.have.been.calledWith('addDir', fixturesPath);
