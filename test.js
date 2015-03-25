@@ -1119,13 +1119,13 @@ function runTests(options) {
       });
       describe('true', function() {
         beforeEach(function() { options.ignorePermissionErrors = true; });
-        it('should watch unreadable files', function(done) {
+        it('should watch unreadable files if possible', function(done) {
           var spy = sinon.spy();
           stdWatcher()
-            .on('raw', console.log)
             .on('all', spy)
             .on('ready', function() {
               spy.should.have.been.calledWith('add', filePath);
+              if (!options.useFsEvents) return done();
               fs.writeFileSync(filePath, 'a');
               dd(function() {
                 spy.should.have.been.calledWith('change', filePath);
