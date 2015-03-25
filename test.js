@@ -8,7 +8,7 @@ var sinon = require('sinon');
 chai.use(require('sinon-chai'));
 var fs = require('fs');
 var sysPath = require('path');
-var os = require('os').platform();
+var os = process.platform;
 
 function getFixturePath (subPath) {
   return sysPath.join(__dirname, 'test-fixtures', subPath);
