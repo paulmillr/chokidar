@@ -1104,6 +1104,7 @@ function runTests(options) {
       describe('false', function() {
         beforeEach(function() { options.ignorePermissionErrors = false; });
         it('should not watch files without read permissions', function(done) {
+          if (os === 'win32') return done();
           var spy = sinon.spy();
           stdWatcher()
             .on('all', spy)
