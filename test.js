@@ -40,6 +40,7 @@ function rmFixtures() {
   try { fs.rmdirSync(getFixturePath('subdir/subsub/subsubsub')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/subsub')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
 }
 
@@ -1003,6 +1004,30 @@ function runTests(options) {
               });
             }));
         })();
+      });
+      it('should correctly handle dir events when depth is 0', function(done) {
+        options.depth = 0;
+        var spy = sinon.spy();
+        var addSpy = spy.withArgs('addDir');
+        var unlinkSpy = spy.withArgs('unlinkDir');
+        var subdir2 = getFixturePath('subdir2');
+        stdWatcher()
+          .on('all', console.log)
+          .on('all', spy)
+          .on('ready', d(function() {
+            spy.should.have.been.calledWith('addDir', fixturesPath);
+            spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
+            fs.mkdirSync(subdir2, 0x1ed);
+            waitFor([[addSpy, 3]], dd(function() {
+              addSpy.should.have.been.calledThrice;
+              fs.rmdirSync(subdir2);
+              waitFor([unlinkSpy], dd(function() {
+                unlinkSpy.should.have.been.calledOnce;
+                unlinkSpy.should.have.been.calledWith('unlinkDir', subdir2);
+                done();
+              }));
+            }));
+          }));
       });
     });
     describe('atomic', function() {
