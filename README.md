@@ -144,8 +144,9 @@ subdirectories will be traversed.
   ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
 
 #### Errors
-* `ignorePermissionErrors` (default: `false`). Indicates
-whether to watch files that don't have read permissions.
+* `ignorePermissionErrors` (default: `false`). Indicates whether to watch files
+that don't have read permissions if possible. If watching fails due to `EPERM`
+or `EACCES` with this set to `true`, the errors will be suppressed silently.
 * `atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
 Automatically filters out artifacts that occur when using editors that use
 "atomic writes" instead of writing directly to the source file.
