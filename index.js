@@ -8,8 +8,8 @@ var globparent = require('glob-parent');
 var isglob = require('is-glob');
 var arrify = require('arrify');
 
-var NodeFsHandler = require('./nodefs-handler');
-var FsEventsHandler = require('./fsevents-handler');
+var NodeFsHandler = require('./lib/nodefs-handler');
+var FsEventsHandler = require('./lib/fsevents-handler');
 
 // Public: Main class.
 // Watches files & directories for changes.

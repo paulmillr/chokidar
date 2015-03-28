@@ -30,8 +30,8 @@
     "test": "istanbul test node_modules/mocha/bin/_mocha",
     "ci-test": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls"
   },
-  "main": "lib",
   "files": [
+    "index.js",
     "lib/"
   ],
   "devDependencies": {
