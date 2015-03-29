@@ -850,7 +850,7 @@ function runTests(options) {
               });
             }));
         });
-        it('should not emit for preexisting dirs when depth=0', function(done) {
+        it('should not emit for preexisting dirs when depth is 0', function(done) {
           var spy = sinon.spy();
           var testPath = getFixturePath('add.txt');
           fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
@@ -1020,7 +1020,7 @@ function runTests(options) {
               spy.should.have.been.calledWith('addDir', fixturesPath);
               spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
               fs.mkdirSync(subdir2, 0x1ed);
-              waitFor([[addSpy, 3]], dd(function() {
+              waitFor([[addSpy, 3]], d(function() {
                 addSpy.should.have.been.calledThrice;
                 fs.rmdirSync(subdir2);
                 waitFor([unlinkSpy], dd(function() {
