@@ -1,3 +1,6 @@
+# Chokidar 1.0.0-rc5 (30 March 2015)
+* Fix #231, #234, #239, #240, #248, #256, #260
+
 # Chokidar 1.0.0-rc4 (4 March 2015)
 * Fix some bugs (#224, #230, #236, #238)
 
@@ -28,7 +31,7 @@
 
 # Chokidar 0.12.4 (14 December 2014)
 * Fix bug in `fs.watch` mode that caused watcher to leak into `cwd`
-* Fix bug preventing ready event when there are symlinks to ignored paths 
+* Fix bug preventing ready event when there are symlinks to ignored paths
 
 # Chokidar 0.12.3 (13 December 2014)
 * Fix handling of special files such as named pipes and sockets
