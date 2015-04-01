@@ -1,3 +1,6 @@
+# Chokidar 1.0.0-rc6 (1 April 2015)
+* Use chokidar's native language
+
 # Chokidar 1.0.0-rc5 (30 March 2015)
 * Fix #231, #234, #239, #240, #248, #256, #260
 
