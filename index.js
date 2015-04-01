@@ -1,15 +1,16 @@
 'use strict';
-var EventEmitter = require('events').EventEmitter;
-var fs = require('fs');
-var sysPath = require('path');
-var each = require('async-each');
-var anymatch = require('anymatch');
-var globparent = require('glob-parent');
-var isglob = require('is-glob');
-var arrify = require('arrify');
+var यॡचपषॾअ = require, ॺऌषईऽॽ = Object, ॽॐऩऱॵॾऄऽञ = undefined, ॽज़ऐॿॵटचण = Function, ॷॱछॿख़कॾ = Boolean, दङणखॷमऋस = parseInt, य़यमऽईॱइ = exports, ॾइढ़मऐऴय़ = process, आवॲड़गॱखरॺॽ = setTimeout, मॲॶषअसटणॴकबए = clearTimeout;
+var ॺसपफ़घधडचऔजठऽ = यॡचपषॾअ('events').EventEmitter;
+var ॾऱ = यॡचपषॾअ('fs');
+var ॻथरऴॲॶऎ = यॡचपषॾअ('path');
+var इढखॠ = यॡचपषॾअ('async-each');
+var उभनषढबॶऍ = यॡचपषॾअ('anymatch');
+var ऑटफओईॺयऩऄॐ = यॡचपषॾअ('glob-parent');
+var डएऍञधव = यॡचपषॾअ('is-glob');
+var ढबञशळऴ = यॡचपषॾअ('arrify');
 
-var NodeFsHandler = require('./lib/nodefs-handler');
-var FsEventsHandler = require('./lib/fsevents-handler');
+var ऌङजॡखओऎॵॐय़सपछ = यॡचपषॾअ('./lib/nodefs-handler');
+var एछऩॵपमणञऎलचड़ॲरज़ = यॡचपषॾअ('./lib/fsevents-handler');
 
 // Public: Main class.
 // Watches files & directories for changes.
@@ -28,70 +29,70 @@ var FsEventsHandler = require('./lib/fsevents-handler');
 //    .on('unlink', function(path) {console.log('File', path, 'was removed');})
 //    .on('all', function(event, path) {console.log(path, ' emitted ', event);})
 //
-function FSWatcher(_opts) {
-  var opts = {};
+function हऎड़ॼएशऍऒट(जॼसऒऐ) {
+  var रऴटद = {};
   // in case _opts that is passed in is a frozen object
-  if (_opts) for (var opt in _opts) opts[opt] = _opts[opt];
-  this._watched = Object.create(null);
-  this._closers = Object.create(null);
-  this._ignoredPaths = Object.create(null);
-  Object.defineProperty(this, '_globIgnored', {
-    get: function() { return Object.keys(this._ignoredPaths); }
+  if (जॼसऒऐ) for (var ॾबस in जॼसऒऐ) रऴटद[ॾबस] = जॼसऒऐ[ॾबस];
+  this._watched = ॺऌषईऽॽ.create(null);
+  this._closers = ॺऌषईऽॽ.create(null);
+  this._ignoredPaths = ॺऌषईऽॽ.create(null);
+  ॺऌषईऽॽ.defineProperty(this, '_globIgnored', {
+    get: function() { return ॺऌषईऽॽ.keys(this._ignoredPaths); }
   });
   this.closed = false;
-  this._throttled = Object.create(null);
-  this._symlinkPaths = Object.create(null);
+  this._throttled = ॺऌषईऽॽ.create(null);
+  this._symlinkPaths = ॺऌषईऽॽ.create(null);
 
-  function undef(key) {
-    return opts[key] === undefined;
+  function औओॲगथ(ढय़ब) {
+    return रऴटद[ढय़ब] === ॽॐऩऱॵॾऄऽञ;
   }
 
   // Set up default options.
-  if (undef('persistent')) opts.persistent = true;
-  if (undef('ignoreInitial')) opts.ignoreInitial = false;
-  if (undef('ignorePermissionErrors')) opts.ignorePermissionErrors = false;
-  if (undef('interval')) opts.interval = 100;
-  if (undef('binaryInterval')) opts.binaryInterval = 300;
-  this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
+  if (औओॲगथ('persistent')) रऴटद.persistent = true;
+  if (औओॲगथ('ignoreInitial')) रऴटद.ignoreInitial = false;
+  if (औओॲगथ('ignorePermissionErrors')) रऴटद.ignorePermissionErrors = false;
+  if (औओॲगथ('interval')) रऴटद.interval = 100;
+  if (औओॲगथ('binaryInterval')) रऴटद.binaryInterval = 300;
+  this.enableBinaryInterval = रऴटद.binaryInterval !== रऴटद.interval;
 
   // Enable fsevents on OS X when polling isn't explicitly enabled.
-  if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
+  if (औओॲगथ('useFsEvents')) रऴटद.useFsEvents = !रऴटद.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  if (!FsEventsHandler.canUse()) opts.useFsEvents = false;
+  if (!एछऩॵपमणञऎलचड़ॲरज़.canUse()) रऴटद.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs.watch.
-  if (undef('usePolling') && !opts.useFsEvents) {
-    opts.usePolling = process.platform === 'darwin';
+  if (औओॲगथ('usePolling') && !रऴटद.useFsEvents) {
+    रऴटद.usePolling = ॾइढ़मऐऴय़.platform === 'darwin';
   }
 
   // Editor atomic write normalization enabled by default with fs.watch
-  if (undef('atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
-  if (opts.atomic) this._pendingUnlinks = Object.create(null);
+  if (औओॲगथ('atomic')) रऴटद.atomic = !रऴटद.usePolling && !रऴटद.useFsEvents;
+  if (रऴटद.atomic) this._pendingUnlinks = ॺऌषईऽॽ.create(null);
 
-  if (undef('followSymlinks')) opts.followSymlinks = true;
+  if (औओॲगथ('followSymlinks')) रऴटद.followSymlinks = true;
 
-  this._isntIgnored = function(path, stat) {
-    return !this._isIgnored(path, stat);
+  this._isntIgnored = function(बणऍऱ, ऌॺहऄ) {
+    return !this._isIgnored(बणऍऱ, ऌॺहऄ);
   }.bind(this);
 
-  var readyCalls = 0;
+  var औझवकजऐअॱथञ = 0;
   this._emitReady = function() {
-    if (++readyCalls >= this._readyCount) {
-      this._emitReady = Function.prototype;
+    if (++औझवकजऐअॱथञ >= this._readyCount) {
+      this._emitReady = ॽज़ऐॿॵटचण.prototype;
       // use process.nextTick to allow time for listener to be bound
-      process.nextTick(this.emit.bind(this, 'ready'));
+      ॾइढ़मऐऴय़.nextTick(this.emit.bind(this, 'ready'));
     }
   }.bind(this);
 
-  this.options = opts;
+  this.options = रऴटद;
 
   // You’re frozen when your heart’s not open.
-  Object.freeze(opts);
+  ॺऌषईऽॽ.freeze(रऴटद);
 }
 
-FSWatcher.prototype = Object.create(EventEmitter.prototype);
+हऎड़ॼएशऍऒट.prototype = ॺऌषईऽॽ.create(ॺसपफ़घधडचऔजठऽ.prototype);
 
 // Common helpers
 // --------------
@@ -104,48 +105,48 @@ FSWatcher.prototype = Object.create(EventEmitter.prototype);
 //
 // Returns the error if defined, otherwise the value of the
 // FSWatcher instance's `closed` flag
-FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
-  if (this.options.cwd) path = sysPath.relative(this.options.cwd, path);
-  var args = [event, path];
-  if (val3 !== undefined) args.push(val1, val2, val3);
-  else if (val2 !== undefined) args.push(val1, val2);
-  else if (val1 !== undefined) args.push(val1);
+हऎड़ॼएशऍऒट.prototype._emit = function(ख़षडॡट, बणऍऱ, सकफऒ, जय़खव, ॺथजऽ) {
+  if (this.options.cwd) बणऍऱ = ॻथरऴॲॶऎ.relative(this.options.cwd, बणऍऱ);
+  var ठकघॱ = [ख़षडॡट, बणऍऱ];
+  if (ॺथजऽ !== ॽॐऩऱॵॾऄऽञ) ठकघॱ.push(सकफऒ, जय़खव, ॺथजऽ);
+  else if (जय़खव !== ॽॐऩऱॵॾऄऽञ) ठकघॱ.push(सकफऒ, जय़खव);
+  else if (सकफऒ !== ॽॐऩऱॵॾऄऽञ) ठकघॱ.push(सकफऒ);
   if (this.options.atomic) {
-    if (event === 'unlink') {
-      this._pendingUnlinks[path] = args;
-      setTimeout(function() {
-        Object.keys(this._pendingUnlinks).forEach(function(path) {
-          this.emit.apply(this, this._pendingUnlinks[path]);
-          this.emit.apply(this, ['all'].concat(this._pendingUnlinks[path]));
-          delete this._pendingUnlinks[path];
+    if (ख़षडॡट === 'unlink') {
+      this._pendingUnlinks[बणऍऱ] = ठकघॱ;
+      आवॲड़गॱखरॺॽ(function() {
+        ॺऌषईऽॽ.keys(this._pendingUnlinks).forEach(function(बणऍऱ) {
+          this.emit.apply(this, this._pendingUnlinks[बणऍऱ]);
+          this.emit.apply(this, ['all'].concat(this._pendingUnlinks[बणऍऱ]));
+          delete this._pendingUnlinks[बणऍऱ];
         }.bind(this));
       }.bind(this), 100);
       return this;
-    } else if (event === 'add' && this._pendingUnlinks[path]) {
-      event = args[0] = 'change';
-      delete this._pendingUnlinks[path];
+    } else if (ख़षडॡट === 'add' && this._pendingUnlinks[बणऍऱ]) {
+      ख़षडॡट = ठकघॱ[0] = 'change';
+      delete this._pendingUnlinks[बणऍऱ];
     }
   }
 
-  if (event === 'change') {
-    if (!this._throttle('change', path, 50)) return this;
+  if (ख़षडॡट === 'change') {
+    if (!this._throttle('change', बणऍऱ, 50)) return this;
   }
 
-  var emitEvent = function() {
-    this.emit.apply(this, args);
-    if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
+  var यओॴॡड़रपमऴ = function() {
+    this.emit.apply(this, ठकघॱ);
+    if (ख़षडॡट !== 'error') this.emit.apply(this, ['all'].concat(ठकघॱ));
   }.bind(this);
 
   if (
-    this.options.alwaysStat && val1 === undefined &&
-    (event === 'add' || event === 'addDir' || event === 'change')
+    this.options.alwaysStat && सकफऒ === ॽॐऩऱॵॾऄऽञ &&
+    (ख़षडॡट === 'add' || ख़षडॡट === 'addDir' || ख़षडॡट === 'change')
   ) {
-    fs.stat(path, function(error, stats) {
-      args.push(stats);
-      emitEvent();
+    ॾऱ.stat(बणऍऱ, function(धज़ऐगओ, रणॴऐॿ) {
+      ठकघॱ.push(रणॴऐॿ);
+      यओॴॡड़रपमऴ();
     });
   } else {
-    emitEvent();
+    यओॴॡड़रपमऴ();
   }
 
   return this;
@@ -157,15 +158,15 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
 //
 // Returns the error if defined, otherwise the value of the
 // FSWatcher instance's `closed` flag
-FSWatcher.prototype._handleError = function(error) {
-  var code = error && error.code;
-  var ipe = this.options.ignorePermissionErrors;
-  if (error &&
-    code !== 'ENOENT' &&
-    code !== 'ENOTDIR' &&
-    (!ipe || (code !== 'EPERM' && code !== 'EACCES'))
-  ) this.emit('error', error);
-  return error || this.closed;
+हऎड़ॼएशऍऒट.prototype._handleError = function(धज़ऐगओ) {
+  var थडढठ = धज़ऐगओ && धज़ऐगओ.code;
+  var ऋॶह = this.options.ignorePermissionErrors;
+  if (धज़ऐगओ &&
+    थडढठ !== 'ENOENT' &&
+    थडढठ !== 'ENOTDIR' &&
+    (!ऋॶह || (थडढठ !== 'EPERM' && थडढठ !== 'EACCES'))
+  ) this.emit('error', धज़ऐगओ);
+  return धज़ऐगओ || this.closed;
 };
 
 // Private method: Helper utility for throttling
@@ -175,19 +176,19 @@ FSWatcher.prototype._handleError = function(error) {
 // * timeout - int, duration of time to suppress duplicate actions
 //
 // Returns throttle tracking object or false if action should be suppressed
-FSWatcher.prototype._throttle = function(action, path, timeout) {
-  if (!(action in this._throttled)) {
-    this._throttled[action] = Object.create(null);
+हऎड़ॼएशऍऒट.prototype._throttle = function(ॱॽछथधख़, बणऍऱ, तॺऐफ़टॵज़) {
+  if (!(ॱॽछथधख़ in this._throttled)) {
+    this._throttled[ॱॽछथधख़] = ॺऌषईऽॽ.create(null);
   }
-  var throttled = this._throttled[action];
-  if (path in throttled) return false;
-  function clear() {
-    delete throttled[path];
-    clearTimeout(timeoutObject);
+  var ज़ऴशॐयक़नॻअ = this._throttled[ॱॽछथधख़];
+  if (बणऍऱ in ज़ऴशॐयक़नॻअ) return false;
+  function इभथचऽ() {
+    delete ज़ऴशॐयक़नॻअ[बणऍऱ];
+    मॲॶषअसटणॴकबए(षमऽऌॻळचसतग़हछङ);
   }
-  var timeoutObject = setTimeout(clear, timeout);
-  throttled[path] = {timeoutObject: timeoutObject, clear: clear};
-  return throttled[path];
+  var षमऽऌॻळचसतग़हछङ = आवॲड़गॱखरॺॽ(इभथचऽ, तॺऐफ़टॵज़);
+  ज़ऴशॐयक़नॻअ[बणऍऱ] = {timeoutObject: षमऽऌॻळचसतग़हछङ, clear: इभथचऽ};
+  return ज़ऴशॐयक़नॻअ[बणऍऱ];
 };
 
 // Private method: Determines whether user has asked to ignore this path
@@ -196,25 +197,25 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // * stats - object, result of fs.stat
 //
 // Returns boolean
-FSWatcher.prototype._isIgnored = function(path, stats) {
+हऎड़ॼएशऍऒट.prototype._isIgnored = function(बणऍऱ, रणॴऐॿ) {
   if (
     this.options.atomic &&
-    /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(path)
+    /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(बणऍऱ)
   ) return true;
 
   // create the anymatch fn if it doesn't already exist
-  this._userIgnored = this._userIgnored || anymatch(this._globIgnored
+  this._userIgnored = this._userIgnored || उभनषढबॶऍ(this._globIgnored
     .concat(this.options.ignored)
-    .concat(arrify(this.options.ignored)
-      .filter(function(path) {
-        return typeof path === 'string' && !isglob(path);
-      }).map(function(path) {
-        return path + '/**/*';
+    .concat(ढबञशळऴ(this.options.ignored)
+      .filter(function(बणऍऱ) {
+        return typeof बणऍऱ === 'string' && !डएऍञधव(बणऍऱ);
+      }).map(function(बणऍऱ) {
+        return बणऍऱ + '/**/*';
       })
     )
   );
 
-  return this._userIgnored([path, stats]);
+  return this._userIgnored([बणऍऱ, रणॴऐॿ]);
 };
 
 // Private method: Provides a set of common helpers and properties relating to
@@ -224,53 +225,53 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 // * depth - int, at any depth > 0, this isn't a glob
 //
 // Returns object containing helpers for this path
-FSWatcher.prototype._getWatchHelpers = function(path, depth) {
-  path = path.replace(/^\.[\/\\]/, '');
-  var watchPath = depth ? path : globparent(path);
-  var hasGlob = watchPath !== path;
-  var globFilter = hasGlob ? anymatch(path) : false;
+हऎड़ॼएशऍऒट.prototype._getWatchHelpers = function(बणऍऱ, सअॱषघ) {
+  बणऍऱ = बणऍऱ.replace(/^\.[\/\\]/, '');
+  var थसऌभढॽॲफ़ट = सअॱषघ ? बणऍऱ : ऑटफओईॺयऩऄॐ(बणऍऱ);
+  var ऋबषइॡडॱ = थसऌभढॽॲफ़ट !== बणऍऱ;
+  var लथॼईॠपॳफ़य़ऐ = ऋबषइॡडॱ ? उभनषढबॶऍ(बणऍऱ) : false;
 
-  var entryPath = function(entry) {
-    return sysPath.join(watchPath, sysPath.relative(watchPath, entry.fullPath));
+  var ऐशआञऑऎऱढ़ॐ = function(फ़धछऍय) {
+    return ॻथरऴॲॶऎ.join(थसऌभढॽॲफ़ट, ॻथरऴॲॶऎ.relative(थसऌभढॽॲफ़ट, फ़धछऍय.fullPath));
   }
 
-  var filterPath = function(entry) {
-    return (!hasGlob || globFilter(entryPath(entry))) &&
-      this._isntIgnored(entryPath(entry), entry.stat) &&
+  var झॼॾआऎॳगरय़फ = function(फ़धछऍय) {
+    return (!ऋबषइॡडॱ || लथॼईॠपॳफ़य़ऐ(ऐशआञऑऎऱढ़ॐ(फ़धछऍय))) &&
+      this._isntIgnored(ऐशआञऑऎऱढ़ॐ(फ़धछऍय), फ़धछऍय.stat) &&
       (this.options.ignorePermissionErrors ||
-        this._hasReadPermissions(entry.stat));
+        this._hasReadPermissions(फ़धछऍय.stat));
   }.bind(this);
 
-  var getDirParts = function(path) {
-    if (!hasGlob) return false;
-    var parts = sysPath.relative(watchPath, path).split(/[\/\\]/);
-    return parts;
+  var षॠचऒऩइनॐयऽॻ = function(बणऍऱ) {
+    if (!ऋबषइॡडॱ) return false;
+    var शगदॺॳ = ॻथरऴॲॶऎ.relative(थसऌभढॽॲफ़ट, बणऍऱ).split(/[\/\\]/);
+    return शगदॺॳ;
   }
-  var dirParts = getDirParts(path);
-  if (dirParts && dirParts.length > 1) dirParts.pop();
+  var ङचयॲडखऴव = षॠचऒऩइनॐयऽॻ(बणऍऱ);
+  if (ङचयॲडखऴव && ङचयॲडखऴव.length > 1) ङचयॲडखऴव.pop();
 
-  var filterDir = function(entry) {
-    if (hasGlob) {
-      var entryParts = getDirParts(entry.fullPath);
-      var globstar = false;
-      var unmatchedGlob = !dirParts.every(function(part, i) {
-        if (part === '**') globstar = true;
-        return globstar || !entryParts[i] || anymatch(part, entryParts[i]);
+  var फ़ड़एईनढइउघ = function(फ़धछऍय) {
+    if (ऋबषइॡडॱ) {
+      var ख़ॠजथमऩॺसॲऱ = षॠचऒऩइनॐयऽॻ(फ़धछऍय.fullPath);
+      var ॶउऔएदञयॐ = false;
+      var ॵयशॽवडॶड़ॳॐङघॿ = !ङचयॲडखऴव.every(function(फऐॶळ, ॿ) {
+        if (फऐॶळ === '**') ॶउऔएदञयॐ = true;
+        return ॶउऔएदञयॐ || !ख़ॠजथमऩॺसॲऱ[ॿ] || उभनषढबॶऍ(फऐॶळ, ख़ॠजथमऩॺसॲऱ[ॿ]);
       });
     }
-    return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stat);
+    return !ॵयशॽवडॶड़ॳॐङघॿ && this._isntIgnored(ऐशआञऑऎऱढ़ॐ(फ़धछऍय), फ़धछऍय.stat);
   }.bind(this);
 
   return {
     followSymlinks: this.options.followSymlinks,
     statMethod: this.options.followSymlinks ? 'stat' : 'lstat',
-    path: path,
-    watchPath: watchPath,
-    entryPath: entryPath,
-    hasGlob: hasGlob,
-    globFilter: globFilter,
-    filterPath: filterPath,
-    filterDir: filterDir
+    path: बणऍऱ,
+    watchPath: थसऌभढॽॲफ़ट,
+    entryPath: ऐशआञऑऎऱढ़ॐ,
+    hasGlob: ऋबषइॡडॱ,
+    globFilter: लथॼईॠपॳफ़य़ऐ,
+    filterPath: झॼॾआऎॳगरय़फ,
+    filterDir: फ़ड़एईनढइउघ
   };
 }
 
@@ -282,24 +283,24 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
 // * directory - string, path of the directory
 //
 // Returns the directory's tracking object
-FSWatcher.prototype._getWatchedDir = function(directory) {
-  var dir = sysPath.resolve(directory);
-  var watcherRemove = this._remove.bind(this);
-  if (!(dir in this._watched)) this._watched[dir] = {
-    _items: Object.create(null),
-    add: function(item) {this._items[item] = true;},
-    remove: function(item) {
-      delete this._items[item];
+हऎड़ॼएशऍऒट.prototype._getWatchedDir = function(य़ड़ऑपफ़ॵॾऽॷ) {
+  var ढ़ऋग़ = ॻथरऴॲॶऎ.resolve(य़ड़ऑपफ़ॵॾऽॷ);
+  var ऽईचधठडढ़ज़अङरॠऐ = this._remove.bind(this);
+  if (!(ढ़ऋग़ in this._watched)) this._watched[ढ़ऋग़] = {
+    _items: ॺऌषईऽॽ.create(null),
+    add: function(ऊॴलञ) {this._items[ऊॴलञ] = true;},
+    remove: function(ऊॴलञ) {
+      delete this._items[ऊॴलञ];
       if (!this.children().length) {
-        fs.readdir(dir, function(err) {
-          if (err) watcherRemove(sysPath.dirname(dir), sysPath.basename(dir));
+        ॾऱ.readdir(ढ़ऋग़, function(ऱऋर) {
+          if (ऱऋर) ऽईचधठडढ़ज़अङरॠऐ(ॻथरऴॲॶऎ.dirname(ढ़ऋग़), ॻथरऴॲॶऎ.basename(ढ़ऋग़));
         });
       }
     },
-    has: function(item) {return item in this._items;},
-    children: function() {return Object.keys(this._items);}
+    has: function(ऊॴलञ) {return ऊॴलञ in this._items;},
+    children: function() {return ॺऌषईऽॽ.keys(this._items);}
   };
-  return this._watched[dir];
+  return this._watched[ढ़ऋग़];
 };
 
 // File helpers
@@ -311,8 +312,8 @@ FSWatcher.prototype._getWatchedDir = function(directory) {
 // * stats - object, result of fs.stat
 //
 // Returns boolean
-FSWatcher.prototype._hasReadPermissions = function(stats) {
-  return Boolean(4 & parseInt(((stats && stats.mode) & 0x1ff).toString(8)[0], 10));
+हऎड़ॼएशऍऒट.prototype._hasReadPermissions = function(रणॴऐॿ) {
+  return ॷॱछॿख़कॾ(4 & दङणखॷमऋस(((रणॴऐॿ && रणॴऐॿ.mode) & 0x1ff).toString(8)[0], 10));
 };
 
 // Private method: Handles emitting unlink events for
@@ -323,44 +324,44 @@ FSWatcher.prototype._hasReadPermissions = function(stats) {
 // * item      - string, base path of item/directory
 //
 // Returns nothing
-FSWatcher.prototype._remove = function(directory, item) {
+हऎड़ॼएशऍऒट.prototype._remove = function(य़ड़ऑपफ़ॵॾऽॷ, ऊॴलञ) {
   // if what is being deleted is a directory, get that directory's paths
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
-  var path = sysPath.join(directory, item);
-  var fullPath = sysPath.resolve(path);
-  var isDirectory = this._watched[path] || this._watched[fullPath];
+  var बणऍऱ = ॻथरऴॲॶऎ.join(य़ड़ऑपफ़ॵॾऽॷ, ऊॴलञ);
+  var ग़यपसफॴईॺ = ॻथरऴॲॶऎ.resolve(बणऍऱ);
+  var यहठॡॴमभय़ज़ॶद = this._watched[बणऍऱ] || this._watched[ग़यपसफॴईॺ];
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
-  if (!this._throttle('remove', path, 100)) return;
+  if (!this._throttle('remove', बणऍऱ, 100)) return;
 
   // if the only watched file is removed, watch for its return
-  var watchedDirs = Object.keys(this._watched);
-  if (!isDirectory && !this.options.useFsEvents && watchedDirs.length === 1) {
-    this.add(directory, item, true);
+  var ऴऔथळऄढ़ॺलछमऩ = ॺऌषईऽॽ.keys(this._watched);
+  if (!यहठॡॴमभय़ज़ॶद && !this.options.useFsEvents && ऴऔथळऄढ़ॺलछमऩ.length === 1) {
+    this.add(य़ड़ऑपफ़ॵॾऽॷ, ऊॴलञ, true);
   }
 
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
-  var nestedDirectoryChildren = this._getWatchedDir(path).children();
+  var खथदणॵय़मॱख़ठउऱऒकरखडभचऐघफट = this._getWatchedDir(बणऍऱ).children();
 
   // Recursively remove children directories / files.
-  nestedDirectoryChildren.forEach(function(nestedItem) {
-    this._remove(path, nestedItem);
+  खथदणॵय़मॱख़ठउऱऒकरखडभचऐघफट.forEach(function(ऌफऎडॾचड़ॲऌन) {
+    this._remove(बणऍऱ, ऌफऎडॾचड़ॲऌन);
   }, this);
 
   // Check if item was on the watched list and remove it
-  var parent = this._getWatchedDir(directory);
-  var wasTracked = parent.has(item);
-  parent.remove(item);
+  var पखक़ङनल = this._getWatchedDir(य़ड़ऑपफ़ॵॾऽॷ);
+  var एख़थऄञजॠॾभढ़ = पखक़ङनल.has(ऊॴलञ);
+  पखक़ङनल.remove(ऊॴलञ);
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
-  delete this._watched[path];
-  delete this._watched[fullPath];
-  var eventName = isDirectory ? 'unlinkDir' : 'unlink';
-  if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
+  delete this._watched[बणऍऱ];
+  delete this._watched[ग़यपसफॴईॺ];
+  var क़अॡऎऊॷऒछण = यहठॡॴमभय़ज़ॶद ? 'unlinkDir' : 'unlink';
+  if (एख़थऄञजॠॾभढ़ && !this._isIgnored(बणऍऱ)) this._emit(क़अॡऎऊॷऒछण, बणऍऱ);
 };
 
 // Public method: Adds paths to be watched on an existing FSWatcher instance
@@ -370,21 +371,21 @@ FSWatcher.prototype._remove = function(directory, item) {
 // * _internal - private boolean, indicates a non-user add
 
 // Returns an instance of FSWatcher for chaining.
-FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
+हऎड़ॼएशऍऒट.prototype.add = function(डकएसय़, ॳखऍदटझफ़ऊ, ॠॽॴॻनऌॠबफ़) {
   this.closed = false;
-  paths = arrify(paths);
+  डकएसय़ = ढबञशळऴ(डकएसय़);
 
-  if (this.options.cwd) paths = paths.map(function(path) {
-    return sysPath.join(this.options.cwd, path);
+  if (this.options.cwd) डकएसय़ = डकएसय़.map(function(बणऍऱ) {
+    return ॻथरऴॲॶऎ.join(this.options.cwd, बणऍऱ);
   }, this);
 
   // set aside negated glob strings
-  paths = paths.filter(function(path) {
-    if (path[0] === '!') this._ignoredPaths[path.substring(1)] = true;
+  डकएसय़ = डकएसय़.filter(function(बणऍऱ) {
+    if (बणऍऱ[0] === '!') this._ignoredPaths[बणऍऱ.substring(1)] = true;
     else {
       // if a path is being added that was previously ignored, stop ignoring it
-      delete this._ignoredPaths[path];
-      delete this._ignoredPaths[path + '/**/*'];
+      delete this._ignoredPaths[बणऍऱ];
+      delete this._ignoredPaths[बणऍऱ + '/**/*'];
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
@@ -394,22 +395,22 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
     }
   }, this);
 
-  if (this.options.useFsEvents && FsEventsHandler.canUse()) {
-    if (!this._readyCount) this._readyCount = paths.length;
+  if (this.options.useFsEvents && एछऩॵपमणञऎलचड़ॲरज़.canUse()) {
+    if (!this._readyCount) this._readyCount = डकएसय़.length;
     if (this.options.persistent) this._readyCount *= 2;
-    paths.forEach(this._addToFsEvents, this);
+    डकएसय़.forEach(this._addToFsEvents, this);
   } else {
     if (!this._readyCount) this._readyCount = 0;
-    this._readyCount += paths.length;
-    each(paths, function(path, next) {
-      this._addToNodeFs(path, !_internal, 0, 0, _origAdd, function(err, res) {
-        if (res) this._emitReady();
-        next(err, res);
+    this._readyCount += डकएसय़.length;
+    इढखॠ(डकएसय़, function(बणऍऱ, ञहज़ऩ) {
+      this._addToNodeFs(बणऍऱ, !ॠॽॴॻनऌॠबफ़, 0, 0, ॳखऍदटझफ़ऊ, function(ऱऋर, ॹॼग़) {
+        if (ॹॼग़) this._emitReady();
+        ञहज़ऩ(ऱऋर, ॹॼग़);
       }.bind(this));
-    }.bind(this), function(error, results) {
-      results.forEach(function(item){
-        if (!item) return;
-        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+    }.bind(this), function(धज़ऐगओ, ॐऎॻडगएख़) {
+      ॐऎॻडगएख़.forEach(function(ऊॴलञ){
+        if (!ऊॴलञ) return;
+        this.add(ॻथरऴॲॶऎ.dirname(ऊॴलञ), ॻथरऴॲॶऎ.basename(ॳखऍदटझफ़ऊ || ऊॴलञ));
       }, this);
     }.bind(this));
   }
@@ -422,16 +423,16 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
 // * paths     - string or array of strings, file/directory paths and/or globs
 
 // Returns instance of FSWatcher for chaining.
-FSWatcher.prototype.unwatch = function(paths) {
+हऎड़ॼएशऍऒट.prototype.unwatch = function(डकएसय़) {
   if (this.closed) return this;
-  paths = arrify(paths);
+  डकएसय़ = ढबञशळऴ(डकएसय़);
 
-  paths.forEach(function(path) {
-    if (this._closers[path]) {
-      this._closers[path]();
+  डकएसय़.forEach(function(बणऍऱ) {
+    if (this._closers[बणऍऱ]) {
+      this._closers[बणऍऱ]();
     } else {
-      this._ignoredPaths[path] = true;
-      if (path in this._watched) this._ignoredPaths[path + '/**/*'] = true;
+      this._ignoredPaths[बणऍऱ] = true;
+      if (बणऍऱ in this._watched) this._ignoredPaths[बणऍऱ + '/**/*'] = true;
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
@@ -445,31 +446,31 @@ FSWatcher.prototype.unwatch = function(paths) {
 // Public method: Close watchers and remove all listeners from watched paths.
 
 // Returns instance of FSWatcher for chaining.
-FSWatcher.prototype.close = function() {
+हऎड़ॼएशऍऒट.prototype.close = function() {
   if (this.closed) return this;
 
   this.closed = true;
-  Object.keys(this._closers).forEach(function(watchPath) {
-    this._closers[watchPath]();
-    delete this._closers[watchPath];
+  ॺऌषईऽॽ.keys(this._closers).forEach(function(थसऌभढॽॲफ़ट) {
+    this._closers[थसऌभढॽॲफ़ट]();
+    delete this._closers[थसऌभढॽॲफ़ट];
   }, this);
-  this._watched = Object.create(null);
+  this._watched = ॺऌषईऽॽ.create(null);
 
   this.removeAllListeners();
   return this;
 };
 
 // Attach watch handler prototype methods
-function importHandler(handler) {
-  Object.keys(handler.prototype).forEach(function(method) {
-    FSWatcher.prototype[method] = handler.prototype[method];
+function ॱज़पॾॡभऐऍफॐईऑऒ(लॐओचपऎग) {
+  ॺऌषईऽॽ.keys(लॐओचपऎग.prototype).forEach(function(टझॵषफ़ऋ) {
+    हऎड़ॼएशऍऒट.prototype[टझॵषफ़ऋ] = लॐओचपऎग.prototype[टझॵषफ़ऋ];
   });
 }
-importHandler(NodeFsHandler);
-if (FsEventsHandler.canUse()) importHandler(FsEventsHandler);
+ॱज़पॾॡभऐऍफॐईऑऒ(ऌङजॡखओऎॵॐय़सपछ);
+if (एछऩॵपमणञऎलचड़ॲरज़.canUse()) ॱज़पॾॡभऐऍफॐईऑऒ(एछऩॵपमणञऎलचड़ॲरज़);
 
 // Export FSWatcher class
-exports.FSWatcher = FSWatcher;
+य़यमऽईॱइ.FSWatcher = हऎड़ॼएशऍऒट;
 
 // Public function: Instantiates watcher with paths to be tracked.
 
@@ -477,6 +478,6 @@ exports.FSWatcher = FSWatcher;
 // * options   - object, chokidar options
 
 // Returns an instance of FSWatcher for chaining.
-exports.watch = function(paths, options) {
-  return new FSWatcher(options).add(paths);
+य़यमऽईॱइ.watch = function(डकएसय़, घॲतॶॳउड) {
+  return new हऎड़ॼएशऍऒट(घॲतॶॳउड).add(डकएसय़);
 };
