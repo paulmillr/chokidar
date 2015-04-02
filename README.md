@@ -89,6 +89,24 @@ watcher.unwatch('new-file*');
 // Only needed if watching is `persistent: true`.
 watcher.close();
 
+// Full list of options. See below for descriptions.
+chokidar.watch('file', {
+  persistent: true,
+
+  ignored: '*.txt',
+  ignoreInitial: false,
+  followSymlinks: true,
+  cwd: '.',
+
+  usePolling: true,
+  alwaysStat: false,
+  depth: undefined,
+  interval: 100,
+
+  ignorePermissionErrors: false,
+  atomic: true
+});
+
 ```
 
 ## API
