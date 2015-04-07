@@ -12,33 +12,6 @@
 * New `followSymlinks` option to impact whether symlinks' targets or the symlink files themselves are watched
 * New `atomic` option for normalizing artifacts from text editors that use atomic write methods
 
-# Chokidar 1.0.0-rc6 (1 April 2015)
-* Use chokidar's native language
-
-# Chokidar 1.0.0-rc5 (30 March 2015)
-* Fix #231, #234, #239, #240, #248, #256, #260
-
-# Chokidar 1.0.0-rc4 (4 March 2015)
-* Fix some bugs (#224, #230, #236, #238)
-
-# Chokidar 1.0.0-rc3 (30 January 2015)
-* Add `cwd` option
-
-# Chokidar 1.0.0-rc2 (21 January 2015)
-* Fixing a botched `npm publish`
-
-# Chokidar 1.0.0-rc1 (21 January 2015)
-* Glob support for `watch` and `add` methods
-* New `unwatch` method to turn off watching of previously watched paths
-* More flexible `ignored` option allowing regex, function, glob, or array
-* New options:
-  * `depth` for limiting recursion
-  * `alwaysStat` to ensure `fs.Stats` gets passed with every add/change event
-* ICYMI
-  * 0.12 added full symlink support, `followSymlinks` and `atomic` options, and
-  `raw` event
-  * 0.11 added the `ready` event
-
 # Chokidar 0.12.6 (6 January 2015)
 * Fix bug which breaks `persistent: false` mode when change events occur
 
