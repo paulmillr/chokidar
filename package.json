@@ -12,7 +12,7 @@
     "fsevents"
   ],
   "homepage": "https://github.com/paulmillr/chokidar",
-  "author": "Paul Miller (http://paulmillr.com)",
+  "author": "Paul Miller (http://paulmillr.com), Elan Shanker",
   "repository": {
     "type": "git",
     "url": "https://github.com/paulmillr/chokidar.git"
