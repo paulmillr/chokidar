@@ -1,5 +1,4 @@
 # Chokidar 1.0.0 (7 April 2015)
-(No changes since rc5, below is a summary of features added leading up to the 1.0.0 release)
 * Glob support! Use globs in `watch`, `add`, and `unwatch` methods
 * Comprehensive symlink support
 * New `unwatch` method to turn off watching of previously watched paths
@@ -11,6 +10,7 @@
 * New `raw` event exposing data and events from the lower-level watch modules
 * New `followSymlinks` option to impact whether symlinks' targets or the symlink files themselves are watched
 * New `atomic` option for normalizing artifacts from text editors that use atomic write methods
+* Lots of bugfixes.
 
 # Chokidar 0.12.6 (6 January 2015)
 * Fix bug which breaks `persistent: false` mode when change events occur
