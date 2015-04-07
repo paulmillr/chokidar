@@ -1,3 +1,17 @@
+# Chokidar 1.0.0 (7 April 2015)
+(No changes since rc5, below is a summary of features added leading up to the 1.0.0 release)
+* Glob support! Use globs in `watch`, `add`, and `unwatch` methods
+* Comprehensive symlink support
+* New `unwatch` method to turn off watching of previously watched paths
+* More flexible `ignored` option allowing regex, function, glob, or array courtesy of [anymatch](https://github.com/es128/anymatch)
+* New `cwd` option to set base dir from which relative paths are derived
+* New `depth` option for limiting recursion
+* New `alwaysStat` option to ensure [`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats) gets passed with every add/change event
+* New `ready` event emitted when initial fs tree scan is done and watcher is ready for changes
+* New `raw` event exposing data and events from the lower-level watch modules
+* New `followSymlinks` option to impact whether symlinks' targets or the symlink files themselves are watched
+* New `atomic` option for normalizing artifacts from text editors that use atomic write methods
+
 # Chokidar 1.0.0-rc6 (1 April 2015)
 * Use chokidar's native language
 
