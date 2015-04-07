@@ -10,7 +10,7 @@
 * New `raw` event exposing data and events from the lower-level watch modules
 * New `followSymlinks` option to impact whether symlinks' targets or the symlink files themselves are watched
 * New `atomic` option for normalizing artifacts from text editors that use atomic write methods
-* Lots of bugfixes.
+* Ensured watcher's stability with lots of bugfixes.
 
 # Chokidar 0.12.6 (6 January 2015)
 * Fix bug which breaks `persistent: false` mode when change events occur
