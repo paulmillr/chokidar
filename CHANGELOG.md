@@ -1,3 +1,6 @@
+# Chokidar 1.0.1 (8 April 2015)
+* Fix bug with `.close()` method in `fs.watch` mode with `persistent: false` option
+
 # Chokidar 1.0.0 (7 April 2015)
 * Glob support! Use globs in `watch`, `add`, and `unwatch` methods
 * Comprehensive symlink support
