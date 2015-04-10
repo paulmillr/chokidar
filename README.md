@@ -35,6 +35,7 @@ It is used in
 [socketstream](http://www.socketstream.org),
 [derby](http://derbyjs.com/),
 [watchify](https://github.com/substack/watchify),
+[webpack](https://github.com/webpack/webpack),
 and [many others](https://www.npmjs.org/browse/depended/chokidar/).
 It has proven itself in production environments.
 
