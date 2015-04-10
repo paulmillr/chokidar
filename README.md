@@ -32,10 +32,10 @@ It is used in
 [brunch](http://brunch.io),
 [karma](http://karma-runner.github.io),
 [PM2](https://github.com/Unitech/PM2),
+[browserify](http://browserify.org/),
+[webpack](http://webpack.github.io/),
 [socketstream](http://www.socketstream.org),
 [derby](http://derbyjs.com/),
-[watchify](https://github.com/substack/watchify),
-[webpack](https://github.com/webpack/webpack),
 and [many others](https://www.npmjs.org/browse/depended/chokidar/).
 It has proven itself in production environments.
 
