@@ -35,6 +35,7 @@ It is used in
 [PM2](https://github.com/Unitech/PM2),
 [browserify](http://browserify.org/),
 [webpack](http://webpack.github.io/),
+[BrowserSync](http://www.browsersync.io/),
 [socketstream](http://www.socketstream.org),
 [derby](http://derbyjs.com/),
 and [many others](https://www.npmjs.org/browse/depended/chokidar/).
