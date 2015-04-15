@@ -1218,19 +1218,21 @@ function runTests(options) {
       var subdir = sysPath.join(fixturesDir, 'subdir');
       var changeFile = sysPath.join(fixturesDir, 'change.txt');
       var watchPaths = [subdir, changeFile];
-      watcher = chokidar.watch(watchPaths, options)
-        .on('all', spy)
-        .on('ready', d(function() {
-          watcher.unwatch(subdir);
-          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-          fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          waitFor([spy], function() {
-            spy.should.have.been.calledWith('change', changeFile);
-            spy.should.not.have.been.calledWith('add');
-            if (!osXFsWatch) spy.should.have.been.calledOnce;
-            done();
-          });
-        }));
+      dd(function() {
+        watcher = chokidar.watch(watchPaths, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            watcher.unwatch(subdir);
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            waitFor([spy], function() {
+              spy.should.have.been.calledWith('change', changeFile);
+              spy.should.not.have.been.calledWith('add');
+              if (!osXFsWatch) spy.should.have.been.calledOnce;
+              done();
+            });
+          }));
+      })();
     });
   });
   describe('close', function() {
