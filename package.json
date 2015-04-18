@@ -12,7 +12,7 @@
     "fsevents"
   ],
   "bin": {
-    "watch": "./cli/cli.js"
+    "watch": "./cli/watch.js"
   },
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (http://paulmillr.com), Elan Shanker",
