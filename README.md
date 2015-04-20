@@ -189,6 +189,10 @@ and path for every event other than `ready`, `raw`, and `error`.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
 
+## CLI
+
+If you need a CLI interface for your file watching, check out [chokidar-cli](https://github.com/kimmobrunfeldt/chokidar-cli) which allows you to either execute a command on each change, or get a stdio stream of change events.
+
 ## Install Troubleshooting
 
 * `npm WARN optional dep failed, continuing fsevents@n.n.n`
