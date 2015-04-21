@@ -18,6 +18,8 @@ var fixturesPath = getFixturePath('');
 
 var watcher, watcher2;
 
+var travisDelay = process.env.TRAVIS ? 200 : 0;
+
 before(function() {
   try { fs.mkdirSync(fixturesPath, 0x1ed); } catch(err) {}
 });
@@ -53,7 +55,7 @@ after(function() {
 
 
 describe('chokidar', function() {
-  this.timeout(3000);
+  this.timeout(4000);
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
@@ -92,9 +94,9 @@ function runTests(options) {
   }
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
-      return setTimeout.bind(null, fn, quicker ? 300 : 900);
+      return setTimeout.bind(null, fn, (quicker ? 300 : 900) + travisDelay);
     } else {
-      return setTimeout.bind(null, fn, 25);
+      return setTimeout.bind(null, fn, 25 + travisDelay);
     }
   }
   function dd(fn, slower) {
