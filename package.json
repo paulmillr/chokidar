@@ -20,12 +20,7 @@
   "bugs": {
     "url": "http://github.com/paulmillr/chokidar/issues"
   },
-  "licenses": [
-    {
-      "type": "MIT",
-      "url": "http://github.com/paulmillr/chokidar/raw/master/README.md"
-    }
-  ],
+  "license": "MIT",
   "scripts": {
     "test": "istanbul test node_modules/mocha/bin/_mocha",
     "ci-test": "istanbul cover _mocha && cat ./coverage/lcov.info | coveralls"
