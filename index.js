@@ -7,6 +7,7 @@ var anymatch = require('anymatch');
 var globparent = require('glob-parent');
 var isglob = require('is-glob');
 var arrify = require('arrify');
+var isAbsolute = require('path-is-absolute');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
@@ -371,12 +372,13 @@ FSWatcher.prototype._remove = function(directory, item) {
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
+  var cwd = this.options.cwd;
   this.closed = false;
   paths = arrify(paths);
 
-  if (this.options.cwd) paths = paths.map(function(path) {
-    return sysPath.join(this.options.cwd, path);
-  }, this);
+  if (cwd) paths = paths.map(function(path) {
+    return isAbsolute(path) ? path : sysPath.join(cwd, path);
+  });
 
   // set aside negated glob strings
   paths = paths.filter(function(path) {
