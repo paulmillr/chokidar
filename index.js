@@ -142,6 +142,9 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
     fs.stat(path, function(error, stats) {
+      // Suppress event when fs.stat fails, to avoid sending undefined 'stat'
+      if (error || !stats) return;
+
       args.push(stats);
       emitEvent();
     });
