@@ -1,6 +1,3 @@
-# Chokidar 1.0.4 (13 July 2015)
-* Fix non-ignored files when using `cwd` (for patterns starting with `!` and `ignored` option)
-
 # Chokidar 1.0.3 (4 June 2015)
 * Fix race issue with `alwaysStat` option and removed files
 
