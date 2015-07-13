@@ -206,19 +206,13 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
     /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(path)
   ) return true;
 
-  if(!this._userIgnored){
+  if (!this._userIgnored) {
     var cwd = this.options.cwd;
-    var ignored;
-    if(cwd){
-      if(!this.options.ignored){
-        ignored = [];
-      } else {
-        ignored = arrify(this.options.ignored).map(function(path){
-          return isAbsolute(path) ? path : sysPath.join(cwd, path);
-        });
-      }
-    } else {
-      ignored = this.options.ignored;
+    var ignored = this.options.ignored;
+    if (cwd && ignored) {
+      ignored = arrify(ignored).map(function (path) {
+        return isAbsolute(path) ? path : sysPath.join(cwd, path);
+      });
     }
     this._userIgnored = anymatch(this._globIgnored
       .concat(ignored)
@@ -394,10 +388,10 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   paths = arrify(paths);
 
   if (cwd) paths = paths.map(function(path) {
-    if(isAbsolute(path)){
+    if (isAbsolute(path)) {
       return path;
-    } else if(path[0] == '!'){
-      return '!'+sysPath.join(cwd, path.substr(1));
+    } else if (path[0] === '!') {
+      return '!' + sysPath.join(cwd, path.substring(1));
     } else {
       return sysPath.join(cwd, path);
     }
@@ -432,7 +426,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
         next(err, res);
       }.bind(this));
     }.bind(this), function(error, results) {
-      results.forEach(function(item){
+      results.forEach(function(item) {
         if (!item) return;
         this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
       }, this);
