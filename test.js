@@ -1125,7 +1125,7 @@ function runTests(options) {
               }));
           }, true));
       });
-      it('should ignore files even with cwd', function(done){
+      it('should ignore files even with cwd', function(done) {
         fs.writeFileSync(getFixturePath('change.txt'), 'hello');
         fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
         fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
@@ -1138,7 +1138,7 @@ function runTests(options) {
         options.ignored = 'ignored-option.txt';
         watcher = chokidar.watch(files, options)
           .on('all', spy)
-          .on('ready', d(function(){
+          .on('ready', d(function() {
             fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
             fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
             fs.unlinkSync(getFixturePath('ignored.txt'));
