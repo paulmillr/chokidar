@@ -206,17 +206,25 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
     /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(path)
   ) return true;
 
-  // create the anymatch fn if it doesn't already exist
-  this._userIgnored = this._userIgnored || anymatch(this._globIgnored
-    .concat(this.options.ignored)
-    .concat(arrify(this.options.ignored)
-      .filter(function(path) {
-        return typeof path === 'string' && !isglob(path);
-      }).map(function(path) {
-        return path + '/**/*';
-      })
-    )
-  );
+  if (!this._userIgnored) {
+    var cwd = this.options.cwd;
+    var ignored = this.options.ignored;
+    if (cwd && ignored) {
+      ignored = arrify(ignored).map(function (path) {
+        return isAbsolute(path) ? path : sysPath.join(cwd, path);
+      });
+    }
+    this._userIgnored = anymatch(this._globIgnored
+      .concat(ignored)
+      .concat(arrify(ignored)
+        .filter(function(path) {
+          return typeof path === 'string' && !isglob(path);
+        }).map(function(path) {
+          return path + '/**/*';
+        })
+      )
+    );
+  }
 
   return this._userIgnored([path, stats]);
 };
@@ -380,7 +388,13 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   paths = arrify(paths);
 
   if (cwd) paths = paths.map(function(path) {
-    return isAbsolute(path) ? path : sysPath.join(cwd, path);
+    if (isAbsolute(path)) {
+      return path;
+    } else if (path[0] === '!') {
+      return '!' + sysPath.join(cwd, path.substring(1));
+    } else {
+      return sysPath.join(cwd, path);
+    }
   });
 
   // set aside negated glob strings
@@ -412,7 +426,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
         next(err, res);
       }.bind(this));
     }.bind(this), function(error, results) {
-      results.forEach(function(item){
+      results.forEach(function(item) {
         if (!item) return;
         this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
       }, this);

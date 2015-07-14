@@ -1125,6 +1125,36 @@ function runTests(options) {
               }));
           }, true));
       });
+      it('should ignore files even with cwd', function(done) {
+        fs.writeFileSync(getFixturePath('change.txt'), 'hello');
+        fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
+        fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
+        var spy = sinon.spy();
+        options.cwd = fixturesPath;
+        var files = [
+          '*.txt',
+          '!ignored.txt'
+        ];
+        options.ignored = 'ignored-option.txt';
+        watcher = chokidar.watch(files, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
+            fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
+            fs.unlinkSync(getFixturePath('ignored.txt'));
+            fs.unlinkSync(getFixturePath('ignored-option.txt'));
+            fs.writeFileSync(getFixturePath('change.txt'), 'change');
+            waitFor([spy.withArgs('change', 'change.txt')], function() {
+              spy.should.have.been.calledWith('add', 'change.txt');
+              spy.should.not.have.been.calledWith('add', 'ignored.txt');
+              spy.should.not.have.been.calledWith('add', 'ignored-option.txt');
+              spy.should.not.have.been.calledWith('unlink', 'ignored.txt');
+              spy.should.not.have.been.calledWith('unlink', 'ignored-option.txt');
+              spy.should.have.been.calledWith('change', 'change.txt');
+              done();
+            });
+          }), true);
+      });
     });
     describe('ignorePermissionErrors', function() {
       var filePath = getFixturePath('cantread.txt');
