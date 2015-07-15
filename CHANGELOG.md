@@ -1,3 +1,6 @@
+# Chokidar 1.0.4 (15 July 2015)
+* Fix bug with `ignored` files/globs while `cwd` option is set
+
 # Chokidar 1.0.3 (4 June 2015)
 * Fix race issue with `alwaysStat` option and removed files
 
