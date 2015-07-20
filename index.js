@@ -211,6 +211,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
     var ignored = this.options.ignored;
     if (cwd && ignored) {
       ignored = arrify(ignored).map(function (path) {
+        if (typeof path !== 'string') return path;
         return isAbsolute(path) ? path : sysPath.join(cwd, path);
       });
     }

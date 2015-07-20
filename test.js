@@ -914,6 +914,25 @@ function runTests(options) {
             })();
           }));
       });
+      it.only('should allow regex/fn ignores', function(done) {
+        var spy = sinon.spy();
+        fs.writeFileSync(getFixturePath('add.txt'), 'b');
+        options.cwd = fixturesPath;
+        options.ignored = /add/;
+        watcher = chokidar.watch(fixturesPath, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.writeFileSync(getFixturePath('add.txt'), 'a');
+            fs.writeFileSync(getFixturePath('change.txt'), 'a');
+            waitFor([spy.withArgs('change')], function() {
+              spy.should.not.have.been.calledWith('add', 'add.txt');
+              spy.should.not.have.been.calledWith('change', 'add.txt');
+              spy.should.have.been.calledWith('add', 'change.txt');
+              spy.should.have.been.calledWith('change', 'change.txt');
+              done();
+            });
+          }));
+      });
     });
     describe('depth', function() {
       beforeEach(function(done) {
