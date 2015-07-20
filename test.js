@@ -914,6 +914,24 @@ function runTests(options) {
             })();
           }));
       });
+      it('should allow regex/fn ignores', function(done) {
+        var spy = sinon.spy();
+        var testFile = 'add.txt';
+        fs.writeFileSync(testFile, 'b');
+        options.cwd = fixturesPath;
+        options.ignored = /add/;
+        watcher = chokidar.watch(fixturesPath, options)
+          .on('all', spy)
+          .on('ready', d(function() {
+            fs.writeFileSync(testFile, 'a');
+            fs.writeFileSync(getFixturePath('change.txt'), 'a');
+            dd(function() {
+              spy.should.not.have.been.calledWith('add', testFile);
+              spy.should.have.been.calledWith('add', 'change.txt');
+              done();
+            })();
+          }));
+      });
     });
     describe('depth', function() {
       beforeEach(function(done) {
