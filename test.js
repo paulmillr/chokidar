@@ -914,22 +914,23 @@ function runTests(options) {
             })();
           }));
       });
-      it('should allow regex/fn ignores', function(done) {
+      it.only('should allow regex/fn ignores', function(done) {
         var spy = sinon.spy();
-        var testFile = 'add.txt';
-        fs.writeFileSync(testFile, 'b');
+        fs.writeFileSync(getFixturePath('add.txt'), 'b');
         options.cwd = fixturesPath;
         options.ignored = /add/;
         watcher = chokidar.watch(fixturesPath, options)
           .on('all', spy)
           .on('ready', d(function() {
-            fs.writeFileSync(testFile, 'a');
+            fs.writeFileSync(getFixturePath('add.txt'), 'a');
             fs.writeFileSync(getFixturePath('change.txt'), 'a');
-            dd(function() {
-              spy.should.not.have.been.calledWith('add', testFile);
+            waitFor([spy.withArgs('change')], function() {
+              spy.should.not.have.been.calledWith('add', 'add.txt');
+              spy.should.not.have.been.calledWith('change', 'add.txt');
               spy.should.have.been.calledWith('add', 'change.txt');
+              spy.should.have.been.calledWith('change', 'change.txt');
               done();
-            })();
+            });
           }));
       });
     });
