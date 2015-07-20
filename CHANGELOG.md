@@ -1,3 +1,6 @@
+# Chokidar 1.0.5 (20 July 2015)
+* Fix regression with regexes/fns using in `ignored`
+
 # Chokidar 1.0.4 (15 July 2015)
 * Fix bug with `ignored` files/globs while `cwd` option is set
 
