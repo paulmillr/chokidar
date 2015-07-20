@@ -914,7 +914,7 @@ function runTests(options) {
             })();
           }));
       });
-      it.only('should allow regex/fn ignores', function(done) {
+      it('should allow regex/fn ignores', function(done) {
         var spy = sinon.spy();
         fs.writeFileSync(getFixturePath('add.txt'), 'b');
         options.cwd = fixturesPath;
