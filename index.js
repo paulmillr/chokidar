@@ -449,6 +449,8 @@ FSWatcher.prototype.unwatch = function(paths) {
   paths.forEach(function(path) {
     if (this._closers[path]) {
       this._closers[path]();
+      delete this._closers[path];
+      this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
     } else {
       this._ignoredPaths[path] = true;
       if (path in this._watched) this._ignoredPaths[path + '/**/*'] = true;
