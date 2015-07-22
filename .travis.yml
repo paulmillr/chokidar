@@ -1,8 +1,8 @@
 language: c
 env:
-  - NODE_VERSION="iojs"
+  - NODE_VERSION="iojs-v2"
+  - NODE_VERSION="iojs-v1"
   - NODE_VERSION="0.12"
-  - NODE_VERSION="0.11"
   - NODE_VERSION="0.10"
 os:
   - linux
@@ -15,6 +15,7 @@ before_install:
   - nvm install $NODE_VERSION
   - nvm use $NODE_VERSION
   - if [ "$NODE_VERSION" == "0.8" ]; then npm update -g npm; fi
+  - node -v
 install:
   - npm install
 script:

@@ -3,9 +3,10 @@ environment:
   matrix:
     # node.js
     - nodejs_version: "0.10"
-    - nodejs_version: "0.11"
+    - nodejs_version: "0.12"
     # io.js
-    - nodejs_version: "1.0"
+    - nodejs_version: "1"
+    - nodejs_version: "2"
 
 # Install scripts. (runs after repo cloning)
 install:
