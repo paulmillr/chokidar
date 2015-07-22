@@ -111,9 +111,9 @@ function runTests(options) {
     delete options.cwd;
     delete options.depth;
     delete options.ignorePermissionErrors;
+    rmFixtures();
     fs.writeFileSync(getFixturePath('change.txt'), 'b');
     fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
-    rmFixtures();
     done && d(done, true)();
   }
 
