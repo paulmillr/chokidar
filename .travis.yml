@@ -20,3 +20,4 @@ install:
   - npm install
 script:
   - npm run ci-test
+sudo: false
