@@ -1259,7 +1259,7 @@ function runTests(options) {
             if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
           });
-        }, true));
+        }));
     });
     it('should unwatch relative paths', function(done) {
       var spy = sinon.spy();
