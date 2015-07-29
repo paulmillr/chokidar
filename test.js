@@ -1250,7 +1250,6 @@ function runTests(options) {
         .on('ready', d(function() {
           watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
           d(function() {
-            })();
             fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
             fs.writeFileSync(getFixturePath('change.txt'), 'c');
             fs.unlinkSync(getFixturePath('unlink.txt'));
@@ -1261,7 +1260,8 @@ function runTests(options) {
               if (!osXFsWatch) spy.should.have.been.calledOnce;
               done();
             });
-        }, true));
+          })();
+        }));
     });
     it('should unwatch relative paths', function(done) {
       var spy = sinon.spy();
