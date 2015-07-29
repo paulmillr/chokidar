@@ -1249,17 +1249,19 @@ function runTests(options) {
         .on('all', spy)
         .on('ready', d(function() {
           watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
-          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-          fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          fs.unlinkSync(getFixturePath('unlink.txt'));
-          waitFor([spy], function() {
-            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-            spy.should.not.have.been.calledWith('add');
-            spy.should.not.have.been.calledWith('unlink');
-            if (!osXFsWatch) spy.should.have.been.calledOnce;
-            done();
-          });
-        }));
+          d(function() {
+            })();
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            fs.unlinkSync(getFixturePath('unlink.txt'));
+            waitFor([spy], function() {
+              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+              spy.should.not.have.been.calledWith('add');
+              spy.should.not.have.been.calledWith('unlink');
+              if (!osXFsWatch) spy.should.have.been.calledOnce;
+              done();
+            });
+        }, true));
     });
     it('should unwatch relative paths', function(done) {
       var spy = sinon.spy();
