@@ -1246,22 +1246,20 @@ function runTests(options) {
     it('should ignore unwatched paths that are a subset of watched paths', function(done) {
       var spy = sinon.spy();
       watcher = chokidar.watch(fixturesPath, options)
-        .on('all', spy)
         .on('ready', d(function() {
+          watcher.on('all', spy);
           watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
-          d(function() {
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            fs.unlinkSync(getFixturePath('unlink.txt'));
-            waitFor([spy], function() {
-              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-              spy.should.not.have.been.calledWith('add');
-              spy.should.not.have.been.calledWith('unlink');
-              if (!osXFsWatch) spy.should.have.been.calledOnce;
-              done();
-            });
-          })();
-        }));
+          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+          fs.writeFileSync(getFixturePath('change.txt'), 'c');
+          fs.unlinkSync(getFixturePath('unlink.txt'));
+          waitFor([spy], function() {
+            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+            spy.should.not.have.been.calledWith('add');
+            spy.should.not.have.been.calledWith('unlink');
+            if (!osXFsWatch) spy.should.have.been.calledOnce;
+            done();
+          });
+        }, true));
     });
     it('should unwatch relative paths', function(done) {
       var spy = sinon.spy();
