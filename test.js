@@ -1246,8 +1246,8 @@ function runTests(options) {
     it('should ignore unwatched paths that are a subset of watched paths', function(done) {
       var spy = sinon.spy();
       watcher = chokidar.watch(fixturesPath, options)
+        .on('all', spy)
         .on('ready', d(function() {
-          watcher.on('all', spy);
           watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
