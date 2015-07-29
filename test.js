@@ -1218,7 +1218,6 @@ function runTests(options) {
     });
   });
   describe('unwatch', function() {
-    var watcher;
     beforeEach(function(done) {
       clean(function() {
         try { fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err) {}
