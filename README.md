@@ -142,9 +142,9 @@ symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
 * `cwd` (no default). The base directory from which watch `paths` are to be
 derived. Paths emitted with events will be relative to this.
-* `preventPathTransformation` (default: `false`). When `true`, only the
-symlinks themselves will be watched for changes instead of following
-the link references and bubbling events through the link's path.
+* `preventPathTransformation` (default: `false`). When `true`, path is used literally
+without any transformation. It's useful when the name contains special characters
+like `*`, `(`, `)`, `{`, `}`...
 
 #### Performance
 
