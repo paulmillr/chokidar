@@ -73,6 +73,11 @@ function FSWatcher(_opts) {
 
   if (undef('followSymlinks')) opts.followSymlinks = true;
 
+  if (undef('waitWriteFinish')) opts.waitWriteFinish = false;
+  if (undef('writeFinishThreshold')) opts.writeFinishThreshold = 2000;
+
+  if (opts.waitWriteFinish) this._pendingWrites = Object.create(null);
+
   this._isntIgnored = function(path, stat) {
     return !this._isIgnored(path, stat);
   }.bind(this);
@@ -111,6 +116,9 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   if (val3 !== undefined) args.push(val1, val2, val3);
   else if (val2 !== undefined) args.push(val1, val2);
   else if (val1 !== undefined) args.push(val1);
+
+  if ((this.options.waitWriteFinish && this._pendingWrites[path])) return this;
+
   if (this.options.atomic) {
     if (event === 'unlink') {
       this._pendingUnlinks[path] = args;
@@ -128,6 +136,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     }
   }
 
+
   if (event === 'change') {
     if (!this._throttle('change', path, 50)) return this;
   }
@@ -137,7 +146,19 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (
+  if (this.options.waitWriteFinish && event === 'add') {
+    this._awaitWriteFinish(path, this.options.writeFinishThreshold, function(err, stats){
+      if(err){
+        event = args[0] = 'error';
+        args[1] = err;
+        emitEvent();
+      } else if(stats){
+        // if stats doesn't exist the file must have been deleted
+        args.push(stats);
+        emitEvent();        
+      }
+    });
+  } else if (
     this.options.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
@@ -193,6 +214,51 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
   throttled[path] = {timeoutObject: timeoutObject, clear: clear};
   return throttled[path];
 };
+
+// Private method: Awaits write operation to finish
+//
+// * path    - string, path being acted upon
+// * threshold - int, time in milliseconds a file size must be fixed before acknowledgeing write operation is finished
+// * callback - function, callback to call when write operation is finished 
+// Polls a newly created file for size variations. When files size does not change for 'threshold'
+// milliseconds calls callback.
+FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback){
+  var timeoutHandler;
+
+  var awaitWriteFinish = function(prevStat){
+    fs.stat(path, function(err, curStat){
+      if(err){
+        // if the file have been erased, the file entry in _pendingWrites will
+        // be deleted in the unlink event.
+        if(err.code == 'ENOENT') return;
+
+        return callback(err);
+      } 
+        
+      var now = new Date();
+      if(this._pendingWrites[path] === undefined){
+        this._pendingWrites[path] = {
+          creationTime: now,
+          cancelWait: function(){
+            delete this._pendingWrites[path];
+            clearTimeout(timeoutHandler);
+            return callback();
+          }.bind(this)
+        }
+        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.interval);
+      }
+
+      if(curStat.size == prevStat.size && now - this._pendingWrites[path].creationTime > threshold){
+        delete this._pendingWrites[path];
+        callback(null, curStat);
+      } else{
+        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.interval);
+      }
+    }.bind(this));
+  }.bind(this);
+
+  awaitWriteFinish(); 
+}
 
 // Private method: Determines whether user has asked to ignore this path
 //
@@ -367,6 +433,12 @@ FSWatcher.prototype._remove = function(directory, item) {
   var parent = this._getWatchedDir(directory);
   var wasTracked = parent.has(item);
   parent.remove(item);
+
+  // If we wait for this file to be fully written, cancel the wait.
+  if(this.options.waitWriteFinish && this._pendingWrites[path]) {
+    this._pendingWrites[path].cancelWait();
+    return;
+  }
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it

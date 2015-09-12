@@ -30,6 +30,10 @@ afterEach(function() {
 function rmFixtures() {
   try { fs.unlinkSync(getFixturePath('link')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('add.txt')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('no-add.txt')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('no-change.txt')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('late-change.txt')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('early-unlinked.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('moved.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('movedagain.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('cantread.txt')); } catch(err) {}
@@ -53,7 +57,7 @@ after(function() {
 
 
 describe('chokidar', function() {
-  this.timeout(3000);
+  this.timeout(5000);
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
@@ -88,7 +92,7 @@ function runTests(options) {
     var intrvl = setInterval(function() {
       if (spies.every(isSpyReady)) finish();
     }, 5);
-    var to = setTimeout(finish, 1500);
+    var to = setTimeout(finish, 3000);
   }
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
@@ -1217,6 +1221,95 @@ function runTests(options) {
         it('should not choke on non-existent files', function(done) {
           chokidar.watch(getFixturePath('nope.txt'), options).on('ready', done);
         });
+      });
+    });
+    describe('waitWriteFinish', function() {
+      beforeEach(function() { 
+        options.waitWriteFinish = true; 
+        options.writeFinishThreshold = 1000;
+      });
+      it('should not emit add event before a file is fully written', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('no-add.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            dd(function(){
+              spy.should.not.have.been.calledWith('add');
+              done();
+            })();
+          });
+      });
+      it('should wait for the file to be fully written before emiting the add event', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('add.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            dd(function(){
+              spy.should.not.have.been.calledWith('add');
+              setTimeout(function() {
+                spy.should.have.been.calledWith('add');
+                done();
+              }, 1100);
+            })();
+          }.bind(this));
+      });
+      it('should not emit change event while a file have not been fully written', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('no-change.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            d(function() {
+              spy.should.not.have.been.calledWith('add', testPath);
+              fs.writeFileSync(testPath, 'edit');
+              dd(function() {
+                spy.should.not.have.been.calledWith('change', testPath);
+                done();
+              })();
+            }());
+          }.bind(this));
+      });
+      it('should emit change event after the file have been fully written', function(done) {
+        var spy = sinon.spy(), changeSpy = sinon.spy();
+        var testPath = getFixturePath('late-change.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('change', changeSpy)
+          .on('ready', function(){
+            fs.writeFileSync(testPath, 'hello');
+            dd(function() {
+              spy.should.not.have.been.calledWith('add', testPath);
+              setTimeout(function() {
+                fs.writeFileSync(testPath, 'edit');
+                waitFor([changeSpy], function(){
+                  changeSpy.should.have.been.calledWith(testPath);
+                  done();
+                });
+              }, 1500);
+            })();
+          }.bind(this))
+      });
+      it('should not raise any event for a file that was deleted before fully written', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('early-unlinked.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            d(function() {
+              fs.unlinkSync(testPath);
+              var now = new Date();
+              setTimeout(function() {
+                spy.should.not.have.been.calledWith(sinon.match.string, testPath);
+                done();
+              }, 1100);
+            })();
+          });
       });
     });
   });
