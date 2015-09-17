@@ -1282,7 +1282,7 @@ function runTests(options) {
           }));
       })();
     });
-    it('should watch paths the were unwatched and added again', function(done) {
+    it('should watch paths that were unwatched and added again', function(done) {
       var spy = sinon.spy();
       var watchPaths = [getFixturePath('change.txt')];
       watcher = chokidar.watch(watchPaths, options)
@@ -1290,13 +1290,14 @@ function runTests(options) {
         .on('ready', d(function() {
           watcher.unwatch(getFixturePath('change.txt'));
           watcher.add(getFixturePath('change.txt'));
-
-          fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          waitFor([spy], function() {
-            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-            spy.should.have.been.calledOnce;
-            done();
-          });
+          dd(function() {
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            waitFor([spy], function() {
+              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+              spy.should.have.been.calledOnce;
+              done();
+            });
+          })();
         }));
     });
   });
