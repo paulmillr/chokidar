@@ -1251,7 +1251,7 @@ function runTests(options) {
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
           fs.unlinkSync(getFixturePath('unlink.txt'));
-          waitFor([spy], function() {
+          waitFor([spy.withArgs('change')], function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add');
             spy.should.not.have.been.calledWith('unlink');
