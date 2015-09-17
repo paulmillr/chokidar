@@ -1248,12 +1248,12 @@ function runTests(options) {
         .on('all', spy)
         .on('ready', d(function() {
           watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
+          fs.unlinkSync(getFixturePath('unlink.txt'));
           fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
           fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          fs.unlinkSync(getFixturePath('unlink.txt'));
           waitFor([spy.withArgs('change')], function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-            spy.should.not.have.been.calledWith('add');
+            spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
             spy.should.not.have.been.calledWith('unlink');
             if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
