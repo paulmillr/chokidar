@@ -687,7 +687,10 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', d(function() {
             fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
-            waitFor([spy.withArgs('add'), spy.withArgs('addDir')], function() {
+            waitFor([
+              spy.withArgs('add', getFixturePath('link/add.txt')), 
+              spy.withArgs('addDir', getFixturePath('link'))
+            ], function() {
               spy.should.have.been.calledWith('addDir', getFixturePath('link'));
               spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
               done();
@@ -924,7 +927,7 @@ function runTests(options) {
           .on('ready', d(function() {
             fs.writeFileSync(getFixturePath('add.txt'), 'a');
             fs.writeFileSync(getFixturePath('change.txt'), 'a');
-            waitFor([spy.withArgs('change')], function() {
+            waitFor([spy.withArgs('change', 'change.txt')], function() {
               spy.should.not.have.been.calledWith('add', 'add.txt');
               spy.should.not.have.been.calledWith('change', 'add.txt');
               spy.should.have.been.calledWith('add', 'change.txt');
@@ -1247,17 +1250,21 @@ function runTests(options) {
       watcher = chokidar.watch(fixturesPath, options)
         .on('all', spy)
         .on('ready', d(function() {
-          watcher.unwatch([getFixturePath('subdir'), getFixturePath('unl*')]);
-          fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-          fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          fs.unlinkSync(getFixturePath('unlink.txt'));
-          waitFor([spy], function() {
-            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-            spy.should.not.have.been.calledWith('add');
-            spy.should.not.have.been.calledWith('unlink');
-            if (!osXFsWatch) spy.should.have.been.calledOnce;
-            done();
-          });
+          // test with both relative and absolute paths
+          var subdirRel = sysPath.join(sysPath.basename(fixturesPath), 'subdir');
+          watcher.unwatch([subdirRel, getFixturePath('unl*')]);
+          dd(function() {
+            fs.unlinkSync(getFixturePath('unlink.txt'));
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
+            fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            waitFor([spy.withArgs('change')], function() {
+              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+              spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
+              spy.should.not.have.been.calledWith('unlink');
+              if (!osXFsWatch) spy.should.have.been.calledOnce;
+              done();
+            });
+          })();
         }, true));
     });
     it('should unwatch relative paths', function(done) {
@@ -1282,21 +1289,23 @@ function runTests(options) {
           }));
       })();
     });
-    it('should watch paths the were unwatched and added again', function(done) {
+    it('should watch paths that were unwatched and added again', function(done) {
       var spy = sinon.spy();
       var watchPaths = [getFixturePath('change.txt')];
       watcher = chokidar.watch(watchPaths, options)
-        .on('all', spy)
         .on('ready', d(function() {
           watcher.unwatch(getFixturePath('change.txt'));
-          watcher.add(getFixturePath('change.txt'));
-
-          fs.writeFileSync(getFixturePath('change.txt'), 'c');
-          waitFor([spy], function() {
-            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-            spy.should.have.been.calledOnce;
-            done();
-          });
+          dd(function() {
+            watcher.on('all', spy).add(getFixturePath('change.txt'));
+            dd(function() {
+              fs.writeFileSync(getFixturePath('change.txt'), 'c');
+              waitFor([spy], function() {
+                spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+                spy.should.have.been.calledOnce;
+                done();
+              });
+            })();
+          })();
         }));
     });
   });
