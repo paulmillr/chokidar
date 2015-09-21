@@ -73,6 +73,9 @@ function FSWatcher(_opts) {
 
   if (undef('followSymlinks')) opts.followSymlinks = true;
 
+  // Prevent get non-magic path
+  if (undef('preventPathTransformation')) opts.preventPathTransformation = false;
+
   this._isntIgnored = function(path, stat) {
     return !this._isIgnored(path, stat);
   }.bind(this);
@@ -239,7 +242,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 // Returns object containing helpers for this path
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   path = path.replace(/^\.[\/\\]/, '');
-  var watchPath = depth ? path : globparent(path);
+  var watchPath = depth || this.options.preventPathTransformation ? path : globparent(path);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
 
