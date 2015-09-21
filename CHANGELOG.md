@@ -1,3 +1,6 @@
+# Chokidar 1.0.6 (18 September 2015)
+* Fix issue with `.unwatch()` method and relative paths
+
 # Chokidar 1.0.5 (20 July 2015)
 * Fix regression with regexes/fns using in `ignored`
 

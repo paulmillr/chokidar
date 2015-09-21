@@ -4,9 +4,11 @@ environment:
     # node.js
     - nodejs_version: "0.10"
     - nodejs_version: "0.12"
+    - nodejs_version: "4"
     # io.js
     - nodejs_version: "1"
     - nodejs_version: "2"
+    - nodejs_version: "3"
 
 # Install scripts. (runs after repo cloning)
 install:

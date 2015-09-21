@@ -455,8 +455,13 @@ FSWatcher.prototype.unwatch = function(paths) {
       delete this._closers[path];
       this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
     } else {
+      //convert to absolute path
+      path = sysPath.resolve(path);
+      
       this._ignoredPaths[path] = true;
-      if (path in this._watched) this._ignoredPaths[path + '/**/*'] = true;
+      if (path in this._watched) {
+        this._ignoredPaths[path + '/**/*'] = true;
+      }
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
