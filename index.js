@@ -239,7 +239,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 // Returns object containing helpers for this path
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   path = path.replace(/^\.[\/\\]/, '');
-  var watchPath = depth ? path : globparent(path);
+  var watchPath = depth || !isglob(path) ? path : globparent(path);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
 
