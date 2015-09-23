@@ -1,3 +1,6 @@
+# Chokidar 1.1.0 (23 September 2015)
+* Dependency updates including fsevents@1.0.0, improving installation
+
 # Chokidar 1.0.6 (18 September 2015)
 * Fix issue with `.unwatch()` method and relative paths
 
