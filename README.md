@@ -168,18 +168,34 @@ subdirectories will be traversed.
   ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
 
 #### Waiting for write operation to finish
-* `waitWriteFinish` (default: `false`).
+* `awaitWriteFinish` (default: `false`).
 The `add` event will fire when a file first appear on disk, before the entire
 file has been written. Furthermore, in some cases some `change` events will be emitted while the file is being written.
 In some cases, especially when watching for large files there will be a need to 
 wait for the write operation to finish before responding to the file creation.
-Setting `waitWriteFinish` to `true` will poll a newly created file size, holding 
-its `add` and `change` events until its size will not change for a configurable amount of time.
-* `writeFinishThreshold` (default: 2000).
-Amount of time in milliseconds for a file size to remain constant before emitting its 
-`add` event. Unfortunately this duration is heavily dependent on OS and local hardware.
+Setting `awaitWriteFinish` to `true` will poll a newly created file size, holding 
+its `add` and `change` events until the size does not change for a configurable amount of time.
+The appropriate duration setting is heavily dependent on the OS and hardware.
 For accurate detection this parameter should be relatively high, making file watching much less
 responsive. Use with cation. 
+* `awaitWriteFinish.stabilityThreshold` (default: 2000). Amount of time in milliseconds for a file size to remain constant before emitting its 
+`add` event. 
+* `awaitWriteFinish.pollInterval` (default: 100). Interval of file size polling.
+
+```js
+// use awaitWriteFinish with default parameters
+chokidar.watch('file', {
+  awaitWriteFinish: true
+});
+
+// change awaitWriteFinish parameters
+chokidar.watch('file', {
+  awaitWriteFinish: {
+    stabilityThreshold: 5000,
+    pollInterval: 200
+  }
+});
+```
 
 #### Errors
 * `ignorePermissionErrors` (default: `false`). Indicates whether to watch files

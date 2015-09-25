@@ -670,7 +670,7 @@ function runTests(options) {
     });
     it('should recognize changes following symlinked dirs', function(done) {
       var spy = sinon.spy(function changeSpy(){});
-      d(function(){
+      d(function() {
         watcher = chokidar.watch(linkedDir, options)
           .on('change', spy)
           .on('ready', function() {
@@ -790,7 +790,7 @@ function runTests(options) {
           d(function() {
             watcher = chokidar.watch(fixturesPath, options)
               .on('addDir', spy)
-              .on('ready', function(){
+              .on('ready', function() {
                 spy.should.have.been.calledWith(fixturesPath);
                 spy.should.have.been.calledWith(getFixturePath('subdir'));
                 spy.should.have.been.calledWith(getFixturePath('subdir/dir'));
@@ -1223,10 +1223,18 @@ function runTests(options) {
         });
       });
     });
-    describe('waitWriteFinish', function() {
+    describe('awaitWriteFinish', function() {
       beforeEach(function() { 
-        options.waitWriteFinish = true; 
-        options.writeFinishThreshold = 1000;
+        options.awaitWriteFinish = {
+          stabilityThreshold: 1000
+        }; 
+      });
+      it('should use default options if none givven', function() {
+        options.awaitWriteFinish = true;
+        
+        var watcher = stdWatcher();
+        expect(watcher.options.awaitWriteFinish.pollInterval).to.equal(100);
+        expect(watcher.options.awaitWriteFinish.stabilityThreshold).to.equal(2000);
       });
       it('should not emit add event before a file is fully written', function(done) {
         var spy = sinon.spy();
@@ -1235,7 +1243,7 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            dd(function(){
+            dd(function() {
               spy.should.not.have.been.calledWith('add');
               done();
             })();
@@ -1248,7 +1256,7 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            dd(function(){
+            dd(function() {
               spy.should.not.have.been.calledWith('add');
               setTimeout(function() {
                 spy.should.have.been.calledWith('add');
@@ -1280,13 +1288,13 @@ function runTests(options) {
         stdWatcher()
           .on('all', spy)
           .on('change', changeSpy)
-          .on('ready', function(){
+          .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
             dd(function() {
               spy.should.not.have.been.calledWith('add', testPath);
               setTimeout(function() {
                 fs.writeFileSync(testPath, 'edit');
-                waitFor([changeSpy], function(){
+                waitFor([changeSpy], function() {
                   changeSpy.should.have.been.calledWith(testPath);
                   done();
                 });

@@ -73,10 +73,15 @@ function FSWatcher(_opts) {
 
   if (undef('followSymlinks')) opts.followSymlinks = true;
 
-  if (undef('waitWriteFinish')) opts.waitWriteFinish = false;
-  if (undef('writeFinishThreshold')) opts.writeFinishThreshold = 2000;
+  if (undef('awaitWriteFinish')) opts.awaitWriteFinish = false;
 
-  if (opts.waitWriteFinish) this._pendingWrites = Object.create(null);
+  if(opts.awaitWriteFinish === true) opts.awaitWriteFinish = {}
+  if(opts.awaitWriteFinish) {
+    if (opts.awaitWriteFinish.stabilityThreshold === undefined) opts.awaitWriteFinish.stabilityThreshold = 2000;
+    if (opts.awaitWriteFinish.pollInterval === undefined) opts.awaitWriteFinish.pollInterval = 100;
+
+    this._pendingWrites = Object.create(null);
+  }
 
   this._isntIgnored = function(path, stat) {
     return !this._isIgnored(path, stat);
@@ -117,7 +122,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   else if (val2 !== undefined) args.push(val1, val2);
   else if (val1 !== undefined) args.push(val1);
 
-  if ((this.options.waitWriteFinish && this._pendingWrites[path])) return this;
+  if ((this.options.awaitWriteFinish && this._pendingWrites[path])) return this;
 
   if (this.options.atomic) {
     if (event === 'unlink') {
@@ -146,13 +151,13 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (this.options.waitWriteFinish && event === 'add') {
-    this._awaitWriteFinish(path, this.options.writeFinishThreshold, function(err, stats){
-      if(err){
+  if (this.options.awaitWriteFinish && event === 'add') {
+    this._awaitWriteFinish(path, this.options.awaitWriteFinish.stabilityThreshold, function(err, stats) {
+      if(err) {
         event = args[0] = 'error';
         args[1] = err;
         emitEvent();
-      } else if(stats){
+      } else if(stats) {
         // if stats doesn't exist the file must have been deleted
         args.push(stats);
         emitEvent();        
@@ -222,12 +227,12 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // * callback - function, callback to call when write operation is finished 
 // Polls a newly created file for size variations. When files size does not change for 'threshold'
 // milliseconds calls callback.
-FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback){
+FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   var timeoutHandler;
 
-  var awaitWriteFinish = function(prevStat){
-    fs.stat(path, function(err, curStat){
-      if(err){
+  var awaitWriteFinish = function(prevStat) {
+    fs.stat(path, function(err, curStat) {
+      if(err) {
         // if the file have been erased, the file entry in _pendingWrites will
         // be deleted in the unlink event.
         if(err.code == 'ENOENT') return;
@@ -236,23 +241,23 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback){
       } 
         
       var now = new Date();
-      if(this._pendingWrites[path] === undefined){
+      if(this._pendingWrites[path] === undefined) {
         this._pendingWrites[path] = {
           creationTime: now,
-          cancelWait: function(){
+          cancelWait: function() {
             delete this._pendingWrites[path];
             clearTimeout(timeoutHandler);
             return callback();
           }.bind(this)
         }
-        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.interval);
+        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.awaitWriteFinish.pollInterval);
       }
 
-      if(curStat.size == prevStat.size && now - this._pendingWrites[path].creationTime > threshold){
+      if(curStat.size == prevStat.size && now - this._pendingWrites[path].creationTime > threshold) {
         delete this._pendingWrites[path];
         callback(null, curStat);
-      } else{
-        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.interval);
+      } else {
+        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.awaitWriteFinish.pollInterval);
       }
     }.bind(this));
   }.bind(this);
@@ -435,7 +440,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   parent.remove(item);
 
   // If we wait for this file to be fully written, cancel the wait.
-  if(this.options.waitWriteFinish && this._pendingWrites[path]) {
+  if(this.options.awaitWriteFinish && this._pendingWrites[path]) {
     this._pendingWrites[path].cancelWait();
     return;
   }
