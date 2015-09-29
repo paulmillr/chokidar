@@ -114,8 +114,8 @@ chokidar.watch('file', {
 
 ## API
 
-`chokidar.watch(paths, options)` — takes one or more paths (which may be paths to files,
-  dirs to be watched recursively, or glob patterns) and options:
+`chokidar.watch(paths, options)` — takes one or more paths (which may be paths
+to files, dirs to be watched recursively, or glob patterns) and options:
 
 #### Persistence
 
@@ -213,16 +213,19 @@ Automatically filters out artifacts that occur when using editors that use
 * `.add(path / paths)`: Add files, directories, or glob patterns for tracking.
 Takes an array of strings or just one string.
 * `.on(event, callback)`: Listen for an FS event.
-Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`, `raw`, `error`.
-Additionally `all` is available which gets emitted with the underlying event name
-and path for every event other than `ready`, `raw`, and `error`.
+Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`,
+`raw`, `error`.
+Additionally `all` is available which gets emitted with the underlying event
+name and path for every event other than `ready`, `raw`, and `error`.
 * `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
 
 ## CLI
 
-If you need a CLI interface for your file watching, check out [chokidar-cli](https://github.com/kimmobrunfeldt/chokidar-cli) which allows you to either execute a command on each change, or get a stdio stream of change events.
+If you need a CLI interface for your file watching, check out
+[chokidar-cli](https://github.com/kimmobrunfeldt/chokidar-cli), allowing you to
+execute a command on each change, or get a stdio stream of change events.
 
 ## Install Troubleshooting
 
