@@ -74,11 +74,11 @@ function FSWatcher(_opts) {
   if (undef('followSymlinks')) opts.followSymlinks = true;
 
   if (undef('awaitWriteFinish')) opts.awaitWriteFinish = false;
-
-  if(opts.awaitWriteFinish === true) opts.awaitWriteFinish = {}
-  if(opts.awaitWriteFinish) {
-    if (opts.awaitWriteFinish.stabilityThreshold === undefined) opts.awaitWriteFinish.stabilityThreshold = 2000;
-    if (opts.awaitWriteFinish.pollInterval === undefined) opts.awaitWriteFinish.pollInterval = 100;
+  if (opts.awaitWriteFinish === true) opts.awaitWriteFinish = {};
+  var awf = opts.awaitWriteFinish;
+  if (awf) {
+    if (!awf.stabilityThreshold) awf.stabilityThreshold = 2000;
+    if (!awf.pollInterval) awf.pollInterval = 100;
 
     this._pendingWrites = Object.create(null);
   }
@@ -122,7 +122,8 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   else if (val2 !== undefined) args.push(val1, val2);
   else if (val1 !== undefined) args.push(val1);
 
-  if ((this.options.awaitWriteFinish && this._pendingWrites[path])) return this;
+  var awf = this.options.awaitWriteFinish;
+  if (awf && this._pendingWrites[path]) return this;
 
   if (this.options.atomic) {
     if (event === 'unlink') {
@@ -141,7 +142,6 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     }
   }
 
-
   if (event === 'change') {
     if (!this._throttle('change', path, 50)) return this;
   }
@@ -151,16 +151,16 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (this.options.awaitWriteFinish && event === 'add') {
-    this._awaitWriteFinish(path, this.options.awaitWriteFinish.stabilityThreshold, function(err, stats) {
-      if(err) {
+  if (awf && event === 'add') {
+    this._awaitWriteFinish(path, awf.stabilityThreshold, function(err, stats) {
+      if (err) {
         event = args[0] = 'error';
         args[1] = err;
         emitEvent();
       } else if(stats) {
         // if stats doesn't exist the file must have been deleted
         args.push(stats);
-        emitEvent();        
+        emitEvent();
       }
     });
   } else if (
@@ -223,14 +223,15 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // Private method: Awaits write operation to finish
 //
 // * path    - string, path being acted upon
-// * threshold - int, time in milliseconds a file size must be fixed before acknowledgeing write operation is finished
-// * callback - function, callback to call when write operation is finished 
-// Polls a newly created file for size variations. When files size does not change for 'threshold'
-// milliseconds calls callback.
+// * threshold - int, time in milliseconds a file size must be fixed before
+//                    acknowledgeing write operation is finished
+// * callback - function, callback to call when write operation is finished
+// Polls a newly created file for size variations. When files size does not
+// change for 'threshold' milliseconds calls callback.
 FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   var timeoutHandler;
 
-  var awaitWriteFinish = function(prevStat) {
+  (function awaitWriteFinish (prevStat) {
     fs.stat(path, function(err, curStat) {
       if(err) {
         // if the file have been erased, the file entry in _pendingWrites will
@@ -238,10 +239,10 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         if(err.code == 'ENOENT') return;
 
         return callback(err);
-      } 
-        
+      }
+
       var now = new Date();
-      if(this._pendingWrites[path] === undefined) {
+      if (this._pendingWrites[path] === undefined) {
         this._pendingWrites[path] = {
           creationTime: now,
           cancelWait: function() {
@@ -250,19 +251,26 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
             return callback();
           }.bind(this)
         }
-        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.awaitWriteFinish.pollInterval);
+        return timeoutHandler = setTimeout(
+          awaitWriteFinish.bind(this, curStat),
+          this.options.awaitWriteFinish.pollInterval
+        );
       }
 
-      if(curStat.size == prevStat.size && now - this._pendingWrites[path].creationTime > threshold) {
+      if (
+        curStat.size == prevStat.size &&
+        now - this._pendingWrites[path].creationTime > threshold
+      ) {
         delete this._pendingWrites[path];
         callback(null, curStat);
       } else {
-        return timeoutHandler = setTimeout(awaitWriteFinish.bind(this, curStat), this.options.awaitWriteFinish.pollInterval);
+        return timeoutHandler = setTimeout(
+          awaitWriteFinish.bind(this, curStat),
+          this.options.awaitWriteFinish.pollInterval
+        );
       }
     }.bind(this));
-  }.bind(this);
-
-  awaitWriteFinish(); 
+  }.bind(this))();
 }
 
 // Private method: Determines whether user has asked to ignore this path
@@ -531,7 +539,7 @@ FSWatcher.prototype.unwatch = function(paths) {
     } else {
       //convert to absolute path
       path = sysPath.resolve(path);
-      
+
       this._ignoredPaths[path] = true;
       if (path in this._watched) {
         this._ignoredPaths[path + '/**/*'] = true;
