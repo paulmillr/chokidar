@@ -166,21 +166,22 @@ subdirectories will be traversed.
   * `binaryInterval` (default: `300`). Interval of file system
   polling for binary files.
   ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
-
-#### Waiting for write operation to finish
 * `awaitWriteFinish` (default: `false`).
-The `add` event will fire when a file first appear on disk, before the entire
-file has been written. Furthermore, in some cases some `change` events will be emitted while the file is being written.
-In some cases, especially when watching for large files there will be a need to 
+By default, the `add` event will fire when a file first appear on disk, before
+the entire file has been written. Furthermore, in some cases some `change`
+events will be emitted while the file is being written.
+In some cases, especially when watching for large files there will be a need to
 wait for the write operation to finish before responding to the file creation.
-Setting `awaitWriteFinish` to `true` will poll a newly created file size, holding 
-its `add` and `change` events until the size does not change for a configurable amount of time.
-The appropriate duration setting is heavily dependent on the OS and hardware.
-For accurate detection this parameter should be relatively high, making file watching much less
-responsive. Use with cation. 
-* `awaitWriteFinish.stabilityThreshold` (default: 2000). Amount of time in milliseconds for a file size to remain constant before emitting its 
-`add` event. 
-* `awaitWriteFinish.pollInterval` (default: 100). Interval of file size polling.
+Setting `awaitWriteFinish` to `true` (or a truthy value) will poll a newly
+created file size, holding its `add` and `change` events until the size does not
+change for a configurable amount of time. The appropriate duration setting is
+heavily dependent on the OS and hardware. For accurate detection this parameter
+should be relatively high, making file watching much less responsive.
+Use with caution.
+  * *`awaitWriteFinish` can be set to an object in order to adjust timing params:*
+  * `awaitWriteFinish.stabilityThreshold` (default: 2000). Amount of time in
+  milliseconds for a file size to remain constant before emitting its event.
+  * `awaitWriteFinish.pollInterval` (default: 100). File size polling interval.
 
 ```js
 // use awaitWriteFinish with default parameters
