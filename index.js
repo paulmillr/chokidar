@@ -8,6 +8,7 @@ var globparent = require('glob-parent');
 var isglob = require('is-glob');
 var arrify = require('arrify');
 var isAbsolute = require('path-is-absolute');
+var flatten = require('lodash.flatten');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
@@ -471,7 +472,7 @@ FSWatcher.prototype._remove = function(directory, item) {
 FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   var cwd = this.options.cwd;
   this.closed = false;
-  paths = arrify(paths);
+  paths = flatten(arrify(paths));
 
   if (cwd) paths = paths.map(function(path) {
     if (isAbsolute(path)) {
@@ -529,7 +530,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
 // Returns instance of FSWatcher for chaining.
 FSWatcher.prototype.unwatch = function(paths) {
   if (this.closed) return this;
-  paths = arrify(paths);
+  paths = flatten(arrify(paths));
 
   paths.forEach(function(path) {
     if (this._closers[path]) {

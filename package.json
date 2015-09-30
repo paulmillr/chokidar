@@ -47,6 +47,7 @@
     "glob-parent": "^2.0.0",
     "is-binary-path": "^1.0.0",
     "is-glob": "^2.0.0",
+    "lodash.flatten": "^3.0.2",
     "path-is-absolute": "^1.0.0",
     "readdirp": "^2.0.0"
   }
