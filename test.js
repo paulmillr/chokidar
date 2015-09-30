@@ -797,6 +797,10 @@ function runTests(options) {
           });
         });
     });
+    it('should throw if provided any non-string paths', function() {
+      expect(chokidar.watch.bind(null, [[fixturesPath], /notastring/]))
+        .to.throw(TypeError, /non-string/i);
+    });
   });
   describe('watch options', function() {
     beforeEach(clean);
