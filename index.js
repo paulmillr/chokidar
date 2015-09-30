@@ -474,6 +474,10 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   this.closed = false;
   paths = flatten(arrify(paths));
 
+  if (!paths.every(isString)) {
+    throw new TypeError('Non-string provided as watch path');
+  }
+
   if (cwd) paths = paths.map(function(path) {
     if (isAbsolute(path)) {
       return path;
@@ -580,6 +584,11 @@ function importHandler(handler) {
 }
 importHandler(NodeFsHandler);
 if (FsEventsHandler.canUse()) importHandler(FsEventsHandler);
+
+// little isString util for use in Array.prototype.every
+function isString(maybeString) {
+  return typeof maybeString === 'string'
+}
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
