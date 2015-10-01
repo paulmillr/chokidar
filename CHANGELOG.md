@@ -1,3 +1,7 @@
+# Chokidar 1.2.0 (1 October 2015)
+* Allow nested arrays of paths to be provided to `.watch()` and `.add()`
+* Add `awaitWriteFinish` option
+
 # Chokidar 1.1.0 (23 September 2015)
 * Dependency updates including fsevents@1.0.0, improving installation
 
