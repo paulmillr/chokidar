@@ -158,7 +158,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
         event = args[0] = 'error';
         args[1] = err;
         emitEvent();
-      } else if(stats) {
+      } else if (stats) {
         // if stats doesn't exist the file must have been deleted
         args.push(stats);
         emitEvent();
@@ -234,11 +234,10 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
 
   (function awaitWriteFinish (prevStat) {
     fs.stat(path, function(err, curStat) {
-      if(err) {
+      if (err) {
         // if the file have been erased, the file entry in _pendingWrites will
         // be deleted in the unlink event.
-        if(err.code == 'ENOENT') return;
-
+        if (err.code == 'ENOENT') return;
         return callback(err);
       }
 
@@ -449,7 +448,7 @@ FSWatcher.prototype._remove = function(directory, item) {
   parent.remove(item);
 
   // If we wait for this file to be fully written, cancel the wait.
-  if(this.options.awaitWriteFinish && this._pendingWrites[path]) {
+  if (this.options.awaitWriteFinish && this._pendingWrites[path]) {
     this._pendingWrites[path].cancelWait();
     return;
   }
