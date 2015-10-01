@@ -92,7 +92,7 @@ watcher.unwatch('new-file*');
 // Only needed if watching is `persistent: true`.
 watcher.close();
 
-// Full list of options. See below for descriptions.
+// Full list of options. See below for descriptions. (do not use this example)
 chokidar.watch('file', {
   persistent: true,
 
@@ -102,9 +102,14 @@ chokidar.watch('file', {
   cwd: '.',
 
   usePolling: true,
-  alwaysStat: false,
-  depth: undefined,
   interval: 100,
+  binaryInterval: 300,
+  alwaysStat: false,
+  depth: 99,
+  awaitWriteFinish: {
+    stabilityThreshold: 2000,
+    pollInterval: 100
+  },
 
   ignorePermissionErrors: false,
   atomic: true
@@ -150,6 +155,11 @@ typically necessary to **set this to `true` to successfully watch files over
 a network**, and it may be necessary to successfully watch files in other
 non-standard situations. Setting to `true` explicitly on OS X overrides the
 `useFsEvents` default.
+* _Polling-specific settings_ (effective when `usePolling: true`)
+  * `interval` (default: `100`). Interval of file system polling.
+  * `binaryInterval` (default: `300`). Interval of file system
+  polling for binary files.
+  ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
 * `useFsEvents` (default: `true` on OS X). Whether to use the
 `fsevents` watching interface if available. When set to `true` explicitly
 and `fsevents` is available this supercedes the `usePolling` setting. When
@@ -161,11 +171,6 @@ this to `true` to ensure it is provided even in cases where it wasn't
 already available from the underlying watch events.
 * `depth` (default: `undefined`). If set, limits how many levels of
 subdirectories will be traversed.
-* _Polling-specific settings_ (effective when `usePolling: true`)
-  * `interval` (default: `100`). Interval of file system polling.
-  * `binaryInterval` (default: `300`). Interval of file system
-  polling for binary files.
-  ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
 * `awaitWriteFinish` (default: `false`).
 By default, the `add` event will fire when a file first appear on disk, before
 the entire file has been written. Furthermore, in some cases some `change`
@@ -178,25 +183,11 @@ change for a configurable amount of time. The appropriate duration setting is
 heavily dependent on the OS and hardware. For accurate detection this parameter
 should be relatively high, making file watching much less responsive.
 Use with caution.
-  * *`awaitWriteFinish` can be set to an object in order to adjust timing params:*
+  * *`options.awaitWriteFinish` can be set to an object in order to adjust
+  timing params:*
   * `awaitWriteFinish.stabilityThreshold` (default: 2000). Amount of time in
   milliseconds for a file size to remain constant before emitting its event.
   * `awaitWriteFinish.pollInterval` (default: 100). File size polling interval.
-
-```js
-// use awaitWriteFinish with default parameters
-chokidar.watch('file', {
-  awaitWriteFinish: true
-});
-
-// change awaitWriteFinish parameters
-chokidar.watch('file', {
-  awaitWriteFinish: {
-    stabilityThreshold: 5000,
-    pollInterval: 200
-  }
-});
-```
 
 #### Errors
 * `ignorePermissionErrors` (default: `false`). Indicates whether to watch files
