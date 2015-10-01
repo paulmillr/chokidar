@@ -23,10 +23,6 @@ Node.js `fs.watchFile`:
 * Also does not provide any recursive watching.
 * Results in high CPU utilization.
 
-Other node.js watching libraries:
-
-* Are not using ultra-fast non-polling fsevents watcher implementation on OS X
-
 Chokidar resolves these problems.
 
 It is used in
@@ -41,12 +37,28 @@ It is used in
 and [many others](https://www.npmjs.org/browse/depended/chokidar/).
 It has proven itself in production environments.
 
+## How?
+Chokidar does still rely on the Node.js core `fs` module, but when using
+`fs.watch` and `fs.watchFile` for watching, it normalizes the events it
+receives, often checking for truth by getting file stats and/or dir contents.
+
+On Mac OS X, chokidar by default uses a native extension exposing the Darwin
+`FSEvents` API. This provides very efficient recursive watching compared with
+implementations like `kqueue` available on most \*nix platforms. Chokidar still
+does have to do some work to normalize the events received that way as well.
+
+On other platforms, the `fs.watch`-based implementation is the default, which
+avoids polling and keeps CPU usage down. Be advised that chokidar will initiate
+watchers recursively for everything within scope of the paths that have been
+specified, so be judicious about not wasting system resources by watching much
+more than needed.
+
 ## Getting started
-Install chokidar via node.js package manager:
+Install with npm:
 
-    npm install chokidar
+    npm install chokidar --save
 
-Then just require the package in your code:
+Then `require` and use it in your code:
 
 ```javascript
 var chokidar = require('chokidar');
@@ -57,14 +69,18 @@ chokidar.watch('.', {ignored: /[\/\\]\./}).on('all', function(event, path) {
 });
 
 
+// Example of a more typical implementation structure:
 
+// Initialize watcher
 var watcher = chokidar.watch('file, dir, or glob', {
   ignored: /[\/\\]\./,
   persistent: true
 });
 
+// something to use when events are received
 var log = console.log.bind(console);
 
+// Add event listeners
 watcher
   .on('add', function(path) { log('File', path, 'has been added'); })
   .on('change', function(path) { log('File', path, 'has been changed'); })
