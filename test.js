@@ -692,7 +692,7 @@ function runTests(options) {
           .on('ready', d(function() {
             fs.symlinkSync(getFixturePath('subdir'), getFixturePath('link'));
             waitFor([
-              spy.withArgs('add', getFixturePath('link/add.txt')), 
+              spy.withArgs('add', getFixturePath('link/add.txt')),
               spy.withArgs('addDir', getFixturePath('link'))
             ], function() {
               spy.should.have.been.calledWith('addDir', getFixturePath('link'));
@@ -1267,14 +1267,14 @@ function runTests(options) {
       });
     });
     describe('awaitWriteFinish', function() {
-      beforeEach(function() { 
+      beforeEach(function() {
         options.awaitWriteFinish = {
           stabilityThreshold: 1000
-        }; 
+        };
       });
-      it('should use default options if none givven', function() {
+      it('should use default options if none given', function() {
         options.awaitWriteFinish = true;
-        
+
         var watcher = stdWatcher();
         expect(watcher.options.awaitWriteFinish.pollInterval).to.equal(100);
         expect(watcher.options.awaitWriteFinish.stabilityThreshold).to.equal(2000);
@@ -1308,7 +1308,7 @@ function runTests(options) {
             })();
           }.bind(this));
       });
-      it('should not emit change event while a file have not been fully written', function(done) {
+      it('should not emit change event while a file has not been fully written', function(done) {
         var spy = sinon.spy();
         var testPath = getFixturePath('no-change.txt');
         stdWatcher()
@@ -1325,17 +1325,18 @@ function runTests(options) {
             }());
           }.bind(this));
       });
-      it('should emit change event after the file have been fully written', function(done) {
-        var spy = sinon.spy(), changeSpy = sinon.spy();
+      it('should emit change event after the file is fully written', function(done) {
+        var spy = sinon.spy();
+        var changeSpy = sinon.spy();
         var testPath = getFixturePath('late-change.txt');
         stdWatcher()
           .on('all', spy)
-          .on('change', changeSpy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
             dd(function() {
               spy.should.not.have.been.calledWith('add', testPath);
               setTimeout(function() {
+                watcher.on('change', changeSpy);
                 fs.writeFileSync(testPath, 'edit');
                 waitFor([changeSpy], function() {
                   changeSpy.should.have.been.calledWith(testPath);
