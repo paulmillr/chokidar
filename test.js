@@ -759,6 +759,49 @@ function runTests(options) {
         }, true));
     });
   });
+  describe('watch arrays of paths/globs', function() {
+    beforeEach(clean);
+    it('should watch all paths in an array', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('change.txt');
+      var testDir = getFixturePath('subdir');
+      fs.mkdirSync(testDir);
+      watcher = chokidar.watch([testDir, testPath], options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('add', testPath);
+          spy.should.have.been.calledWith('addDir', testDir);
+          spy.should.not.have.been.calledWith('add', getFixturePath('unlink.txt'));
+          fs.writeFileSync(testPath, Date.now());
+          waitFor([spy.withArgs('change')], function() {
+            spy.should.have.been.calledWith('change', testPath);
+            done();
+          });
+        });
+    });
+    it('should accommodate nested arrays in input', function(done) {
+      var spy = sinon.spy();
+      var testPath = getFixturePath('change.txt');
+      var testDir = getFixturePath('subdir');
+      fs.mkdirSync(testDir);
+      watcher = chokidar.watch([[testDir], [testPath]], options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('add', testPath);
+          spy.should.have.been.calledWith('addDir', testDir);
+          spy.should.not.have.been.calledWith('add', getFixturePath('unlink.txt'));
+          fs.writeFileSync(testPath, Date.now());
+          waitFor([spy.withArgs('change')], function() {
+            spy.should.have.been.calledWith('change', testPath);
+            done();
+          });
+        });
+    });
+    it('should throw if provided any non-string paths', function() {
+      expect(chokidar.watch.bind(null, [[fixturesPath], /notastring/]))
+        .to.throw(TypeError, /non-string/i);
+    });
+  });
   describe('watch options', function() {
     beforeEach(clean);
     describe('ignoreInitial', function() {
