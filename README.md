@@ -28,6 +28,7 @@ Chokidar resolves these problems.
 It is used in
 [brunch](http://brunch.io),
 [karma](http://karma-runner.github.io),
+[gulp](https://github.com/gulpjs/gulp/),
 [PM2](https://github.com/Unitech/PM2),
 [browserify](http://browserify.org/),
 [webpack](http://webpack.github.io/),
