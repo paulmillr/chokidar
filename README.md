@@ -73,7 +73,7 @@ chokidar.watch('.', {ignored: /[\/\\]\./}).on('all', function(event, path) {
 // Example of a more typical implementation structure:
 
 // Initialize watcher
-var watcher = chokidar.watch('file, dir, or glob', {
+var watcher = chokidar.watch('file, dir, glob, or array', {
   ignored: /[\/\\]\./,
   persistent: true
 });
@@ -136,8 +136,11 @@ chokidar.watch('file', {
 
 ## API
 
-`chokidar.watch(paths, options)` — takes one or more paths (which may be paths
-to files, dirs to be watched recursively, or glob patterns) and options:
+`chokidar.watch(paths, [options])`
+
+* `paths` (string or array of strings). Paths to files, dirs to be watched 
+recursively, or glob patterns.
+* `options` (object) Options object as defined below:
 
 #### Persistence
 
