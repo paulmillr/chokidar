@@ -156,7 +156,7 @@ time with two arguments (the path and the
 [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
 object of that path).
 * `ignoreInitial` (default: `false`). Indicates whether chokidar
-should ignore the initial `add` events or not.
+should ignore the initial `add` events (emitted when the file is added to disk or to the tracked files).
 * `followSymlinks` (default: `true`). When `false`, only the
 symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
