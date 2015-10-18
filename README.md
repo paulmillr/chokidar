@@ -158,9 +158,8 @@ gets called twice per path - once with a single argument (the path), second
 time with two arguments (the path and the
 [`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
 object of that path).
-* `ignoreInitial` (default: `false`). Indicates whether or not chokidar
-should emit `add`/`addDir` events for the matching paths it finds while
-instantiating the watching (before the `ready` event).
+* `ignoreInitial` (default: `false`). If set to `false` then `add`/`addDir` events are also emitted for matching paths while
+instantiating the watching as chokidar discovers these file paths (before the `ready` event).
 * `followSymlinks` (default: `true`). When `false`, only the
 symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
