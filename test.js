@@ -44,6 +44,7 @@ function rmFixtures() {
   try { fs.rmdirSync(getFixturePath('subdir/subsub/subsubsub')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/subsub')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('subdir2/dir')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
 }
@@ -290,6 +291,35 @@ function runTests(options) {
         });
       }));
     });
+    it('should watch removed and re-added directories', function(done) {
+      var unlinkSpy = sinon.spy(function unlinkSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
+      var parentPath = getFixturePath('subdir2');
+      var subPath = getFixturePath('subdir2/dir');
+      watcher
+        .on('unlinkDir', unlinkSpy)
+        .on('addDir', addSpy)
+        .on('ready', d(function() {
+          fs.mkdirSync(parentPath);
+          d(function() {
+            fs.rmdirSync(parentPath);
+            waitFor([unlinkSpy], function() {
+              unlinkSpy.should.have.been.calledWith(parentPath);
+              d(function() {
+                fs.mkdirSync(parentPath);
+                d(function() {
+                  fs.mkdirSync(subPath);
+                  waitFor([addSpy], d(function() {
+                    addSpy.should.have.been.calledWith(parentPath);
+                    addSpy.should.have.been.calledWith(subPath);
+                    done();
+                  }, false, true));
+                }, false, true)();
+              }, false, true)();
+            });
+          }, false, true)()
+        }));
+    })
   });
   describe('watch individual files', function() {
     beforeEach(clean);
