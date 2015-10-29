@@ -459,6 +459,11 @@ FSWatcher.prototype._remove = function(directory, item) {
   delete this._watched[fullPath];
   var eventName = isDirectory ? 'unlinkDir' : 'unlink';
   if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
+
+  // Avoid conflicts if we later create another directory with the same name
+  if (isDirectory && !this.options.usePolling) {
+    this.unwatch(path);
+  }
 };
 
 // Public method: Adds paths to be watched on an existing FSWatcher instance
