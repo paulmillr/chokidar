@@ -152,7 +152,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (awf && event === 'add') {
+  if (awf && (event === 'add' || event === 'change')) {
     this._awaitWriteFinish(path, awf.stabilityThreshold, function(err, stats) {
       if (err) {
         event = args[0] = 'error';
@@ -235,8 +235,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   (function awaitWriteFinish (prevStat) {
     fs.stat(path, function(err, curStat) {
       if (err) {
-        // if the file have been erased, the file entry in _pendingWrites will
-        // be deleted in the unlink event.
+        delete this._pendingWrites[path];
         if (err.code == 'ENOENT') return;
         return callback(err);
       }
