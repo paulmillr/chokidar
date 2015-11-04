@@ -244,7 +244,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
       var now = new Date();
       if (this._pendingWrites[path] === undefined) {
         this._pendingWrites[path] = {
-          creationTime: now,
+          lastChange: now,
           cancelWait: function() {
             delete this._pendingWrites[path];
             clearTimeout(timeoutHandler);
@@ -257,10 +257,11 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         );
       }
 
-      if (
-        curStat.size == prevStat.size &&
-        now - this._pendingWrites[path].creationTime > threshold
-      ) {
+      if (curStat.size != prevStat.size) {
+        this._pendingWrites[path].lastChange = now;
+      }
+
+      if (now - this._pendingWrites[path].lastChange >= threshold) {
         delete this._pendingWrites[path];
         callback(null, curStat);
       } else {
