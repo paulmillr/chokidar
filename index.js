@@ -235,8 +235,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   (function awaitWriteFinish (prevStat) {
     fs.stat(path, function(err, curStat) {
       if (err) {
-        // if the file have been erased, the file entry in _pendingWrites will
-        // be deleted in the unlink event.
+        delete this._pendingWrites[path];
         if (err.code == 'ENOENT') return;
         return callback(err);
       }

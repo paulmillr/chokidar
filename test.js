@@ -1385,7 +1385,6 @@ function runTests(options) {
             fs.writeFileSync(testPath, 'hello');
             d(function() {
               fs.unlinkSync(testPath);
-              var now = new Date();
               setTimeout(function() {
                 spy.should.not.have.been.calledWith(sinon.match.string, testPath);
                 done();
