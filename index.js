@@ -240,13 +240,17 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   (function awaitWriteFinish (prevStat) {
     fs.stat(fullPath, function(err, curStat) {
       if (err) {
-        delete this._pendingWrites[path];
+        // prevent `unlink` race condition
+        this._getWatchedDir(sysPath.dirname(path))
+          .remove(sysPath.basename(path));
+        this._pendingWrites[path].cancelWait();
+
         if (err.code == 'ENOENT') return;
         return callback(err);
       }
 
       var now = new Date();
-      if (this._pendingWrites[path] === undefined) {
+      if (!(path in this._pendingWrites)) {
         this._pendingWrites[path] = {
           lastChange: now,
           cancelWait: function() {
