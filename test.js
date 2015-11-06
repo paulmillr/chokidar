@@ -1392,6 +1392,21 @@ function runTests(options) {
             })();
           });
       });
+      it('should be compatible with the cwd option', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('awf_cwd/awf_cwd.txt');
+        options.cwd = sysPath.dirname(testPath);
+        fs.mkdirSync(options.cwd);
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            setTimeout(function() {
+              spy.should.have.been.calledWith('add');
+              done();
+            }, 1100);
+          });
+      });
     });
   });
   describe('unwatch', function() {
