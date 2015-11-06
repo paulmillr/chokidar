@@ -232,8 +232,13 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   var timeoutHandler;
 
+  var fullPath = path;
+  if (this.options.cwd && !isAbsolute(path)) {
+    fullPath = sysPath.join(this.options.cwd, path);
+  }
+
   (function awaitWriteFinish (prevStat) {
-    fs.stat(path, function(err, curStat) {
+    fs.stat(fullPath, function(err, curStat) {
       if (err) {
         delete this._pendingWrites[path];
         if (err.code == 'ENOENT') return;

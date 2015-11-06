@@ -47,6 +47,8 @@ function rmFixtures() {
   try { fs.rmdirSync(getFixturePath('subdir2/dir')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('awf_cwd/awf_cwd.txt')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('awf_cwd')); } catch(err) {}
 }
 
 after(function() {
@@ -1390,6 +1392,21 @@ function runTests(options) {
                 done();
               }, 1100);
             })();
+          });
+      });
+      it('should be compatible with the cwd option', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('awf_cwd/awf_cwd.txt');
+        options.cwd = sysPath.dirname(testPath);
+        fs.mkdirSync(options.cwd);
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            setTimeout(function() {
+              spy.should.have.been.calledWith('add');
+              done();
+            }, 1100);
           });
       });
     });
