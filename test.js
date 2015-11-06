@@ -47,6 +47,8 @@ function rmFixtures() {
   try { fs.rmdirSync(getFixturePath('subdir2/dir')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
+  try { fs.unlinkSync(getFixturePath('awf_cwd/awf_cwd.txt')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('awf_cwd')); } catch(err) {}
 }
 
 after(function() {
