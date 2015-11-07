@@ -246,7 +246,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         if (this._pendingWrites[path]) {
           return this._pendingWrites[path].cancelWait();
         }
-        return;
+        return callback(err);
       }
 
       var now = new Date();
