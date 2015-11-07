@@ -237,31 +237,19 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
     fullPath = sysPath.join(this.options.cwd, path);
   }
 
-  (function awaitWriteFinish (prevStat) {
+  var now = new Date();
+
+  var awaitWriteFinish = (function (prevStat) {
     fs.stat(fullPath, function(err, curStat) {
       if (err) {
-        delete this._pendingWrites[path];
+        // delete this._pendingWrites[path];
         if (err.code == 'ENOENT') return;
         return callback(err);
       }
 
       var now = new Date();
-      if (this._pendingWrites[path] === undefined) {
-        this._pendingWrites[path] = {
-          lastChange: now,
-          cancelWait: function() {
-            delete this._pendingWrites[path];
-            clearTimeout(timeoutHandler);
-            return callback();
-          }.bind(this)
-        }
-        return timeoutHandler = setTimeout(
-          awaitWriteFinish.bind(this, curStat),
-          this.options.awaitWriteFinish.pollInterval
-        );
-      }
 
-      if (curStat.size != prevStat.size) {
+      if (prevStat && curStat.size != prevStat.size) {
         this._pendingWrites[path].lastChange = now;
       }
 
@@ -275,7 +263,22 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         );
       }
     }.bind(this));
-  }.bind(this))();
+  }.bind(this));
+
+  if (this._pendingWrites[path] === undefined) {
+    this._pendingWrites[path] = {
+      lastChange: now,
+      cancelWait: function() {
+        delete this._pendingWrites[path];
+        clearTimeout(timeoutHandler);
+        return callback();
+      }.bind(this)
+    }
+    timeoutHandler = setTimeout(
+      awaitWriteFinish.bind(this),
+      this.options.awaitWriteFinish.pollInterval
+    );
+  }
 }
 
 // Private method: Determines whether user has asked to ignore this path
