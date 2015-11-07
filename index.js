@@ -243,9 +243,8 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         // prevent `unlink` race condition
         this._getWatchedDir(sysPath.dirname(path))
           .remove(sysPath.basename(path));
-        if (this._pendingWrites[path]) {
-          return this._pendingWrites[path].cancelWait();
-        }
+        if (this._pendingWrites[path]) this._pendingWrites[path].cancelWait();
+        if (err.code === 'ENOENT') return callback();
         return callback(err);
       }
 
@@ -256,7 +255,6 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
           cancelWait: function() {
             delete this._pendingWrites[path];
             clearTimeout(timeoutHandler);
-            return callback();
           }.bind(this)
         }
         return timeoutHandler = setTimeout(
