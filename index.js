@@ -244,8 +244,8 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         this._getWatchedDir(sysPath.dirname(path))
           .remove(sysPath.basename(path));
         if (this._pendingWrites[path]) this._pendingWrites[path].cancelWait();
-        if (err.code === 'ENOENT') return callback();
-        return callback(err);
+        if (err.code !== 'ENOENT') callback(err);
+        return;
       }
 
       var now = new Date();
@@ -253,25 +253,27 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         this._pendingWrites[path] = {
           lastChange: now,
           cancelWait: function() {
-            delete this._pendingWrites[path];
             clearTimeout(timeoutHandler);
+            delete this._pendingWrites[path];
           }.bind(this)
         }
-        return timeoutHandler = setTimeout(
+        timeoutHandler = setTimeout(
           awaitWriteFinish.bind(this, curStat),
           this.options.awaitWriteFinish.pollInterval
         );
+        return;
       }
 
       if (curStat.size != prevStat.size) {
         this._pendingWrites[path].lastChange = now;
       }
 
+      clearTimeout(timeoutHandler);
       if (now - this._pendingWrites[path].lastChange >= threshold) {
         delete this._pendingWrites[path];
         callback(null, curStat);
       } else {
-        return timeoutHandler = setTimeout(
+        timeoutHandler = setTimeout(
           awaitWriteFinish.bind(this, curStat),
           this.options.awaitWriteFinish.pollInterval
         );
