@@ -243,7 +243,9 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
         // prevent `unlink` race condition
         this._getWatchedDir(sysPath.dirname(path))
           .remove(sysPath.basename(path));
-        this._pendingWrites[path].cancelWait();
+        if (this._pendingWrites[path]) {  
+          this._pendingWrites[path].cancelWait();
+        }
 
         if (err.code == 'ENOENT') return;
         return callback(err);
