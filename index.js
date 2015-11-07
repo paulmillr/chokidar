@@ -153,7 +153,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   }.bind(this);
 
   if (awf && event === 'add') {
-    this._awaitWriteFinish(path, awf.stabilityThreshold, function(err, stats) {
+    var awfEmit = function(err, stats) {
       if (err) {
         event = args[0] = 'error';
         args[1] = err;
@@ -163,7 +163,9 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
         args.push(stats);
         emitEvent();
       }
-    });
+    };
+
+    this._awaitWriteFinish(path, awf.stabilityThreshold, awfEmit);
   } else if (
     this.options.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
@@ -226,10 +228,10 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // * path    - string, path being acted upon
 // * threshold - int, time in milliseconds a file size must be fixed before
 //                    acknowledgeing write operation is finished
-// * callback - function, callback to call when write operation is finished
+// * awfEmit - function, to be called when ready for event to be emitted
 // Polls a newly created file for size variations. When files size does not
 // change for 'threshold' milliseconds calls callback.
-FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
+FSWatcher.prototype._awaitWriteFinish = function(path, threshold, awfEmit) {
   var timeoutHandler;
 
   var fullPath = path;
@@ -242,9 +244,8 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
   var awaitWriteFinish = (function (prevStat) {
     fs.stat(fullPath, function(err, curStat) {
       if (err) {
-        // delete this._pendingWrites[path];
-        if (err.code == 'ENOENT') return;
-        return callback(err);
+        if (err.code !== 'ENOENT') awfEmit(err);
+        return;
       }
 
       var now = new Date();
@@ -255,9 +256,9 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
 
       if (now - this._pendingWrites[path].lastChange >= threshold) {
         delete this._pendingWrites[path];
-        callback(null, curStat);
+        awfEmit(null, curStat);
       } else {
-        return timeoutHandler = setTimeout(
+        timeoutHandler = setTimeout(
           awaitWriteFinish.bind(this, curStat),
           this.options.awaitWriteFinish.pollInterval
         );
@@ -265,13 +266,12 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, callback) {
     }.bind(this));
   }.bind(this));
 
-  if (this._pendingWrites[path] === undefined) {
+  if (!(path in this._pendingWrites)) {
     this._pendingWrites[path] = {
       lastChange: now,
       cancelWait: function() {
         delete this._pendingWrites[path];
         clearTimeout(timeoutHandler);
-        return callback();
       }.bind(this)
     }
     timeoutHandler = setTimeout(
