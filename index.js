@@ -468,8 +468,8 @@ FSWatcher.prototype._remove = function(directory, item) {
   var eventName = isDirectory ? 'unlinkDir' : 'unlink';
   if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
 
-  // Avoid conflicts if we later create another directory with the same name
-  if (isDirectory && !this.options.usePolling) {
+  // Avoid conflicts if we later create another file with the same name
+  if (!this.options.useFsEvents) {
     this.unwatch(path);
   }
 };
