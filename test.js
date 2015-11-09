@@ -247,31 +247,31 @@ function runTests(options) {
           });
         }));
     });
-    it('should emit `add`, but not `change` when previously deleted file is re-added', function(done) {
+    it('should emit `add`, not `change`, when previously deleted file is re-added', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
       var addSpy = sinon.spy(function add(){});
       var changeSpy = sinon.spy(function change(){});
       var testPath = getFixturePath('add.txt');
       fs.writeFileSync(testPath, 'hello');
-      watcher
+      watcher.on('all', console.log).on('raw', console.log)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('change', changeSpy)
-        .on('ready', d(function() {
+        .on('ready', function() {
           unlinkSpy.should.not.have.been.called;
           addSpy.should.not.have.been.called;
           changeSpy.should.not.have.been.called;
           fs.unlinkSync(testPath);
-          waitFor([unlinkSpy], d(function() {
+          waitFor([unlinkSpy], function() {
             unlinkSpy.should.have.been.calledWith(testPath);
             fs.writeFileSync(testPath, 'b');
-            waitFor([addSpy], d(function() {
+            waitFor([addSpy], function() {
               addSpy.should.have.been.calledWith(testPath);
               changeSpy.should.not.have.been.called;
               done();
-            }));
-          }));
-        }));
+            });
+          });
+        });
     });
     it('should not emit `unlink` for previously moved files', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
