@@ -1429,10 +1429,10 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            setTimeout(function() {
-              spy.should.have.been.calledWith('add');
+            waitFor([spy.withArgs('add')], function() {
+              spy.should.have.been.calledWith('add', sysPath.basename(testPath));
               done();
-            }, 1100);
+            });
           });
       });
     });
