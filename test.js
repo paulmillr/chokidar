@@ -301,6 +301,8 @@ function runTests(options) {
         fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testPath, 'hello');
         waitFor([spy], function() {
+          fs.unlinkSync(testPath);
+          fs.rmdirSync(testDir);
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           expect(spy.args[0][1]).to.be.ok; // stats
@@ -330,6 +332,8 @@ function runTests(options) {
                   waitFor([[addSpy, 3]], function() {
                     addSpy.should.have.been.calledWith(parentPath);
                     addSpy.should.have.been.calledWith(subPath);
+                    fs.rmdirSync(subPath);
+                    fs.rmdirSync(parentPath);
                     done();
                   });
                 }, false, true)();
