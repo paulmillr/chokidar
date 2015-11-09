@@ -1326,9 +1326,8 @@ function runTests(options) {
     });
     describe('awaitWriteFinish', function() {
       beforeEach(function() {
-        options.awaitWriteFinish = {
-          stabilityThreshold: 1000
-        };
+        options.awaitWriteFinish = {stabilityThreshold: 1000};
+        options.ignoreInitial = true;
       });
       it('should use default options if none given', function() {
         options.awaitWriteFinish = true;
