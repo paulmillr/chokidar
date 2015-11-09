@@ -1359,10 +1359,10 @@ function runTests(options) {
             fs.writeFileSync(testPath, 'hello');
             dd(function() {
               spy.should.not.have.been.calledWith('add');
-              setTimeout(function() {
-                spy.should.have.been.calledWith('add');
+              waitFor([spy.withArgs('add', testPath)], function() {
+                spy.should.have.been.calledWith('add', testPath);
                 done();
-              }, 1100);
+              });
             })();
           }.bind(this));
       });
@@ -1423,14 +1423,15 @@ function runTests(options) {
       it('should be compatible with the cwd option', function(done) {
         var spy = sinon.spy();
         var testPath = getFixturePath('awf_cwd/awf_cwd.txt');
+        var filename = sysPath.basename(testPath);
         options.cwd = sysPath.dirname(testPath);
         fs.mkdirSync(options.cwd);
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            waitFor([spy.withArgs('add')], function() {
-              spy.should.have.been.calledWith('add', sysPath.basename(testPath));
+            waitFor([spy.withArgs('add', filename)], function() {
+              spy.should.have.been.calledWith('add', filename);
               done();
             });
           });
