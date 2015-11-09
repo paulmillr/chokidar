@@ -60,7 +60,7 @@ after(function() {
 
 
 describe('chokidar', function() {
-  this.timeout(5000);
+  this.timeout(6000);
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
@@ -95,7 +95,7 @@ function runTests(options) {
     var intrvl = setInterval(function() {
       if (spies.every(isSpyReady)) finish();
     }, 5);
-    var to = setTimeout(finish, 3000);
+    var to = setTimeout(finish, 6000);
   }
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
