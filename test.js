@@ -95,7 +95,7 @@ function runTests(options) {
     var intrvl = setInterval(function() {
       if (spies.every(isSpyReady)) finish();
     }, 5);
-    var to = setTimeout(finish, 6000);
+    var to = setTimeout(finish, 3000);
   }
   function d(fn, quicker, forceTimeout) {
     if (options.usePolling || forceTimeout) {
