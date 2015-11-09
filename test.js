@@ -262,10 +262,10 @@ function runTests(options) {
           addSpy.should.not.have.been.called;
           changeSpy.should.not.have.been.called;
           fs.unlinkSync(testPath);
-          waitFor([unlinkSpy], function() {
+          waitFor([unlinkSpy.withArgs(testPath)], function() {
             unlinkSpy.should.have.been.calledWith(testPath);
             fs.writeFileSync(testPath, 'b');
-            waitFor([addSpy], function() {
+            waitFor([addSpy.withArgs(testPath)], function() {
               addSpy.should.have.been.calledWith(testPath);
               changeSpy.should.not.have.been.called;
               done();
@@ -331,7 +331,7 @@ function runTests(options) {
           fs.mkdirSync(parentPath);
           d(function() {
             fs.rmdirSync(parentPath);
-            waitFor([unlinkSpy], function() {
+            waitFor([unlinkSpy.withArgs(parentPath)], function() {
               unlinkSpy.should.have.been.calledWith(parentPath);
               d(function() {
                 fs.mkdirSync(parentPath);
@@ -1396,7 +1396,7 @@ function runTests(options) {
               setTimeout(function() {
                 watcher.on('change', changeSpy);
                 fs.writeFileSync(testPath, 'edit');
-                waitFor([changeSpy], function() {
+                waitFor([changeSpy.withArgs(testPath)], function() {
                   changeSpy.should.have.been.calledWith(testPath);
                   done();
                 });
