@@ -253,7 +253,7 @@ function runTests(options) {
       var changeSpy = sinon.spy(function change(){});
       var testPath = getFixturePath('add.txt');
       fs.writeFileSync(testPath, 'hello');
-      watcher.on('all', console.log).on('raw', console.log)
+      watcher
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('change', changeSpy)
@@ -327,7 +327,7 @@ function runTests(options) {
       watcher
         .on('unlinkDir', unlinkSpy)
         .on('addDir', addSpy)
-        .on('ready', d(function() {
+        .on('ready', function() {
           fs.mkdirSync(parentPath);
           d(function() {
             fs.rmdirSync(parentPath);
@@ -337,16 +337,16 @@ function runTests(options) {
                 fs.mkdirSync(parentPath);
                 d(function() {
                   fs.mkdirSync(subPath);
-                  waitFor([addSpy], d(function() {
+                  waitFor([[addSpy, 3]], function() {
                     addSpy.should.have.been.calledWith(parentPath);
                     addSpy.should.have.been.calledWith(subPath);
                     done();
-                  }, false, true));
+                  });
                 }, false, true)();
               }, false, true)();
             });
-          }, false, true)()
-        }));
+          }, false, true)();
+        });
     })
   });
   describe('watch individual files', function() {
