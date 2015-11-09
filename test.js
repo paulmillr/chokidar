@@ -30,25 +30,15 @@ afterEach(function() {
 function rmFixtures() {
   try { fs.unlinkSync(getFixturePath('link')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('add.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('no-add.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('no-change.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('late-change.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('early-unlinked.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('moved.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('movedagain.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('cantread.txt')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/add.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('subdir/dir/ignored.txt')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir/dir')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/subsub/subsubsub/a.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/subsub/subsubsub')); } catch(err) {}
   try { fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir/subsub')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir2/dir')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
   try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('awf_cwd/awf_cwd.txt')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('awf_cwd')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('subdir2/subsub')); } catch(err) {}
+  try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
 }
 
 after(function() {
@@ -276,8 +266,8 @@ function runTests(options) {
     it('should not emit `unlink` for previously moved files', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
       var testPath = getFixturePath('change.txt');
-      var newPath1 = getFixturePath('moved.txt');
-      var newPath2 = getFixturePath('movedagain.txt');
+      var newPath1 = getFixturePath('add.txt');
+      var newPath2 = getFixturePath('moved.txt');
       fs.writeFileSync(testPath, 'b');
       watcher
         .on('unlink', unlinkSpy)
@@ -323,7 +313,7 @@ function runTests(options) {
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var parentPath = getFixturePath('subdir2');
-      var subPath = getFixturePath('subdir2/dir');
+      var subPath = getFixturePath('subdir2/subsub');
       watcher
         .on('unlinkDir', unlinkSpy)
         .on('addDir', addSpy)
@@ -347,7 +337,7 @@ function runTests(options) {
             });
           }, false, true)();
         });
-    })
+    });
   });
   describe('watch individual files', function() {
     beforeEach(clean);
@@ -887,14 +877,14 @@ function runTests(options) {
         it('should emit `addDir` events for preexisting dirs', function(done) {
           var spy = sinon.spy();
           fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
-          fs.mkdirSync(getFixturePath('subdir/dir'), 0x1ed);
+          fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
           d(function() {
             watcher = chokidar.watch(fixturesPath, options)
               .on('addDir', spy)
               .on('ready', function() {
                 spy.should.have.been.calledWith(fixturesPath);
                 spy.should.have.been.calledWith(getFixturePath('subdir'));
-                spy.should.have.been.calledWith(getFixturePath('subdir/dir'));
+                spy.should.have.been.calledWith(getFixturePath('subdir/subsub'));
                 if (!osXFsWatch) spy.should.have.been.calledThrice;
                 done();
               });
@@ -983,9 +973,9 @@ function runTests(options) {
         var spy = sinon.spy();
         var testDir = getFixturePath('subdir');
         try { fs.mkdirSync(testDir, 0x1ed); } catch(e) {}
-        fs.writeFileSync(testDir + '/add.txt', '');
-        fs.mkdirSync(testDir + '/dir', 0x1ed);
-        fs.writeFileSync(testDir + '/dir/ignored.txt', '');
+        fs.writeFileSync(sysPath.join(testDir, 'add.txt'), '');
+        fs.mkdirSync(sysPath.join(testDir, 'subsub'), 0x1ed);
+        fs.writeFileSync(sysPath.join(testDir, 'subsub', 'ab.txt'), '');
         function ignoredFn(path, stats) {
           if (path === testDir || !stats) return false;
           return stats.isDirectory();
@@ -1046,9 +1036,9 @@ function runTests(options) {
       beforeEach(function(done) {
         clean();
         try { fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err) {}
-        try { fs.mkdirSync(getFixturePath('subdir/dir'), 0x1ed); } catch(err) {}
+        try { fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed); } catch(err) {}
         try { fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b'); } catch(err) {}
-        try { fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'b'); } catch(err) {}
+        try { fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b'); } catch(err) {}
         d(done, true)();
       });
       it('should not recurse if depth is 0', function(done) {
@@ -1076,19 +1066,20 @@ function runTests(options) {
         var spy = sinon.spy();
         var addPath = getFixturePath('subdir/add.txt');
         var changePath = getFixturePath('change.txt');
+        var ignoredPath = getFixturePath('subdir/subsub/ab.txt');
         dd(function() {
           stdWatcher()
             .on('all', spy)
             .on('ready', d(function() {
               fs.writeFileSync(getFixturePath('change.txt'), 'c');
               fs.writeFileSync(addPath, 'c');
-              fs.writeFileSync(getFixturePath('subdir/dir/ignored.txt'), 'c');
+              fs.writeFileSync(ignoredPath, 'c');
               waitFor([spy.withArgs('change', addPath), spy.withArgs('change', changePath)], function() {
-                spy.should.have.been.calledWith('addDir', getFixturePath('subdir/dir'));
+                spy.should.have.been.calledWith('addDir', getFixturePath('subdir/subsub'));
                 spy.should.have.been.calledWith('change', changePath);
                 spy.should.have.been.calledWith('change', addPath);
-                spy.should.not.have.been.calledWith('add', getFixturePath('subdir/dir/ignored.txt'));
-                spy.should.not.have.been.calledWith('change', getFixturePath('subdir/dir/ignored.txt'));
+                spy.should.not.have.been.calledWith('add', ignoredPath);
+                spy.should.not.have.been.calledWith('change', ignoredPath);
                 if (options.usePolling || options.useFsEvents) spy.callCount.should.equal(8);
                 done();
               });
@@ -1105,9 +1096,9 @@ function runTests(options) {
             .on('all', spy)
             .on('ready', d(function() {
               spy.should.have.been.calledWith('addDir', getFixturePath('link'));
-              spy.should.have.been.calledWith('addDir', getFixturePath('link/dir'));
+              spy.should.have.been.calledWith('addDir', getFixturePath('link/subsub'));
               spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
-              spy.should.not.have.been.calledWith('add', getFixturePath('link/dir/ignored.txt'));
+              spy.should.not.have.been.calledWith('add', getFixturePath('link/subsub/ab.txt'));
               done();
             }));
         }, true)();
@@ -1118,7 +1109,7 @@ function runTests(options) {
         options.ignoreInitial = true;
         var spy = sinon.spy();
         var linkPath = getFixturePath('link');
-        var dirPath = getFixturePath('link/dir');
+        var dirPath = getFixturePath('link/subsub');
         dd(function() {
           stdWatcher()
             .on('all', spy)
@@ -1284,7 +1275,7 @@ function runTests(options) {
       });
     });
     describe('ignorePermissionErrors', function() {
-      var filePath = getFixturePath('cantread.txt');
+      var filePath = getFixturePath('add.txt');
       beforeEach(function() { fs.writeFileSync(filePath, 'b', {mode: 128}); });
       describe('false', function() {
         beforeEach(function() { options.ignorePermissionErrors = false; });
@@ -1338,7 +1329,7 @@ function runTests(options) {
       });
       it('should not emit add event before a file is fully written', function(done) {
         var spy = sinon.spy();
-        var testPath = getFixturePath('no-add.txt');
+        var testPath = getFixturePath('add.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
@@ -1367,7 +1358,7 @@ function runTests(options) {
       });
       it('should not emit change event while a file has not been fully written', function(done) {
         var spy = sinon.spy();
-        var testPath = getFixturePath('no-change.txt');
+        var testPath = getFixturePath('add.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
@@ -1385,7 +1376,7 @@ function runTests(options) {
       it('should emit change event after the file is fully written', function(done) {
         var spy = sinon.spy();
         var changeSpy = sinon.spy();
-        var testPath = getFixturePath('late-change.txt');
+        var testPath = getFixturePath('change.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
@@ -1405,7 +1396,7 @@ function runTests(options) {
       });
       it('should not raise any event for a file that was deleted before fully written', function(done) {
         var spy = sinon.spy();
-        var testPath = getFixturePath('early-unlinked.txt');
+        var testPath = getFixturePath('add.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
@@ -1421,7 +1412,7 @@ function runTests(options) {
       });
       it('should be compatible with the cwd option', function(done) {
         var spy = sinon.spy();
-        var testPath = getFixturePath('awf_cwd/awf_cwd.txt');
+        var testPath = getFixturePath('subdir/add.txt');
         var filename = sysPath.basename(testPath);
         options.cwd = sysPath.dirname(testPath);
         fs.mkdirSync(options.cwd);
