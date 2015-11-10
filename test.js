@@ -332,7 +332,11 @@ function runTests(options) {
                   waitFor([[addSpy, 3]], function() {
                     addSpy.should.have.been.calledWith(parentPath);
                     addSpy.should.have.been.calledWith(subPath);
-                    fs.rmdir(subPath, fs.rmdir.bind(fs, parentPath, done));
+                    try {
+                      fs.rmdir(subPath, dd(fs.rmdir.bind(fs, parentPath, done)));
+                    } catch(e) {
+                      done();
+                    }
                   });
                 }, false, true)();
               }, false, true)();
