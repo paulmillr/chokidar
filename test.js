@@ -254,12 +254,12 @@ function runTests(options) {
           fs.unlinkSync(testPath);
           waitFor([unlinkSpy.withArgs(testPath)], function() {
             unlinkSpy.should.have.been.calledWith(testPath);
-            fs.writeFileSync(testPath, 'b');
             waitFor([addSpy.withArgs(testPath)], function() {
               addSpy.should.have.been.calledWith(testPath);
               changeSpy.should.not.have.been.called;
               done();
             });
+            d(fs.writeFileSync.bind(fs, testPath, 'b'))();
           });
         });
     });
@@ -1429,7 +1429,7 @@ function runTests(options) {
               spy.should.have.been.calledWith('add', filename);
               done();
             });
-            dd(fs.writeFileSync.bind(fs, testPath, 'hello'))();
+            d(fs.writeFileSync.bind(fs, testPath, 'hello'))();
           });
       });
     });
