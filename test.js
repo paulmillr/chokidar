@@ -1421,11 +1421,11 @@ function runTests(options) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
             waitFor([spy.withArgs('add', filename)], function() {
               spy.should.have.been.calledWith('add', filename);
               done();
             });
+            dd(fs.writeFileSync.bind(fs, testPath, 'hello'))();
           });
       });
     });
