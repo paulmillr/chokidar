@@ -92,6 +92,7 @@ function FSWatcher(_opts) {
   this._emitReady = function() {
     if (++readyCalls >= this._readyCount) {
       this._emitReady = Function.prototype;
+      this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
       process.nextTick(this.emit.bind(this, 'ready'));
     }
@@ -152,7 +153,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (awf && event === 'add') {
+  if (awf && event === 'add' && this._readyEmitted) {
     var awfEmit = function(err, stats) {
       if (err) {
         event = args[0] = 'error';
