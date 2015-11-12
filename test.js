@@ -1447,6 +1447,17 @@ function runTests(options) {
             d(fs.writeFileSync.bind(fs, testPath, 'hello'))();
           });
       });
+      it('should still emit initial add events', function(done) {
+        options.ignoreInitial = false;
+        var spy = sinon.spy();
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            spy.should.have.been.calledWith('add');
+            spy.should.have.been.calledWith('addDir');
+            done();
+          });
+      });
     });
   });
   describe('unwatch', function() {
