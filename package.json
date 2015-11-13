@@ -42,12 +42,10 @@
   },
   "dependencies": {
     "anymatch": "^1.1.0",
-    "arrify": "^1.0.0",
     "async-each": "^0.1.5",
     "glob-parent": "^2.0.0",
     "is-binary-path": "^1.0.0",
     "is-glob": "^2.0.0",
-    "lodash.flatten": "^3.0.2",
     "path-is-absolute": "^1.0.0",
     "readdirp": "^2.0.0"
   }

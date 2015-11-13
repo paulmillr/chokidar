@@ -2,19 +2,30 @@
 var EventEmitter = require('events').EventEmitter;
 var fs = require('fs');
 var sysPath = require('path');
-var each = require('async-each');
+var asyncEach = require('async-each');
 var anymatch = require('anymatch');
-var globparent = require('glob-parent');
-var isglob = require('is-glob');
+var globParent = require('glob-parent');
+var isGlob = require('is-glob');
 var isAbsolute = require('path-is-absolute');
-var flatten = require('lodash.flatten');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
 
-var arrify = function(val) {
-  if (val == null) return [];
-  return Array.isArray(val) ? val : [val];
+var arrify = function(value) {
+  if (value == null) return [];
+  return Array.isArray(value) ? value : [value];
+};
+
+var flatten = function(list, result) {
+  if (result == null) result = [];
+  list.forEach(function(item) {
+    if (Array.isArray(item)) {
+      flatten(item, result);
+    } else {
+      result.push(item);
+    }
+  });
+  return result;
 };
 
 // Public: Main class.
@@ -87,6 +98,7 @@ function FSWatcher(_opts) {
 
     this._pendingWrites = Object.create(null);
   }
+  if (opts.ignored) opts.ignored = arrify(opts.ignored);
 
   this._isntIgnored = function(path, stat) {
     return !this._isIgnored(path, stat);
@@ -292,30 +304,27 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, awfEmit) {
 // * stats - object, result of fs.stat
 //
 // Returns boolean
+var dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 FSWatcher.prototype._isIgnored = function(path, stats) {
-  if (
-    this.options.atomic &&
-    /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/.test(path)
-  ) return true;
+  if (this.options.atomic && dotRe.test(path)) return true;
 
   if (!this._userIgnored) {
     var cwd = this.options.cwd;
     var ignored = this.options.ignored;
     if (cwd && ignored) {
-      ignored = arrify(ignored).map(function (path) {
+      ignored = ignored.map(function (path) {
         if (typeof path !== 'string') return path;
         return isAbsolute(path) ? path : sysPath.join(cwd, path);
       });
     }
-    this._userIgnored = anymatch(this._globIgnored
-      .concat(ignored)
-      .concat(arrify(ignored)
-        .filter(function(path) {
-          return typeof path === 'string' && !isglob(path);
-        }).map(function(path) {
-          return path + '/**/*';
-        })
-      )
+    var paths = arrify(ignored)
+      .filter(function(path) {
+        return typeof path === 'string' && !isGlob(path);
+      }).map(function(path) {
+        return path + '/**/*';
+      });
+    this._userIgnored = anymatch(
+      this._globIgnored.concat(ignored).concat(paths)
     );
   }
 
@@ -329,15 +338,16 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 // * depth - int, at any depth > 0, this isn't a glob
 //
 // Returns object containing helpers for this path
+var replacerRe = /^\.[\/\\]/;
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
-  path = path.replace(/^\.[\/\\]/, '');
-  var watchPath = depth || !isglob(path) ? path : globparent(path);
+  path = path.replace(replacerRe, '');
+  var watchPath = depth || !isGlob(path) ? path : globParent(path);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
 
   var entryPath = function(entry) {
     return sysPath.join(watchPath, sysPath.relative(watchPath, entry.fullPath));
-  }
+  };
 
   var filterPath = function(entry) {
     return (!hasGlob || globFilter(entryPath(entry))) &&
@@ -366,9 +376,10 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
     return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stat);
   }.bind(this);
 
+  var follow = this.options.followSymlinks;
   return {
-    followSymlinks: this.options.followSymlinks,
-    statMethod: this.options.followSymlinks ? 'stat' : 'lstat',
+    followSymlinks: follow,
+    statMethod: follow ? 'stat' : 'lstat',
     path: path,
     watchPath: watchPath,
     entryPath: entryPath,
@@ -528,7 +539,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
-    each(paths, function(path, next) {
+    asyncEach(paths, function(path, next) {
       this._addToNodeFs(path, !_internal, 0, 0, _origAdd, function(err, res) {
         if (res) this._emitReady();
         next(err, res);
