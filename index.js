@@ -13,8 +13,8 @@ var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
 
 var arrify = function(val) {
-	if (val == null) return [];
-	return Array.isArray(val) ? val : [val];
+  if (val == null) return [];
+  return Array.isArray(val) ? val : [val];
 };
 
 // Public: Main class.
