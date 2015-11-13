@@ -6,12 +6,16 @@ var each = require('async-each');
 var anymatch = require('anymatch');
 var globparent = require('glob-parent');
 var isglob = require('is-glob');
-var arrify = require('arrify');
 var isAbsolute = require('path-is-absolute');
 var flatten = require('lodash.flatten');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
+
+var arrify = function(val) {
+	if (val == null) return [];
+	return Array.isArray(val) ? val : [val];
+};
 
 // Public: Main class.
 // Watches files & directories for changes.
