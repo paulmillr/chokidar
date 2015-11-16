@@ -630,19 +630,17 @@ function runTests(options) {
       fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), 0x1ed);
       var deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
       fs.writeFileSync(deepFile, 'b');
-      dd(function() {
-        var watchPath = getFixturePath('../test-*/**/subsubsub/*.txt');
-        watcher = chokidar.watch(watchPath, options)
-          .on('all', spy)
-          .on('ready', d(function() {
-            fs.writeFileSync(deepFile, 'a');
-            waitFor([[spy, 2]], function() {
-              spy.should.have.been.calledWith('add', deepFile);
-              spy.should.have.been.calledWith('change', deepFile);
-              done();
-            });
-          }));
-      })();
+      var watchPath = getFixturePath('../../test-*/' + subdir + '/**/subsubsub/*.txt');
+      watcher = chokidar.watch(watchPath, options)
+        .on('all', spy)
+        .on('ready', d(function() {
+          fs.writeFileSync(deepFile, 'a');
+          waitFor([[spy, 2]], function() {
+            spy.should.have.been.calledWith('add', deepFile);
+            spy.should.have.been.calledWith('change', deepFile);
+            done();
+          });
+        }));
     });
   });
   describe('watch symlinks', function() {
