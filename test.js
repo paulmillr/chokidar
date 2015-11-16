@@ -54,25 +54,8 @@ afterEach(function() {
   watcher2 && watcher2.close && watcher2.close();
 });
 
-function rmFixtures() {
-  try { fs.unlinkSync(getFixturePath('link')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('add.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('moved.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('subdir/add.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('subdir/subsub/subsubsub/a.txt')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir/subsub/subsubsub')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('subdir/subsub/ab.txt')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir/subsub')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir2/subsub')); } catch(err) {}
-  try { fs.rmdirSync(getFixturePath('subdir2')); } catch(err) {}
-}
-
 after(function() {
-  rmFixtures();
-  try { fs.unlinkSync(getFixturePath('change.txt')); } catch(err) {}
-  try { fs.unlinkSync(getFixturePath('unlink.txt')); } catch(err) {}
-  try { fs.rmdirSync(fixturesPath); } catch(err) {}
+  // to-do: rimraf the whole thing
 });
 
 
@@ -138,9 +121,6 @@ function runTests(options) {
     delete options.cwd;
     delete options.depth;
     delete options.ignorePermissionErrors;
-    fs.writeFileSync(getFixturePath('change.txt'), 'b');
-    fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
-    rmFixtures();
     done && d(done, true)();
   }
 
