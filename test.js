@@ -70,8 +70,16 @@ describe('chokidar', function() {
   if (os === 'darwin') describe('fsevents', runTests.bind(this, {useFsEvents: true}));
 });
 
-function runTests(options) {
-  if (!options) options = {};
+function runTests(baseopts) {
+  baseopts.persistent = true;
+  var options;
+
+  function clean() {
+    options = {};
+    Object.keys(baseopts).forEach(function(key) { options[key] = baseopts[key] });
+  }
+
+  clean();
 
   function stdWatcher() {
     return watcher = chokidar.watch(fixturesPath, options);
@@ -108,12 +116,6 @@ function runTests(options) {
   }
   function wait(timeout, fn) {
     setTimeout(fn, timeout);
-  }
-
-  options.persistent = true;
-
-  function clean() {
-    options = {};
   }
 
   describe('watch a directory', function() {
