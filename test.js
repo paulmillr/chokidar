@@ -642,9 +642,10 @@ function runTests(options) {
     beforeEach(function(done) {
       linkedDir = sysPath.resolve(fixturesPath, '..', subdir + '-link');
       clean();
-      fs.symlink(fixturesPath, linkedDir);
-      fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
-        fs.writeFile(getFixturePath('subdir/add.txt'), 'b', done);
+      fs.symlink(fixturesPath, linkedDir, function() {
+        fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
+          fs.writeFile(getFixturePath('subdir/add.txt'), 'b', done);
+        });
       });
     });
     it('should watch symlinked dirs', function(done) {
