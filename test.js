@@ -645,30 +645,14 @@ function runTests(options) {
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
-    var linkedDir = sysPath.resolve(fixturesPath, '..', 'test-fixtures-link');
-    function symlinkClean() {
-      try { fs.unlinkSync(getFixturePath('link.txt')); } catch(err) {}
-      try { fs.unlinkSync(getFixturePath('subdir/link.txt')); } catch(err) {}
-      try { fs.unlinkSync(getFixturePath('subdir/circular')); } catch(err) {}
-      try { fs.unlinkSync(getFixturePath('link')); } catch(err) {}
-      try { fs.unlinkSync(getFixturePath('subdir/subsub')); } catch(err) {}
-      try { fs.unlinkSync(getFixturePath('outside/text.txt')); } catch(err) {}
-      try { fs.rmdirSync(getFixturePath('outside')); } catch(err) {}
-    }
+    var linkedDir;
     beforeEach(function(done) {
-      clean(function() {
-        try { fs.symlinkSync(fixturesPath, linkedDir); } catch(err) {}
-        try { fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err) {}
-        fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b');
-        symlinkClean();
-        done();
+      linkedDir = sysPath.resolve(fixturesPath, '..', subdir + '-link');
+      clean();
+      fs.symlink(fixturesPath, linkedDir);
+      fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
+        fs.writeFile(getFixturePath('subdir/add.txt'), 'b', done);
       });
-    });
-    after(function() {
-      symlinkClean();
-      try { fs.unlinkSync(linkedDir); } catch(err) {}
-      try { fs.unlinkSync(getFixturePath('subdir/add.txt')); } catch(err) {}
-      try { fs.rmdirSync(getFixturePath('subdir')); } catch(err) {}
     });
     it('should watch symlinked dirs', function(done) {
       var dirSpy = sinon.spy(function dirSpy(){});
