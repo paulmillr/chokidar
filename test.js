@@ -1283,8 +1283,11 @@ function runTests(options) {
       });
     });
     describe('ignorePermissionErrors', function() {
-      var filePath = getFixturePath('add.txt');
-      beforeEach(function() { fs.writeFileSync(filePath, 'b', {mode: 128}); });
+      var filePath;
+      beforeEach(function() {
+        filePath = getFixturePath('add.txt');
+        fs.writeFileSync(filePath, 'b', {mode: 128});
+      });
       describe('false', function() {
         beforeEach(function() { options.ignorePermissionErrors = false; });
         it('should not watch files without read permissions', function(done) {
