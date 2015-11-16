@@ -281,18 +281,22 @@ function runTests(options) {
     });
     it('should not emit `unlink` for previously moved files', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
-      var testPath = getFixturePath('change.txt');
-      var newPath1 = getFixturePath('add.txt');
-      var newPath2 = getFixturePath('moved.txt');
+      var addSpy = sinon.spy(function add(){});
+      var testPath = getFixturePath('start.txt');
+      var newPath1 = getFixturePath('moved.txt');
+      var newPath2 = getFixturePath('moved-again.txt');
       fs.writeFileSync(testPath, 'b');
       watcher
+        .on('add', addSpy)
         .on('unlink', unlinkSpy)
         .on('ready', d(function() {
-          waitFor([unlinkSpy], d(function() {
+          waitFor([unlinkSpy, addSpy.withArgs(newPath1)], d(function() {
             waitFor([unlinkSpy.withArgs(newPath1)], dd(function() {
               unlinkSpy.withArgs(testPath).should.have.been.calledOnce;
               unlinkSpy.withArgs(newPath1).should.have.been.calledOnce;
               unlinkSpy.withArgs(newPath2).should.not.have.been.called;
+              addSpy.withArgs(newPath1).should.have.been.calledOnce;
+              addSpy.withArgs(newPath2).should.have.been.calledOnce;
               done();
             }));
             fs.renameSync(newPath1, newPath2);
