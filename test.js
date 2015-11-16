@@ -299,9 +299,9 @@ function runTests(options) {
               addSpy.withArgs(newPath2).should.have.been.calledOnce;
               done();
             }));
-            fs.renameSync(newPath1, newPath2);
+            fs.rename(newPath1, newPath2);
           }, true));
-          fs.renameSync(testPath, newPath1);
+          fs.rename(testPath, newPath1);
         }, true));
     });
     it('should survive ENOENT for missing subdirectories', function(done) {
