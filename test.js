@@ -23,17 +23,27 @@ var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0;
 
 var testCount = 100; // to-do: count dynamically
 
-before(function() {
+before(function(done) {
   try { fs.mkdirSync(fixturesPath, 0x1ed); } catch(err) {}
+  var writtenCount = 0;
+  function wrote(err) {
+    if (err) throw err;
+    if (++writtenCount === testCount * 2) {
+      subdir = 0;
+      done();
+    }
+  }
   while (subdir < testCount) {
     subdir++;
     fixturesPath = getFixturePath('');
-    fs.mkdirSync(fixturesPath, 0x1ed);
-    fs.writeFileSync(getFixturePath('change.txt'), 'b');
-    fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+    fs.mkdir(fixturesPath, 0x1ed, function() {
+      fs.writeFile(sysPath.join(this, 'change.txt'), 'b', wrote);
+      fs.writeFile(sysPath.join(this, 'unlink.txt'), 'b', wrote);
+    }.bind(fixturesPath));
   }
   subdir = 0;
 });
+
 beforeEach(function() {
   subdir++;
   fixturesPath = getFixturePath('');
