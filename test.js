@@ -518,9 +518,6 @@ function runTests(options) {
     });
     it('should traverse subdirs to match globstar patterns', function(done) {
       var spy = sinon.spy();
-      spy.withArgs('add');
-      spy.withArgs('unlink');
-      spy.withArgs('change');
       fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
       fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
