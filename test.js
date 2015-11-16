@@ -70,6 +70,8 @@ describe('chokidar', function() {
   if (os === 'darwin') describe('fsevents', runTests.bind(this, {useFsEvents: true}));
 });
 
+function simpleCb(err) { if (err) throw err; }
+
 function runTests(baseopts) {
   baseopts.persistent = true;
   var options;
@@ -284,8 +286,8 @@ function runTests(baseopts) {
         .on('add', addSpy)
         .on('unlink', unlinkSpy)
         .on('ready', d(function() {
-          waitFor([unlinkSpy, addSpy.withArgs(newPath1)], d(function() {
-            waitFor([unlinkSpy.withArgs(newPath1)], dd(function() {
+          waitFor([addSpy.withArgs(newPath1)], d(function() {
+            waitFor([addSpy.withArgs(newPath2)], dd(function() {
               unlinkSpy.withArgs(testPath).should.have.been.calledOnce;
               unlinkSpy.withArgs(newPath1).should.have.been.calledOnce;
               unlinkSpy.withArgs(newPath2).should.not.have.been.called;
@@ -293,10 +295,10 @@ function runTests(baseopts) {
               addSpy.withArgs(newPath2).should.have.been.calledOnce;
               done();
             }));
-            fs.rename(newPath1, newPath2, Function.prototype);
-          }, true));
-          fs.rename(testPath, newPath1, Function.prototype);
-        }, true));
+            fs.rename(newPath1, newPath2, simpleCb);
+          }));
+          fs.rename(testPath, newPath1, simpleCb);
+        }));
     });
     it('should survive ENOENT for missing subdirectories', function(done) {
       var testDir;
