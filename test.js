@@ -222,6 +222,7 @@ function runTests(options) {
     it('should emit `unlinkDir` event when a directory was removed', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
+      fs.mkdirSync(testDir, 0x1ed);
       watcher.on('unlinkDir', spy).on('ready', d(function() {
         fs.rmdirSync(testDir);
         waitFor([spy], function() {
