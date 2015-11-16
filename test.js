@@ -1230,11 +1230,11 @@ function runTests(options) {
         options.cwd = fixturesPath;
         var options2 = {};
         Object.keys(options).forEach(function(key) { options2[key] = options[key] });
-        options2.cwd = sysPath.join('..', 'chokidar');
-        watcher = chokidar.watch('**', options)
+        options2.cwd = getFixturePath('subdir');
+        watcher = chokidar.watch(getFixturePath('**'), options)
           .on('all', spy1)
           .on('ready', d(function() {
-            watcher2 = chokidar.watch('test-fixtures', options2)
+            watcher2 = chokidar.watch(fixturesPath, options2)
               .on('all', spy2)
               .on('ready', d(function() {
                 fs.writeFileSync(getFixturePath('change.txt'), 'c');
@@ -1242,10 +1242,10 @@ function runTests(options) {
                 waitFor([spy1.withArgs('unlink'), spy2.withArgs('unlink')], function() {
                   spy1.should.have.been.calledWith('change', 'change.txt');
                   spy1.should.have.been.calledWith('unlink', 'unlink.txt');
-                  spy2.should.have.been.calledWith('add', sysPath.join('test-fixtures', 'change.txt'));
-                  spy2.should.have.been.calledWith('add', sysPath.join('test-fixtures', 'unlink.txt'));
-                  spy2.should.have.been.calledWith('change', sysPath.join('test-fixtures', 'change.txt'));
-                  spy2.should.have.been.calledWith('unlink', sysPath.join('test-fixtures', 'unlink.txt'));
+                  spy2.should.have.been.calledWith('add', sysPath.join('..', 'change.txt'));
+                  spy2.should.have.been.calledWith('add', sysPath.join('..', 'unlink.txt'));
+                  spy2.should.have.been.calledWith('change', sysPath.join('..', 'change.txt'));
+                  spy2.should.have.been.calledWith('unlink', sysPath.join('..', 'unlink.txt'));
                   done();
                 });
               }));
