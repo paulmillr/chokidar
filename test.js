@@ -11,15 +11,32 @@ var sysPath = require('path');
 var os = process.platform;
 
 function getFixturePath (subPath) {
-  return sysPath.join(__dirname, 'test-fixtures', subPath);
+  return sysPath.join(
+    __dirname,
+    'test-fixtures',
+    subdir && subdir.toString() || '',
+    subPath
+  );
 }
 
-var fixturesPath = getFixturePath('');
+var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0;
 
-var watcher, watcher2;
+var testCount = 100; // to-do: count dynamically
 
 before(function() {
   try { fs.mkdirSync(fixturesPath, 0x1ed); } catch(err) {}
+  while (subdir < testCount) {
+    subdir++;
+    fixturesPath = getFixturePath('');
+    fs.mkdirSync(fixturesPath, 0x1ed);
+    fs.writeFileSync(getFixturePath('change.txt'), 'b');
+    fs.writeFileSync(getFixturePath('unlink.txt'), 'b');
+  }
+  subdir = 0;
+});
+beforeEach(function() {
+  subdir++;
+  fixturesPath = getFixturePath('');
 });
 
 afterEach(function() {
