@@ -112,15 +112,8 @@ function runTests(options) {
 
   options.persistent = true;
 
-  function clean(done) {
-    delete options.ignored;
-    delete options.ignoreInitial;
-    delete options.alwaysStat;
-    delete options.followSymlinks;
-    delete options.cwd;
-    delete options.depth;
-    delete options.ignorePermissionErrors;
-    done && d(done, true)();
+  function clean() {
+    options = {};
   }
 
   describe('watch a directory', function() {
