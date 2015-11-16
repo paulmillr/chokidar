@@ -21,7 +21,7 @@ function getFixturePath (subPath) {
 
 var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0;
 
-var testCount = 100; // to-do: count dynamically
+var testCount = 300; // to-do: count dynamically (*3 modes)
 
 before(function(done) {
   try { fs.mkdirSync(fixturesPath, 0x1ed); } catch(err) {}
@@ -41,7 +41,6 @@ before(function(done) {
       fs.writeFile(sysPath.join(this, 'unlink.txt'), 'b', wrote);
     }.bind(fixturesPath));
   }
-  subdir = 0;
 });
 
 beforeEach(function() {
@@ -549,10 +548,11 @@ function runTests(options) {
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
-      var testPath = 'test-*/*a*.txt';
-      var addPath = sysPath.join('test-fixtures', 'add.txt');
-      var changePath = sysPath.join('test-fixtures', 'change.txt');
-      var unlinkPath = sysPath.join('test-fixtures', 'unlink.txt');
+      var testPath = 'test-*/' + subdir + '/*a*.txt';
+      // getFixturesPath() returns absolute paths, so use sysPath.join() instead
+      var addPath = sysPath.join('test-fixtures', subdir.toString(), 'add.txt');
+      var changePath = sysPath.join('test-fixtures', subdir.toString(), 'change.txt');
+      var unlinkPath = sysPath.join('test-fixtures', subdir.toString(), 'unlink.txt');
       watcher = chokidar.watch(testPath, options)
         .on('all', spy)
         .on('ready', d(function() {
