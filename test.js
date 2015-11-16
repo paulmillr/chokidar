@@ -1470,11 +1470,9 @@ function runTests(options) {
   });
   describe('unwatch', function() {
     beforeEach(function(done) {
-      clean(function() {
-        try { fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err) {}
-        options.ignoreInitial = true;
-        d(done)();
-      });
+      clean();
+      options.ignoreInitial = true;
+      fs.mkdir(getFixturePath('subdir'), 0x1ed, done);
     });
     it('should stop watching unwatched paths', function(done) {
       var spy = sinon.spy();
@@ -1499,7 +1497,7 @@ function runTests(options) {
         .on('all', spy)
         .on('ready', d(function() {
           // test with both relative and absolute paths
-          var subdirRel = sysPath.join(sysPath.basename(fixturesPath), 'subdir');
+          var subdirRel = sysPath.relative(process.cwd(), getFixturePath('subdir'));
           watcher.unwatch([subdirRel, getFixturePath('unl*')]);
           dd(function() {
             fs.unlinkSync(getFixturePath('unlink.txt'));
@@ -1517,7 +1515,7 @@ function runTests(options) {
     });
     it('should unwatch relative paths', function(done) {
       var spy = sinon.spy();
-      var fixturesDir = sysPath.basename(fixturesPath);
+      var fixturesDir = sysPath.relative(process.cwd(), fixturesPath);
       var subdir = sysPath.join(fixturesDir, 'subdir');
       var changeFile = sysPath.join(fixturesDir, 'change.txt');
       var watchPaths = [subdir, changeFile];
