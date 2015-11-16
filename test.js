@@ -526,25 +526,23 @@ function runTests(options) {
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
-      dd(function() {
-        var watchPath = getFixturePath('../test-*/**/a*.txt');
-        watcher = chokidar.watch(watchPath, options)
-          .on('all', spy)
-          .on('ready', d(function() {
-            fs.writeFileSync(getFixturePath('add.txt'), 'a');
-            fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
-            fs.unlinkSync(getFixturePath('subdir/a.txt'));
-            fs.unlinkSync(getFixturePath('subdir/b.txt'));
-            waitFor([[spy, 5], [spy.withArgs('add'), 3]], function() {
-              spy.withArgs('add').should.have.been.calledThrice;
-              spy.withArgs('unlink').should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
-              spy.withArgs('change').should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
-              if (!osXFsWatch) spy.withArgs('unlink').should.have.been.calledOnce;
-              if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
-              done();
-            });
-          }));
-      })();
+      var watchPath = getFixturePath('../../test-*/' + subdir + '/**/a*.txt');
+      watcher = chokidar.watch(watchPath, options)
+        .on('all', spy)
+        .on('ready', d(function() {
+          fs.writeFileSync(getFixturePath('add.txt'), 'a');
+          fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
+          fs.unlinkSync(getFixturePath('subdir/a.txt'));
+          fs.unlinkSync(getFixturePath('subdir/b.txt'));
+          waitFor([[spy, 5], [spy.withArgs('add'), 3]], function() {
+            spy.withArgs('add').should.have.been.calledThrice;
+            spy.withArgs('unlink').should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
+            spy.withArgs('change').should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
+            if (!osXFsWatch) spy.withArgs('unlink').should.have.been.calledOnce;
+            if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
+            done();
+          });
+        }));
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
