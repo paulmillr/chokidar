@@ -291,9 +291,9 @@ function runTests(options) {
               addSpy.withArgs(newPath2).should.have.been.calledOnce;
               done();
             }));
-            fs.rename(newPath1, newPath2);
+            fs.rename(newPath1, newPath2, Function.prototype);
           }, true));
-          fs.rename(testPath, newPath1);
+          fs.rename(testPath, newPath1, Function.prototype);
         }, true));
     });
     it('should survive ENOENT for missing subdirectories', function(done) {
