@@ -20,7 +20,12 @@ function getFixturePath (subPath) {
   );
 }
 
-var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0, options;
+var watcher,
+    watcher2,
+    fixturesPath = getFixturePath(''),
+    subdir = 0,
+    options,
+    osXFsWatch;
 
 var testCount = 300; // to-do: count dynamically (*3 modes)
 
@@ -57,10 +62,10 @@ beforeEach(function() {
 afterEach(function(done) {
   watcher && watcher.close && watcher.close();
   watcher2 && watcher2.close && watcher2.close();
-  if (options.usePolling || options.useFsEvents) {
-    done()
+  if (osXFsWatch) {
+    w(done, 400)();
   } else {
-    w(done, 300)();
+    done()
   }
 });
 
@@ -95,7 +100,7 @@ function runTests(baseopts) {
 
   // use to prevent failures caused by known issue with fs.watch on OS X
   // unpredictably emitting extra change and unlink events
-  var osXFsWatch = os === 'darwin' && !options.usePolling && !options.useFsEvents;
+  osXFsWatch = os === 'darwin' && !options.usePolling && !options.useFsEvents;
 
   function waitFor(spies, fn) {
     function isSpyReady(spy) {
