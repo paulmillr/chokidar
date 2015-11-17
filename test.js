@@ -649,6 +649,9 @@ function runTests(baseopts) {
         });
       });
     });
+    afterEach(function(done) {
+      fs.unlink(linkedDir, done);
+    });
     it('should watch symlinked dirs', function(done) {
       var dirSpy = sinon.spy(function dirSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
