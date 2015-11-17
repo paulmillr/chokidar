@@ -6,6 +6,7 @@ var expect = chai.expect;
 var should = chai.should();
 var sinon = require('sinon');
 chai.use(require('sinon-chai'));
+var rimraf = require('rimraf');
 var fs = require('fs');
 var sysPath = require('path');
 var os = process.platform;
@@ -24,7 +25,6 @@ var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0;
 var testCount = 300; // to-do: count dynamically (*3 modes)
 
 before(function(done) {
-  try { fs.mkdirSync(fixturesPath, 0x1ed); } catch(err) {}
   var writtenCount = 0;
   function wrote(err) {
     if (err) throw err;
@@ -33,14 +33,20 @@ before(function(done) {
       done();
     }
   }
-  while (subdir < testCount) {
-    subdir++;
-    fixturesPath = getFixturePath('');
-    fs.mkdir(fixturesPath, 0x1ed, function() {
-      fs.writeFile(sysPath.join(this, 'change.txt'), 'b', wrote);
-      fs.writeFile(sysPath.join(this, 'unlink.txt'), 'b', wrote);
-    }.bind(fixturesPath));
-  }
+  rimraf(sysPath.join(__dirname, 'test-fixtures'), function(err) {
+    if (err) throw err;
+    fs.mkdir(fixturesPath, 0x1ed, function(err) {
+      if (err) throw err;
+      while (subdir < testCount) {
+        subdir++;
+        fixturesPath = getFixturePath('');
+        fs.mkdir(fixturesPath, 0x1ed, function() {
+          fs.writeFile(sysPath.join(this, 'change.txt'), 'b', wrote);
+          fs.writeFile(sysPath.join(this, 'unlink.txt'), 'b', wrote);
+        }.bind(fixturesPath));
+      }
+    });
+  });
 });
 
 beforeEach(function() {
@@ -52,11 +58,6 @@ afterEach(function() {
   watcher && watcher.close && watcher.close();
   watcher2 && watcher2.close && watcher2.close();
 });
-
-after(function() {
-  // to-do: rimraf the whole thing
-});
-
 
 describe('chokidar', function() {
   this.timeout(6000);
