@@ -60,7 +60,7 @@ afterEach(function(done) {
   if (options.usePolling || options.useFsEvents) {
     done()
   } else {
-    w(done, 100)();
+    w(done, 300)();
   }
 });
 
