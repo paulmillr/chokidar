@@ -87,16 +87,18 @@ function w(fn, to) { return setTimeout.bind(null, fn, to || 25); }
 function runTests(baseopts) {
   baseopts.persistent = true;
 
+  before(function() {
+    // use to prevent failures caused by known issue with fs.watch on OS X
+    // unpredictably emitting extra change and unlink events
+    osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
+  });
+
   beforeEach(function clean() {
     options = {};
     Object.keys(baseopts).forEach(function(key) {
       options[key] = baseopts[key]
     });
   });
-
-  // use to prevent failures caused by known issue with fs.watch on OS X
-  // unpredictably emitting extra change and unlink events
-  osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
 
   function stdWatcher() {
     return watcher = chokidar.watch(fixturesPath, options);
