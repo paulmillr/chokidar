@@ -22,6 +22,7 @@ function getFixturePath (subPath) {
 
 var watcher,
     watcher2,
+    usedWatchers = [],
     fixturesPath = getFixturePath(''),
     subdir = 0,
     options,
@@ -60,14 +61,9 @@ beforeEach(function() {
   fixturesPath = getFixturePath('');
 });
 
-afterEach(function(done) {
-  watcher && watcher.close && watcher.close();
-  watcher2 && watcher2.close && watcher2.close();
-  if (slowerDelay) {
-    w(done)();
-  } else {
-    done()
-  }
+afterEach(function() {
+  watcher && watcher.close && usedWatchers.push(watcher);
+  watcher2 && watcher2.close && usedWatchers.push(watcher2);
 });
 
 describe('chokidar', function() {
@@ -100,6 +96,11 @@ function runTests(baseopts) {
       process.version.slice(0, 5) === 'v0.10' &&
       baseopts.usePolling
     );
+  });
+
+  after(function() {
+    var u;
+    while (u = usedWatchers.pop()) u.close();
   });
 
   beforeEach(function clean() {
