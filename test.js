@@ -766,12 +766,12 @@ function runTests(baseopts) {
       options.followSymlinks = false;
       watcher = chokidar.watch(linkedDir, options)
         .on('all', spy)
-        .on('ready', d(function() {
+        .on('ready', function() {
           spy.should.not.have.been.calledWith('addDir');
           spy.should.have.been.calledWith('add', linkedDir);
           spy.should.have.been.calledOnce;
           done();
-        }));
+        });
     });
     it('should watch symlinks within a watched dir as files when followSymlinks:false', function(done) {
       var spy = sinon.spy();
