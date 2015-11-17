@@ -25,7 +25,8 @@ var watcher,
     fixturesPath = getFixturePath(''),
     subdir = 0,
     options,
-    osXFsWatch;
+    osXFsWatch,
+    slowerDelay;
 
 var testCount = 300; // to-do: count dynamically (*3 modes)
 
@@ -62,8 +63,8 @@ beforeEach(function() {
 afterEach(function(done) {
   watcher && watcher.close && watcher.close();
   watcher2 && watcher2.close && watcher2.close();
-  if (osXFsWatch) {
-    w(done, 400)();
+  if (slowerDelay) {
+    w(done)();
   } else {
     done()
   }
@@ -82,7 +83,9 @@ describe('chokidar', function() {
 });
 
 function simpleCb(err) { if (err) throw err; }
-function w(fn, to) { return setTimeout.bind(null, fn, to || 25); }
+function w(fn, to) {
+  return setTimeout.bind(null, fn, to || slowerDelay ? 200 : 25);
+}
 
 function runTests(baseopts) {
   baseopts.persistent = true;
@@ -91,6 +94,12 @@ function runTests(baseopts) {
     // use to prevent failures caused by known issue with fs.watch on OS X
     // unpredictably emitting extra change and unlink events
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
+
+    slowerDelay = osXFsWatch || (
+      os === 'win32' &&
+      process.version.slice(0, 5) === 'v0.10' &&
+      baseopts.usePolling
+    );
   });
 
   beforeEach(function clean() {
