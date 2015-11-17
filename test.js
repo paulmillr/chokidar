@@ -444,36 +444,34 @@ function runTests(baseopts) {
     it('should watch non-existent file and detect add', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
-      d(function() {
-        watcher = chokidar.watch(testPath, options)
-          .on('add', spy)
-          .on('ready', dd(function() {
-            waitFor([spy], function() {
-              spy.should.have.been.calledWith(testPath);
-              done();
-            });
-            fs.writeFileSync(testPath, 'a');
-          }));
-      })();
+      watcher = chokidar.watch(testPath, options)
+        .on('add', spy)
+        .on('ready', function() {
+          waitFor([spy], function() {
+            spy.should.have.been.calledWith(testPath);
+            done();
+          });
+          w(fs.writeFile.bind(fs, testPath, 'a', simpleCb))();
+        });
     });
     it('should watch non-existent dir and detect addDir/add', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
       var testPath = getFixturePath('subdir/add.txt');
-      d(function() {
-        watcher = chokidar.watch(testDir, options)
-          .on('all', spy)
-          .on('ready', dd(function() {
-            spy.should.not.have.been.called;
-            waitFor([[spy, 2]], function() {
-              spy.should.have.been.calledWith('addDir', testDir);
-              spy.should.have.been.calledWith('add', testPath);
-              done();
-            });
-            fs.mkdirSync(testDir, 0x1ed);
-            fs.writeFileSync(testPath, 'hello');
-          }));
-      })();
+      watcher = chokidar.watch(testDir, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.not.have.been.called;
+          waitFor([[spy, 2]], function() {
+            spy.should.have.been.calledWith('addDir', testDir);
+            spy.should.have.been.calledWith('add', testPath);
+            done();
+          });
+          w(fs.mkdir.bind(fs, testDir, 0x1ed, function(err) {
+            if (err) throw err;
+            fs.writeFile(testPath, 'hello', simpleCb);
+          }))();
+        });
     });
   });
   describe('watch glob patterns', function() {
