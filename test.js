@@ -407,15 +407,15 @@ function runTests(baseopts) {
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', function() {
-          fs.unlink(testPath, simpleCb);
-          waitFor([unlinkSpy], d(function() {
+          w(fs.unlink.bind(fs, testPath, simpleCb))();
+          waitFor([unlinkSpy], w(function() {
             unlinkSpy.should.have.been.calledWith(testPath);
-            w(fs.writeFile.bind(fs, testPath, 'ra', simpleCb))();
+            w(fs.writeFile.bind(fs, testPath, 're-added', simpleCb))();
             waitFor([addSpy], function() {
               addSpy.should.have.been.calledWith(testPath);
               done();
             });
-          }, true));
+          }));
         });
     });
     it('should ignore unwatched siblings', function(done) {
