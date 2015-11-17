@@ -87,20 +87,20 @@ function w(fn, to) { return setTimeout.bind(null, fn, to || 25); }
 function runTests(baseopts) {
   baseopts.persistent = true;
 
-  function clean() {
+  beforeEach(function clean() {
     options = {};
-    Object.keys(baseopts).forEach(function(key) { options[key] = baseopts[key] });
-  }
+    Object.keys(baseopts).forEach(function(key) {
+      options[key] = baseopts[key]
+    });
+  });
 
-  clean();
+  // use to prevent failures caused by known issue with fs.watch on OS X
+  // unpredictably emitting extra change and unlink events
+  osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
 
   function stdWatcher() {
     return watcher = chokidar.watch(fixturesPath, options);
   }
-
-  // use to prevent failures caused by known issue with fs.watch on OS X
-  // unpredictably emitting extra change and unlink events
-  osXFsWatch = os === 'darwin' && !options.usePolling && !options.useFsEvents;
 
   function waitFor(spies, fn) {
     function isSpyReady(spy) {
@@ -136,7 +136,6 @@ function runTests(baseopts) {
 
   describe('watch a directory', function() {
     var readySpy, rawSpy;
-    before(clean);
     beforeEach(function() {
       readySpy = sinon.spy(function readySpy(){});
       rawSpy = sinon.spy(function rawSpy(){});
@@ -376,7 +375,6 @@ function runTests(baseopts) {
     });
   });
   describe('watch individual files', function() {
-    beforeEach(clean);
     it('should detect changes', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
@@ -440,7 +438,6 @@ function runTests(baseopts) {
     });
   });
   describe('watch non-existent paths', function() {
-    beforeEach(clean);
     it('should watch non-existent file and detect add', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
@@ -475,7 +472,6 @@ function runTests(baseopts) {
     });
   });
   describe('watch glob patterns', function() {
-    beforeEach(clean);
     it('should correctly watch and emit based on glob input', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('*a*.txt');
@@ -650,7 +646,6 @@ function runTests(baseopts) {
     var linkedDir;
     beforeEach(function(done) {
       linkedDir = sysPath.resolve(fixturesPath, '..', subdir + '-link');
-      clean();
       fs.symlink(fixturesPath, linkedDir, function() {
         fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
           fs.writeFile(getFixturePath('subdir/add.txt'), 'b', done);
@@ -822,7 +817,6 @@ function runTests(baseopts) {
     });
   });
   describe('watch arrays of paths/globs', function() {
-    beforeEach(clean);
     it('should watch all paths in an array', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
@@ -865,7 +859,6 @@ function runTests(baseopts) {
     });
   });
   describe('watch options', function() {
-    beforeEach(clean);
     describe('ignoreInitial', function() {
       describe('false', function() {
         beforeEach(function() { options.ignoreInitial = false; });
@@ -1048,7 +1041,6 @@ function runTests(baseopts) {
     });
     describe('depth', function() {
       beforeEach(function(done) {
-        clean();
         try { fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err) {}
         try { fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed); } catch(err) {}
         try { fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b'); } catch(err) {}
@@ -1476,7 +1468,6 @@ function runTests(baseopts) {
   });
   describe('unwatch', function() {
     beforeEach(function(done) {
-      clean();
       options.ignoreInitial = true;
       fs.mkdir(getFixturePath('subdir'), 0x1ed, done);
     });
@@ -1562,7 +1553,6 @@ function runTests(baseopts) {
     });
   });
   describe('close', function() {
-    beforeEach(clean);
     it('should ignore further events on close', function(done) {
       var spy = sinon.spy();
       watcher = chokidar.watch(fixturesPath, options).once('add', function() {
