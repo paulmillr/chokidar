@@ -20,7 +20,7 @@ function getFixturePath (subPath) {
   );
 }
 
-var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0;
+var watcher, watcher2, fixturesPath = getFixturePath(''), subdir = 0, options;
 
 var testCount = 300; // to-do: count dynamically (*3 modes)
 
@@ -54,9 +54,14 @@ beforeEach(function() {
   fixturesPath = getFixturePath('');
 });
 
-afterEach(function() {
+afterEach(function(done) {
   watcher && watcher.close && watcher.close();
   watcher2 && watcher2.close && watcher2.close();
+  if (options.usePolling || options.useFsEvents) {
+    done()
+  } else {
+    w(done, 100)();
+  }
 });
 
 describe('chokidar', function() {
@@ -72,10 +77,10 @@ describe('chokidar', function() {
 });
 
 function simpleCb(err) { if (err) throw err; }
+function w(fn, to) { return setTimeout.bind(null, fn, to || 25); }
 
 function runTests(baseopts) {
   baseopts.persistent = true;
-  var options;
 
   function clean() {
     options = {};
