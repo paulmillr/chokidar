@@ -614,20 +614,19 @@ function runTests(baseopts) {
     it('should not confuse glob-like filenames with globs', function(done) {
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob].txt');
-      fs.writeFile(filePath, 'b', function(err) {
-        if (err) throw err;
+      fs.writeFileSync(filePath, 'b');
+      d(function() {
         stdWatcher()
           .on('all', spy)
-          .on('ready', function() {
+          .on('ready', d(function() {
             spy.should.have.been.calledWith('add', filePath);
+            fs.writeFileSync(filePath, 'c');
             waitFor([spy.withArgs('change', filePath)], function() {
-              fs.unlinkSync(filePath);
               spy.should.have.been.calledWith('change', filePath);
               done();
             });
-            w(fs.writeFile.bind(fs, filePath, 'c', simpleCb))();
-          });
-      });
+          }));
+      }, true)();
     });
     it('should not prematurely filter dirs against complex globstar patterns', function(done) {
       var spy = sinon.spy();
