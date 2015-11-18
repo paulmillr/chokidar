@@ -92,8 +92,10 @@ watcher
   .on('addDir', function(path) { log('Directory', path, 'has been added'); })
   .on('unlinkDir', function(path) { log('Directory', path, 'has been removed'); })
   .on('error', function(error) { log('Error happened', error); })
-  .on('ready', function() { log('Initial scan complete. Ready for changes.'); })
-  .on('raw', function(event, path, details) { log('Raw event info:', event, path, details); });
+  .on('ready', function() { log('Initial scan complete. Ready for changes'); })
+  .on('raw', function(event, path, details) {
+    log('Raw event info:', event, path, details);
+  });
 
 // 'add', 'addDir' and 'change' events also receive stat() results as second
 // argument when available: http://nodejs.org/api/fs.html#fs_class_fs_stats
