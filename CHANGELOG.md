@@ -1,3 +1,12 @@
+# Chokidar 1.3.0 (18 November 2015)
+
+* Improve `awaitWriteFinish` option behavior
+* Fix some `cwd` option behavior on Windows
+* `awaitWriteFinish` and `cwd` are now compatible
+* Fix some race conditions.
+* #379: Recreating deleted directory doesn't trigger event
+* When adding a previously-deleted file, emit 'add', not 'change'
+
 # Chokidar 1.2.0 (1 October 2015)
 * Allow nested arrays of paths to be provided to `.watch()` and `.add()`
 * Add `awaitWriteFinish` option
