@@ -80,7 +80,7 @@ describe('chokidar', function() {
 
 function simpleCb(err) { if (err) throw err; }
 function w(fn, to) {
-  return setTimeout.bind(null, fn, to || slowerDelay ? 200 : 25);
+  return setTimeout.bind(null, fn, to || slowerDelay ? 200 : 50);
 }
 
 function runTests(baseopts) {
