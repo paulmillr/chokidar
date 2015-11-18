@@ -28,6 +28,11 @@ var flatten = function(list, result) {
   return result;
 };
 
+// Little isString util for use in Array#every.
+var isString = function(thing) {
+  return typeof thing === 'string';
+};
+
 // Public: Main class.
 // Watches files & directories for changes.
 //
@@ -290,13 +295,13 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, awfEmit) {
         delete this._pendingWrites[path];
         clearTimeout(timeoutHandler);
       }.bind(this)
-    }
+    };
     timeoutHandler = setTimeout(
       awaitWriteFinish.bind(this),
       this.options.awaitWriteFinish.pollInterval
     );
   }
-}
+};
 
 // Private method: Determines whether user has asked to ignore this path
 //
@@ -360,15 +365,17 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
     if (!hasGlob) return false;
     var parts = sysPath.relative(watchPath, path).split(/[\/\\]/);
     return parts;
-  }
+  };
+
   var dirParts = getDirParts(path);
   if (dirParts && dirParts.length > 1) dirParts.pop();
+  var unmatchedGlob;
 
   var filterDir = function(entry) {
     if (hasGlob) {
       var entryParts = getDirParts(entry.fullPath);
       var globstar = false;
-      var unmatchedGlob = !dirParts.every(function(part, i) {
+      unmatchedGlob = !dirParts.every(function(part, i) {
         if (part === '**') globstar = true;
         return globstar || !entryParts[i] || anymatch(part, entryParts[i]);
       });
@@ -388,7 +395,7 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
     filterPath: filterPath,
     filterDir: filterDir
   };
-}
+};
 
 // Directory helpers
 // -----------------
@@ -503,7 +510,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   paths = flatten(arrify(paths));
 
   if (!paths.every(isString)) {
-    throw new TypeError('Non-string provided as watch path');
+    throw new TypeError('Non-string provided as watch path: ' + paths);
   }
 
   if (cwd) paths = paths.map(function(path) {
@@ -612,11 +619,6 @@ function importHandler(handler) {
 }
 importHandler(NodeFsHandler);
 if (FsEventsHandler.canUse()) importHandler(FsEventsHandler);
-
-// little isString util for use in Array.prototype.every
-function isString(maybeString) {
-  return typeof maybeString === 'string'
-}
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
