@@ -1040,11 +1040,13 @@ function runTests(baseopts) {
     });
     describe('depth', function() {
       beforeEach(function(done) {
-        try { fs.mkdirSync(getFixturePath('subdir'), 0x1ed); } catch(err) {}
-        try { fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed); } catch(err) {}
-        try { fs.writeFileSync(getFixturePath('subdir/add.txt'), 'b'); } catch(err) {}
-        try { fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b'); } catch(err) {}
-        d(done, true)();
+        var i = 0, r = function() { i++ && done(); };
+        fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
+          fs.writeFile(getFixturePath('subdir/add.txt'), 'b', r);
+          fs.mkdir(getFixturePath('subdir/subsub'), 0x1ed, function() {
+            fs.writeFile(getFixturePath('subdir/subsub/ab.txt'), 'b', r);
+          });
+        });
       });
       it('should not recurse if depth is 0', function(done) {
         options.depth = 0;
