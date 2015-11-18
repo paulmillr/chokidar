@@ -109,7 +109,7 @@ watcher.add(['new-file-2', 'new-file-3', '**/other-file*']);
 // Un-watch some files.
 watcher.unwatch('new-file*');
 
-// Only needed if watching is `persistent: true`.
+// Stop watching.
 watcher.close();
 
 // Full list of options. See below for descriptions. (do not use this example)
