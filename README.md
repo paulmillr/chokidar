@@ -32,8 +32,7 @@ Initially made for [brunch](http://brunch.io) (an ultra-swift web app build tool
 [browserify](http://browserify.org/),
 [webpack](http://webpack.github.io/),
 [BrowserSync](http://www.browsersync.io/),
-[socketstream](http://www.socketstream.org),
-[derby](http://derbyjs.com/),
+[Microsoft's Visual Studio Code](https://github.com/microsoft/vscode),
 and [many others](https://www.npmjs.org/browse/depended/chokidar/).
 It has proven itself in production environments.
 
