@@ -168,7 +168,7 @@ function runTests(baseopts) {
       stdWatcher().on('ready', readySpy).on('raw', rawSpy);
     });
     afterEach(function(done) {
-      dd(function() {
+      w(function() {
         readySpy.should.have.been.calledOnce;
         rawSpy = undefined;
         done()
@@ -187,7 +187,6 @@ function runTests(baseopts) {
       var spy = sinon.spy();
       var testPath = getFixturePath('add.txt');
       watcher.on('add', spy).on('ready', w(function() {
-        fs.writeFileSync(testPath, 'hello');
         waitFor([spy], function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
@@ -195,6 +194,7 @@ function runTests(baseopts) {
           rawSpy.should.have.been.called;
           done();
         });
+        fs.writeFile(testPath, 'hello', simpleCb);
       }));
     });
     it('should emit `addDir` event when directory was added', function(done) {
@@ -202,7 +202,6 @@ function runTests(baseopts) {
       var testDir = getFixturePath('subdir');
       watcher.on('addDir', spy).on('ready', w(function() {
         spy.should.not.have.been.called;
-        fs.mkdirSync(testDir, 0x1ed);
         waitFor([spy], function() {
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
@@ -210,6 +209,7 @@ function runTests(baseopts) {
           rawSpy.should.have.been.called;
           done();
         });
+        fs.mkdir(testDir, 0x1ed, simpleCb);
       }));
     });
     it('should emit `change` event when file was changed', function(done) {
@@ -217,7 +217,6 @@ function runTests(baseopts) {
       var testPath = getFixturePath('change.txt');
       watcher.on('change', spy).on('ready', function() {
         spy.should.not.have.been.called;
-        fs.writeFileSync(testPath, 'c');
         waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
@@ -225,6 +224,7 @@ function runTests(baseopts) {
           rawSpy.should.have.been.called;
           done();
         });
+        fs.writeFile(testPath, Date.now(), simpleCb);
       });
     });
     it('should emit `unlink` event when file was removed', function(done) {
@@ -232,7 +232,6 @@ function runTests(baseopts) {
       var testPath = getFixturePath('unlink.txt');
       watcher.on('unlink', spy).on('ready', function() {
         spy.should.not.have.been.called;
-        fs.unlinkSync(testPath);
         waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
@@ -240,14 +239,14 @@ function runTests(baseopts) {
           rawSpy.should.have.been.called;
           done();
         });
+        fs.unlink(testPath, simpleCb);
       });
     });
     it('should emit `unlinkDir` event when a directory was removed', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
       fs.mkdirSync(testDir, 0x1ed);
-      watcher.on('unlinkDir', spy).on('ready', w(function() {
-        fs.rmdirSync(testDir);
+      watcher.on('unlinkDir', spy).on('ready', function() {
         waitFor([spy], function() {
           if (!osXFsWatch) spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testDir);
@@ -255,7 +254,8 @@ function runTests(baseopts) {
           rawSpy.should.have.been.called;
           done();
         });
-      }));
+        w(fs.rmdir.bind(fs, testDir, simpleCb))();
+      });
     });
     it('should emit `unlink` and `add` events when a file is renamed', function(done) {
       var unlinkSpy = sinon.spy(function unlink(){});
@@ -265,10 +265,9 @@ function runTests(baseopts) {
       watcher
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
-        .on('ready', w(function() {
+        .on('ready', function() {
           unlinkSpy.should.not.have.been.called;
           addSpy.should.not.have.been.called;
-          fs.renameSync(testPath, newPath);
           waitFor([unlinkSpy, addSpy], function() {
             if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
             unlinkSpy.should.have.been.calledWith(testPath);
@@ -279,7 +278,8 @@ function runTests(baseopts) {
             rawSpy.should.have.been.called;
             done();
           });
-        }));
+          w(fs.rename.bind(fs, testPath, newPath, simpleCb))();
+        });
     });
     it('should emit `add`, not `change`, when previously deleted file is re-added', function(done) {
       // false negatives in appveyor on node 0.10, skip for now
@@ -300,7 +300,6 @@ function runTests(baseopts) {
           unlinkSpy.should.not.have.been.called;
           addSpy.should.not.have.been.called;
           changeSpy.should.not.have.been.called;
-          fs.unlinkSync(testPath);
           waitFor([unlinkSpy.withArgs(testPath)], function() {
             unlinkSpy.should.have.been.calledWith(testPath);
             waitFor([addSpy.withArgs(testPath)], function() {
@@ -308,8 +307,9 @@ function runTests(baseopts) {
               changeSpy.should.not.have.been.called;
               done();
             });
-            w(fs.writeFileSync.bind(fs, testPath, 'b'))();
+            w(fs.writeFile.bind(fs, testPath, 'b', simpleCb))();
           });
+          fs.unlink(testPath, simpleCb);
         });
     });
     it('should not emit `unlink` for previously moved files', function(done) {
@@ -344,20 +344,18 @@ function runTests(baseopts) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
       var testPath = getFixturePath('subdir/add.txt');
-      watcher.on('add', spy).on('ready', w(function() {
+      watcher.on('add', spy).on('ready', function() {
         spy.should.not.have.been.called;
         fs.mkdirSync(testDir, 0x1ed);
         fs.writeFileSync(testPath, 'hello');
         waitFor([spy], function() {
-          fs.unlinkSync(testPath);
-          fs.rmdirSync(testDir);
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
           expect(spy.args[0][1]).to.be.ok; // stats
           rawSpy.should.have.been.called;
           done();
         });
-      }));
+      });
     });
     it('should watch removed and re-added directories', function(done) {
       // false negatives in appveyor on node 0.10, skip for now
