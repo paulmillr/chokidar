@@ -27,9 +27,21 @@ var watcher,
     subdir = 0,
     options,
     osXFsWatch,
-    slowerDelay;
+    slowerDelay,
+    testCount = 1,
+    mochaIt = it;
 
-var testCount = 300; // to-do: count dynamically (*3 modes)
+
+if (!fs.readFileSync(__filename).toString().match(/\sit\.only\(/)) {
+  it = function() {
+    testCount++;
+    mochaIt.apply(this, arguments);
+  }
+  it.skip = function() {
+    testCount--;
+    mochaIt.skip.apply(this, arguments)
+  }
+}
 
 before(function(done) {
   var writtenCount = 0;
