@@ -197,13 +197,14 @@ subdirectories will be traversed.
 * `awaitWriteFinish` (default: `false`).
 By default, the `add` event will fire when a file first appear on disk, before
 the entire file has been written. Furthermore, in some cases some `change`
-events will be emitted while the file is being written.
-In some cases, especially when watching for large files there will be a need to
-wait for the write operation to finish before responding to a file creation or modification.
-Setting `awaitWriteFinish` to `true` (or a truthy value) will poll file size, holding its `add` and `change` events until the size does not
-change for a configurable amount of time. The appropriate duration setting is
-heavily dependent on the OS and hardware. For accurate detection this parameter
-should be relatively high, making file watching much less responsive.
+events will be emitted while the file is being written. In some cases,
+especially when watching for large files there will be a need to wait for the
+write operation to finish before responding to a file creation or modification.
+Setting `awaitWriteFinish` to `true` (or a truthy value) will poll file size,
+holding its `add` and `change` events until the size does not change for a
+configurable amount of time. The appropriate duration setting is heavily
+dependent on the OS and hardware. For accurate detection this parameter should
+be relatively high, making file watching much less responsive.
 Use with caution.
   * *`options.awaitWriteFinish` can be set to an object in order to adjust
   timing params:*

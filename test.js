@@ -1341,8 +1341,7 @@ function runTests(options) {
       });
       it('should use default options if none given', function() {
         options.awaitWriteFinish = true;
-
-        var watcher = stdWatcher();
+        watcher = stdWatcher();
         expect(watcher.options.awaitWriteFinish.pollInterval).to.equal(100);
         expect(watcher.options.awaitWriteFinish.stabilityThreshold).to.equal(2000);
       });
@@ -1359,12 +1358,7 @@ function runTests(options) {
             });
           });
       });
-      it('should wait for the file to be fully written before emiting the add event', function(done) {
-        // false negatives in appveyor on node 0.10, skip for now
-        if (os === 'win32' && process.version.slice(0, 5) === 'v0.10' && options.usePolling) {
-          return done();
-        }
-
+      it('should wait for the file to be fully written before emitting the add event', function(done) {
         var spy = sinon.spy();
         var testPath = getFixturePath('add.txt');
         stdWatcher()
@@ -1394,7 +1388,6 @@ function runTests(options) {
           }.bind(this));
       });
       it('should not emit change event before an existing file is fully updated', function(done) {
-
         var spy = sinon.spy();
         var testPath = getFixturePath('change.txt');
         stdWatcher()
@@ -1407,8 +1400,7 @@ function runTests(options) {
             });
           }.bind(this));
       });
-      it('should wait for an existing file to be fully updated before emiting the change event', function(done) {
-
+      it('should wait for an existing file to be fully updated before emitting the change event', function(done) {
         var spy = sinon.spy();
         var testPath = getFixturePath('change.txt');
         stdWatcher()
@@ -1434,7 +1426,7 @@ function runTests(options) {
               fs.writeFileSync(testPath, 'edit');
               wait(700, function() {
                 spy.should.have.been.calledWith('change', testPath);
-                done();               
+                done();
               })
             });
           }.bind(this))
