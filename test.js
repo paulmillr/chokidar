@@ -97,6 +97,9 @@ function runTests(options) {
   function dd(fn, slower) {
     return d(fn, !slower, true);
   }
+  function wait(timeout, fn) {
+    setTimeout(fn, timeout);
+  }
 
   options.persistent = true;
 
@@ -1333,7 +1336,7 @@ function runTests(options) {
     });
     describe('awaitWriteFinish', function() {
       beforeEach(function() {
-        options.awaitWriteFinish = {stabilityThreshold: 1000};
+        options.awaitWriteFinish = {stabilityThreshold: 500};
         options.ignoreInitial = true;
       });
       it('should use default options if none given', function() {
@@ -1350,10 +1353,10 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            dd(function() {
+            wait(200, function() {
               spy.should.not.have.been.calledWith('add');
               done();
-            })();
+            });
           });
       });
       it('should wait for the file to be fully written before emiting the add event', function(done) {
@@ -1368,13 +1371,10 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            dd(function() {
-              spy.should.not.have.been.calledWith('add');
-              waitFor([spy.withArgs('add', testPath)], function() {
-                spy.should.have.been.calledWith('add', testPath);
-                done();
-              });
-            })();
+            wait(700, function() {
+              spy.should.have.been.calledWith('add', testPath);
+              done();
+            });
           }.bind(this));
       });
       it('should not emit change event while a file has not been fully written', function(done) {
@@ -1384,35 +1384,31 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            d(function() {
-              spy.should.not.have.been.calledWith('add', testPath);
+            wait(100, function() {
               fs.writeFileSync(testPath, 'edit');
-              dd(function() {
+              wait(200, function() {
                 spy.should.not.have.been.calledWith('change', testPath);
                 done();
-              })();
-            }());
+              });
+            });
           }.bind(this));
       });
       it('should emit change event after the file is fully written', function(done) {
         var spy = sinon.spy();
         var changeSpy = sinon.spy();
-        var testPath = getFixturePath('change.txt');
+        var testPath = getFixturePath('add.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            dd(function() {
-              spy.should.not.have.been.calledWith('add', testPath);
-              setTimeout(function() {
-                watcher.on('change', changeSpy);
-                fs.writeFileSync(testPath, 'edit');
-                waitFor([changeSpy.withArgs(testPath)], function() {
-                  changeSpy.should.have.been.calledWith(testPath);
-                  done();
-                });
-              }, 2000);
-            })();
+            wait(700, function() {
+              spy.should.have.been.calledWith('add', testPath);
+              fs.writeFileSync(testPath, 'edit');
+              wait(700, function() {
+                spy.should.have.been.calledWith('change', testPath);
+                done();               
+              })
+            });
           }.bind(this))
       });
       it('should not raise any event for a file that was deleted before fully written', function(done) {
@@ -1424,10 +1420,10 @@ function runTests(options) {
             fs.writeFileSync(testPath, 'hello');
             d(function() {
               fs.unlinkSync(testPath);
-              setTimeout(function() {
+              wait(700, function() {
                 spy.should.not.have.been.calledWith(sinon.match.string, testPath);
                 done();
-              }, 1100);
+              });
             })();
           });
       });
