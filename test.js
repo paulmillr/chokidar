@@ -1393,6 +1393,34 @@ function runTests(options) {
             });
           }.bind(this));
       });
+      it('should not emit change event before an existing file is fully updated', function(done) {
+
+        var spy = sinon.spy();
+        var testPath = getFixturePath('change.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            wait(300, function() {
+              spy.should.not.have.been.calledWith('change', testPath);
+              done();
+            });
+          }.bind(this));
+      });
+      it('should wait for an existing file to be fully updated before emiting the change event', function(done) {
+
+        var spy = sinon.spy();
+        var testPath = getFixturePath('change.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFileSync(testPath, 'hello');
+            wait(700, function() {
+              spy.should.have.been.calledWith('change', testPath);
+              done();
+            });
+          }.bind(this));
+      });
       it('should emit change event after the file is fully written', function(done) {
         var spy = sinon.spy();
         var changeSpy = sinon.spy();
@@ -1418,13 +1446,13 @@ function runTests(options) {
           .on('all', spy)
           .on('ready', function() {
             fs.writeFileSync(testPath, 'hello');
-            d(function() {
+            wait(400, function() {
               fs.unlinkSync(testPath);
-              wait(700, function() {
+              wait(400, function() {
                 spy.should.not.have.been.calledWith(sinon.match.string, testPath);
                 done();
               });
-            })();
+            });
           });
       });
       it('should be compatible with the cwd option', function(done) {

@@ -165,16 +165,12 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     }
   }
 
-  if (event === 'change') {
-    if (!this._throttle('change', path, 50)) return this;
-  }
-
   var emitEvent = function() {
     this.emit.apply(this, args);
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (awf && event === 'add' && this._readyEmitted) {
+  if (awf && (event === 'add' || event === 'change') && this._readyEmitted) {
     var awfEmit = function(err, stats) {
       if (err) {
         event = args[0] = 'error';
@@ -188,7 +184,14 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     };
 
     this._awaitWriteFinish(path, awf.stabilityThreshold, awfEmit);
-  } else if (
+    return this;
+  }
+
+  if (event === 'change') {
+    if (!this._throttle('change', path, 50)) return this;
+  }
+
+  if (
     this.options.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
