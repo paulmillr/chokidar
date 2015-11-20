@@ -151,9 +151,6 @@ function runTests(baseopts) {
   function dd(fn, slower) {
     return d(fn, !slower, true);
   }
-  function wait(timeout, fn) {
-    setTimeout(fn, timeout);
-  }
   function w(fn, to) {
     return setTimeout.bind(null, fn, to || 25);
   }
@@ -1347,11 +1344,11 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(200, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
               spy.should.not.have.been.calledWith('add');
               done();
-            });
+            }, 200)();
           });
       });
       it('should wait for the file to be fully written before emitting the add event', function(done) {
@@ -1360,11 +1357,11 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(700, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
               spy.should.have.been.calledWith('add', testPath);
               done();
-            });
+            }, 700)();
           }.bind(this));
       });
       it('should not emit change event while a file has not been fully written', function(done) {
@@ -1373,14 +1370,14 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(100, function() {
-              fs.writeFileSync(testPath, 'edit');
-              wait(200, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
+              fs.writeFile(testPath, 'edit', simpleCb);
+              w(function() {
                 spy.should.not.have.been.calledWith('change', testPath);
                 done();
-              });
-            });
+              }, 200)();
+            }, 100)();
           }.bind(this));
       });
       it('should not emit change event before an existing file is fully updated', function(done) {
@@ -1389,11 +1386,11 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(300, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
               spy.should.not.have.been.calledWith('change', testPath);
               done();
-            });
+            }, 300)();
           }.bind(this));
       });
       it('should wait for an existing file to be fully updated before emitting the change event', function(done) {
@@ -1402,11 +1399,11 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(700, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
               spy.should.have.been.calledWith('change', testPath);
               done();
-            });
+            }, 700)();
           }.bind(this));
       });
       it('should emit change event after the file is fully written', function(done) {
@@ -1416,15 +1413,15 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(700, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
               spy.should.have.been.calledWith('add', testPath);
-              fs.writeFileSync(testPath, 'edit');
-              wait(700, function() {
+              fs.writeFile(testPath, 'edit', simpleCb);
+              w(function() {
                 spy.should.have.been.calledWith('change', testPath);
                 done();
-              })
-            });
+              }, 700)();
+            }, 700)();
           }.bind(this))
       });
       it('should not raise any event for a file that was deleted before fully written', function(done) {
@@ -1433,14 +1430,14 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(testPath, 'hello');
-            wait(400, function() {
-              fs.unlinkSync(testPath);
-              wait(400, function() {
+            fs.writeFile(testPath, 'hello', simpleCb);
+            w(function() {
+              fs.unlink(testPath, simpleCb);
+              w(function() {
                 spy.should.not.have.been.calledWith(sinon.match.string, testPath);
                 done();
-              });
-            });
+              }, 400)();
+            }, 400)();
           });
       });
       it('should be compatible with the cwd option', function(done) {
@@ -1456,7 +1453,9 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('add', filename);
               done();
             });
-            d(fs.writeFileSync.bind(fs, testPath, 'hello'))();
+            w(function() {
+              fs.writeFile(testPath, 'hello', simpleCb);
+            }, 400)();
           });
       });
       it('should still emit initial add events', function(done) {
