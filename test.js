@@ -49,7 +49,7 @@ before(function(done) {
     if (err) throw err;
     if (++writtenCount === testCount * 2) {
       subdir = 0;
-      done();
+      w(done, 500)();
     }
   }
   rimraf(sysPath.join(__dirname, 'test-fixtures'), function(err) {
@@ -1046,7 +1046,7 @@ function runTests(baseopts) {
     });
     describe('depth', function() {
       beforeEach(function(done) {
-        var i = 0, r = function() { i++ && done(); };
+        var i = 0, r = function() { i++ && w(done, options.useFsEvents && 200)(); };
         fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
           fs.writeFile(getFixturePath('subdir/add.txt'), 'b', r);
           fs.mkdir(getFixturePath('subdir/subsub'), 0x1ed, function() {
@@ -1127,8 +1127,7 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('addDir', linkPath);
               spy.should.have.been.calledWith('addDir', dirPath);
               spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
-              // TODO: figure out problem with fsevents here
-              //if (!osXFsWatch) spy.should.have.been.calledThrice;
+              if (!osXFsWatch) spy.should.have.been.calledThrice;
               done();
             });
             fs.symlink(getFixturePath('subdir'), linkPath, simpleCb);
@@ -1146,8 +1145,7 @@ function runTests(baseopts) {
             spy.should.have.been.calledWith('addDir', fixturesPath);
             spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
             waitFor([[addSpy, 3]], function() {
-              // TODO: figure out problem with fsevents here
-              //addSpy.should.have.been.calledThrice;
+              addSpy.should.have.been.calledThrice;
               waitFor([unlinkSpy], w(function() {
                 unlinkSpy.should.have.been.calledOnce;
                 unlinkSpy.should.have.been.calledWith('unlinkDir', subdir2);
@@ -1473,7 +1471,7 @@ function runTests(baseopts) {
   describe('unwatch', function() {
     beforeEach(function(done) {
       options.ignoreInitial = true;
-      fs.mkdir(getFixturePath('subdir'), 0x1ed, w(done));
+      fs.mkdir(getFixturePath('subdir'), 0x1ed, w(done, 200));
     });
     it('should stop watching unwatched paths', function(done) {
       var spy = sinon.spy();
