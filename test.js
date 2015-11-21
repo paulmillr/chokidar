@@ -49,7 +49,7 @@ before(function(done) {
     if (err) throw err;
     if (++writtenCount === testCount * 2) {
       subdir = 0;
-      w(done, 500)();
+      done();
     }
   }
   rimraf(sysPath.join(__dirname, 'test-fixtures'), function(err) {
@@ -73,9 +73,17 @@ beforeEach(function() {
   fixturesPath = getFixturePath('');
 });
 
+function closeWatchers() {
+  var u;
+  while (u = usedWatchers.pop()) u.close();
+}
+function disposeWatcher(watcher) {
+  if (!watcher || !watcher.close) return;
+  osXFsWatch ? usedWatchers.push(watcher) : watcher.close();
+}
 afterEach(function() {
-  watcher && watcher.close && usedWatchers.push(watcher);
-  watcher2 && watcher2.close && usedWatchers.push(watcher2);
+  disposeWatcher(watcher);
+  disposeWatcher(watcher2);
 });
 
 describe('chokidar', function() {
@@ -110,10 +118,7 @@ function runTests(baseopts) {
     );
   });
 
-  after(function() {
-    var u;
-    while (u = usedWatchers.pop()) u.close();
-  });
+  after(closeWatchers);
 
   beforeEach(function clean() {
     options = {};
@@ -1469,9 +1474,10 @@ function runTests(baseopts) {
     });
   });
   describe('unwatch', function() {
+    before(closeWatchers);
     beforeEach(function(done) {
       options.ignoreInitial = true;
-      fs.mkdir(getFixturePath('subdir'), 0x1ed, w(done, 200));
+      fs.mkdir(getFixturePath('subdir'), 0x1ed, done);
     });
     it('should stop watching unwatched paths', function(done) {
       var spy = sinon.spy();
