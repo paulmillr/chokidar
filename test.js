@@ -1266,9 +1266,9 @@ function runTests(baseopts) {
     });
     describe('ignorePermissionErrors', function() {
       var filePath;
-      beforeEach(function() {
+      beforeEach(function(done) {
         filePath = getFixturePath('add.txt');
-        fs.writeFileSync(filePath, 'b', {mode: 128});
+        fs.writeFile(filePath, 'b', {mode: 128}, w(done));
       });
       describe('false', function() {
         beforeEach(function() { options.ignorePermissionErrors = false; });
@@ -1279,11 +1279,10 @@ function runTests(baseopts) {
             .on('all', spy)
             .on('ready', function() {
               spy.should.not.have.been.calledWith('add', filePath);
-              fs.writeFileSync(filePath, 'a');
-              dd(function() {
+              fs.writeFile(filePath, Date.now(), w(function() {
                 spy.should.not.have.been.calledWith('change', filePath);
                 done();
-              })();
+              }, 500));
             });
         });
       });
@@ -1296,11 +1295,11 @@ function runTests(baseopts) {
             .on('ready', function() {
               spy.should.have.been.calledWith('add', filePath);
               if (!options.useFsEvents) return done();
-              fs.writeFileSync(filePath, 'a');
-              dd(function() {
+              fs.writeFile(filePath, Date.now(), simpleCb);
+              waitFor([spy.withArgs('change')], function() {
                 spy.should.have.been.calledWith('change', filePath);
                 done();
-              })();
+              });
             });
         });
         it('should not choke on non-existent files', function(done) {
