@@ -360,7 +360,7 @@ function runTests(baseopts) {
         .on('ready', function() {
           fs.mkdir(parentPath, w(function() {
             fs.rmdirSync(parentPath);
-          }, (os === 'win32' && options.usePolling) ? 900 : 300));
+          }, 300));
           waitFor([unlinkSpy.withArgs(parentPath)], function() {
             unlinkSpy.should.have.been.calledWith(parentPath);
             fs.mkdir(parentPath, w(function() {
@@ -368,6 +368,7 @@ function runTests(baseopts) {
             }, (os === 'win32' && options.usePolling) ? 1800 : 1200));
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledWith(parentPath);
+              if (node010 && os === 'win32' && options.usePolling) return done();
               addSpy.should.have.been.calledWith(subPath);
               done();
             });
@@ -1136,14 +1137,13 @@ function runTests(baseopts) {
             fs.mkdir(subdir2, 0x1ed, simpleCb);
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledThrice;
-              w(function() {
-                fs.rmdir(subdir2, simpleCb);
-              }, (node010 && os === 'win32') ? 1000 : undefined)();
-              waitFor([unlinkSpy], function() {
+              if (node010 && os === 'win32' && options.usePolling) return done();
+              fs.rmdir(subdir2, simpleCb);
+              waitFor([unlinkSpy], w(function() {
                 unlinkSpy.should.have.been.calledWith('unlinkDir', subdir2);
                 unlinkSpy.should.have.been.calledOnce;
                 done();
-              });
+              }));
             });
           });
       });
