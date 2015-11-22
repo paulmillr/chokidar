@@ -352,11 +352,6 @@ function runTests(baseopts) {
       });
     });
     it('should watch removed and re-added directories', function(done) {
-      // false negatives in appveyor on node 0.10, skip for now
-      if (os === 'win32' && process.version.slice(0, 5) === 'v0.10' && options.usePolling) {
-        return done();
-      }
-
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var parentPath = getFixturePath('subdir2');
@@ -365,28 +360,20 @@ function runTests(baseopts) {
         .on('unlinkDir', unlinkSpy)
         .on('addDir', addSpy)
         .on('ready', function() {
-          fs.mkdirSync(parentPath);
-          d(function() {
-            fs.rmdirSync(parentPath);
-            waitFor([unlinkSpy.withArgs(parentPath)], function() {
-              unlinkSpy.should.have.been.calledWith(parentPath);
-              d(function() {
-                fs.mkdirSync(parentPath);
-                d(function() {
-                  fs.mkdirSync(subPath);
-                  waitFor([[addSpy, 3]], function() {
-                    addSpy.should.have.been.calledWith(parentPath);
-                    addSpy.should.have.been.calledWith(subPath);
-                    try {
-                      fs.rmdir(subPath, dd(fs.rmdir.bind(fs, parentPath, done)));
-                    } catch(e) {
-                      done();
-                    }
-                  });
-                }, false, true)();
-              }, false, true)();
+          waitFor([unlinkSpy.withArgs(parentPath)], function() {
+            unlinkSpy.should.have.been.calledWith(parentPath);
+            waitFor([[addSpy, 3]], function() {
+              addSpy.should.have.been.calledWith(parentPath);
+              addSpy.should.have.been.calledWith(subPath);
+              done();
             });
-          }, false, true)();
+            fs.mkdir(parentPath, w(function() {
+              fs.mkdir(subPath, simpleCb);
+            }, 900));
+          });
+          fs.mkdir(parentPath, w(function() {
+            fs.rmdirSync(parentPath);
+          }, 300));
         });
     });
   });
