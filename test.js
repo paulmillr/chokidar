@@ -1492,19 +1492,19 @@ function runTests(baseopts) {
           // test with both relative and absolute paths
           var subdirRel = sysPath.relative(process.cwd(), getFixturePath('subdir'));
           watcher.unwatch([subdirRel, getFixturePath('unl*')]);
-          dd(function() {
-            fs.unlinkSync(getFixturePath('unlink.txt'));
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            waitFor([spy.withArgs('change')], function() {
-              spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-              spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
-              spy.should.not.have.been.calledWith('unlink');
-              if (!osXFsWatch) spy.should.have.been.calledOnce;
-              done();
-            });
+          w(function() {
+            fs.unlink(getFixturePath('unlink.txt'), simpleCb);
+            fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
+            fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
           })();
-        }, true));
+          waitFor([spy.withArgs('change')], function() {
+            spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
+            spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
+            spy.should.not.have.been.calledWith('unlink');
+            if (!osXFsWatch) spy.should.have.been.calledOnce;
+            done();
+          });
+        }));
     });
     it('should unwatch relative paths', function(done) {
       var spy = sinon.spy();
@@ -1512,32 +1512,30 @@ function runTests(baseopts) {
       var subdir = sysPath.join(fixturesDir, 'subdir');
       var changeFile = sysPath.join(fixturesDir, 'change.txt');
       var watchPaths = [subdir, changeFile];
-      dd(function() {
-        watcher = chokidar.watch(watchPaths, options)
-          .on('all', spy)
-          .on('ready', d(function() {
-            watcher.unwatch(subdir);
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            waitFor([spy], function() {
-              spy.should.have.been.calledWith('change', changeFile);
-              spy.should.not.have.been.calledWith('add');
-              if (!osXFsWatch) spy.should.have.been.calledOnce;
-              done();
-            });
-          }));
-      })();
+      watcher = chokidar.watch(watchPaths, options)
+        .on('all', spy)
+        .on('ready', w(function() {
+          watcher.unwatch(subdir);
+          fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
+          fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
+          waitFor([spy], function() {
+            spy.should.have.been.calledWith('change', changeFile);
+            spy.should.not.have.been.calledWith('add');
+            if (!osXFsWatch) spy.should.have.been.calledOnce;
+            done();
+          });
+        }));
     });
     it('should watch paths that were unwatched and added again', function(done) {
       var spy = sinon.spy();
       var watchPaths = [getFixturePath('change.txt')];
       watcher = chokidar.watch(watchPaths, options)
-        .on('ready', d(function() {
+        .on('ready', w(function() {
           watcher.unwatch(getFixturePath('change.txt'));
-          dd(function() {
+          w(function() {
             watcher.on('all', spy).add(getFixturePath('change.txt'));
-            dd(function() {
-              fs.writeFileSync(getFixturePath('change.txt'), 'c');
+            w(function() {
+              fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
               waitFor([spy], function() {
                 spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
                 spy.should.have.been.calledOnce;
@@ -1554,15 +1552,16 @@ function runTests(baseopts) {
       watcher = chokidar.watch(fixturesPath, options).once('add', function() {
         watcher.once('add', function() {
           watcher.on('add', spy).close();
-          fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
-          dd(function() {
+          fs.writeFile(getFixturePath('add.txt'), Date.now(), simpleCb);
+          w(function() {
             spy.should.not.have.been.called;
             done();
-          })();
+          }, 900)();
         });
       });
-      fs.writeFileSync(getFixturePath('add.txt'), 'hello world');
-      fs.unlinkSync(getFixturePath('add.txt'));
+      fs.writeFile(getFixturePath('add.txt'), 'hello', function() {
+        fs.unlink(getFixturePath('add.txt'), simpleCb);
+      });
     });
   });
 }
