@@ -321,10 +321,9 @@ function runTests(baseopts) {
             unlinkSpy.withArgs(newPath2).should.not.have.been.called;
             done();
           });
-          fs.rename(testPath, newPath1, function(err) {
-            if (err) throw err;
-            w(fs.rename.bind(fs, newPath1, newPath2, simpleCb), 300)();
-          });
+          fs.rename(testPath, newPath1, w(function() {
+            fs.rename(newPath1, newPath2, simpleCb);
+          }, 300));
         });
     });
     it('should survive ENOENT for missing subdirectories', function(done) {
