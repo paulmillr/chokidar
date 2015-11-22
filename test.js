@@ -1148,44 +1148,40 @@ function runTests(baseopts) {
       });
       it('should ignore vim/emacs/Sublime swapfiles', function(done) {
         var spy = sinon.spy();
-        dd(function() {
-          stdWatcher()
-            .on('all', spy)
-            .on('ready', function() {
-              fs.writeFileSync(getFixturePath('.change.txt.swp'), 'a'); // vim
-              fs.writeFileSync(getFixturePath('add.txt\~'), 'a'); // vim/emacs
-              fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'a'); // sublime
-              d(function() {
-                fs.writeFileSync(getFixturePath('.change.txt.swp'), 'c');
-                fs.writeFileSync(getFixturePath('add.txt\~'), 'c');
-                fs.writeFileSync(getFixturePath('.subl5f4.tmp'), 'c');
-                d(function() {
-                  fs.unlinkSync(getFixturePath('.change.txt.swp'));
-                  fs.unlinkSync(getFixturePath('add.txt\~'));
-                  fs.unlinkSync(getFixturePath('.subl5f4.tmp'));
-                  d(function() {
-                    spy.should.not.have.been.called;
-                    done();
-                  }, true)();
-                }, true)();
-              }, true)();
-            });
-        })();
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFile(getFixturePath('.change.txt.swp'), 'a', simpleCb); // vim
+            fs.writeFile(getFixturePath('add.txt\~'), 'a', simpleCb); // vim/emacs
+            fs.writeFile(getFixturePath('.subl5f4.tmp'), 'a', simpleCb); // sublime
+            w(function() {
+              fs.writeFile(getFixturePath('.change.txt.swp'), 'c', simpleCb);
+              fs.writeFile(getFixturePath('add.txt\~'), 'c', simpleCb);
+              fs.writeFile(getFixturePath('.subl5f4.tmp'), 'c', simpleCb);
+              w(function() {
+                fs.unlink(getFixturePath('.change.txt.swp'), simpleCb);
+                fs.unlink(getFixturePath('add.txt\~'), simpleCb);
+                fs.unlink(getFixturePath('.subl5f4.tmp'), simpleCb);
+                w(function() {
+                  spy.should.not.have.been.called;
+                  done();
+                }, 300)();
+              }, 300)();
+            }, 300)();
+          });
       });
       it('should ignore stale tilde files', function(done) {
         options.ignoreInitial = false;
-        fs.writeFileSync(getFixturePath('old.txt~'), 'a');
         var spy = sinon.spy();
-        d(function() {
+        fs.writeFile(getFixturePath('old.txt~'), 'a', w(function() {
           stdWatcher()
             .on('all', spy)
             .on('ready', function() {
-              fs.unlinkSync(getFixturePath('old.txt~'));
               spy.should.not.have.been.calledWith(getFixturePath('old.txt'));
               spy.should.not.have.been.calledWith(getFixturePath('old.txt~'));
               done();
             });
-        })();
+        }));
       });
     });
     describe('cwd', function() {
