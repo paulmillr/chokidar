@@ -111,8 +111,12 @@ function runTests(baseopts) {
     // unpredictably emitting extra change and unlink events
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
 
-    if (osXFsWatch || process.version.slice(0, 5) === 'v0.10') {
-      slowerDelay = (os === 'win32' && baseopts.usePolling) ? 600 : 200;
+    if (osXFsWatch) {
+      slowerDelay = 200;
+    } else if (process.version.slice(0, 5) === 'v0.10') {
+      slowerDelay = (os === 'win32' && baseopts.usePolling) ? 900 : 200;
+    } else {
+      slowerDelay = undefined;
     }
   });
 
@@ -371,7 +375,7 @@ function runTests(baseopts) {
             });
             fs.mkdir(parentPath, w(function() {
               fs.mkdir(subPath, simpleCb);
-            }, 1200));
+            }, 1500));
           });
           fs.mkdir(parentPath, w(function() {
             fs.rmdirSync(parentPath);
