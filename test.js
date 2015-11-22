@@ -1359,12 +1359,14 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFile(testPath, 'hello', simpleCb);
-            w(function() {
+            fs.writeFile(testPath, 'hello', w(function() {
+              spy.should.not.have.been.called;
+            }, 300));
+            waitFor([spy], function() {
               spy.should.have.been.calledWith('add', testPath);
               done();
-            }, 700)();
-          }.bind(this));
+            });
+          });
       });
       it('should not emit change event while a file has not been fully written', function(done) {
         var spy = sinon.spy();
@@ -1380,7 +1382,7 @@ function runTests(baseopts) {
                 done();
               }, 200)();
             }, 100)();
-          }.bind(this));
+          });
       });
       it('should not emit change event before an existing file is fully updated', function(done) {
         var spy = sinon.spy();
@@ -1393,7 +1395,7 @@ function runTests(baseopts) {
               spy.should.not.have.been.calledWith('change', testPath);
               done();
             }, 300)();
-          }.bind(this));
+          });
       });
       it('should wait for an existing file to be fully updated before emitting the change event', function(done) {
         var spy = sinon.spy();
@@ -1401,30 +1403,31 @@ function runTests(baseopts) {
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFile(testPath, 'hello', simpleCb);
-            w(function() {
+            fs.writeFile(testPath, 'hello', w(function() {
+              spy.should.not.have.been.called;
+            }, 300));
+            waitFor([spy], function() {
               spy.should.have.been.calledWith('change', testPath);
               done();
-            }, 700)();
-          }.bind(this));
+            });
+          });
       });
       it('should emit change event after the file is fully written', function(done) {
         var spy = sinon.spy();
-        var changeSpy = sinon.spy();
         var testPath = getFixturePath('add.txt');
         stdWatcher()
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFile(testPath, 'hello', simpleCb);
-            w(function() {
+            waitFor([spy], function() {
               spy.should.have.been.calledWith('add', testPath);
-              fs.writeFile(testPath, 'edit', simpleCb);
-              w(function() {
+              waitFor([spy.withArgs('change')], function() {
                 spy.should.have.been.calledWith('change', testPath);
                 done();
-              }, 700)();
-            }, 700)();
-          }.bind(this))
+              });
+              fs.writeFile(testPath, 'edit', simpleCb);
+            });
+            w(fs.writeFile.bind(fs, testPath, 'hello', simpleCb))();
+          });
       });
       it('should not raise any event for a file that was deleted before fully written', function(done) {
         var spy = sinon.spy();
@@ -1447,18 +1450,17 @@ function runTests(baseopts) {
         var testPath = getFixturePath('subdir/add.txt');
         var filename = sysPath.basename(testPath);
         options.cwd = sysPath.dirname(testPath);
-        fs.mkdirSync(options.cwd);
-        stdWatcher()
-          .on('all', spy)
-          .on('ready', function() {
-            waitFor([spy.withArgs('add', filename)], function() {
-              spy.should.have.been.calledWith('add', filename);
-              done();
+        fs.mkdir(options.cwd, w(function() {
+          stdWatcher()
+            .on('all', spy)
+            .on('ready', function() {
+              waitFor([spy.withArgs('add')], function() {
+                spy.should.have.been.calledWith('add', filename);
+                done();
+              });
+              w(fs.writeFile.bind(fs, testPath, 'hello', simpleCb), 400)();
             });
-            w(function() {
-              fs.writeFile(testPath, 'hello', simpleCb);
-            }, 400)();
-          });
+        }, 200));
       });
       it('should still emit initial add events', function(done) {
         options.ignoreInitial = false;
