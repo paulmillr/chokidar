@@ -166,11 +166,11 @@ function runTests(baseopts) {
       stdWatcher().on('ready', readySpy).on('raw', rawSpy);
     });
     afterEach(function(done) {
-      w(function() {
+      waitFor([readySpy], function() {
         readySpy.should.have.been.calledOnce;
         rawSpy = undefined;
         done()
-      })();
+      });
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
       watcher.should.be.an['instanceof'](chokidar.FSWatcher);
