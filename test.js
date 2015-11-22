@@ -369,7 +369,7 @@ function runTests(baseopts) {
             });
             fs.mkdir(parentPath, w(function() {
               fs.mkdir(subPath, simpleCb);
-            }, 900));
+            }, 1200));
           });
           fs.mkdir(parentPath, w(function() {
             fs.rmdirSync(parentPath);
