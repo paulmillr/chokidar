@@ -111,11 +111,7 @@ function runTests(baseopts) {
     // unpredictably emitting extra change and unlink events
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
 
-    slowerDelay = osXFsWatch || (
-      os === 'win32' &&
-      process.version.slice(0, 5) === 'v0.10' &&
-      baseopts.usePolling
-    );
+    slowerDelay = osXFsWatch || process.version.slice(0, 5) === 'v0.10';
   });
 
   after(closeWatchers);
@@ -574,7 +570,7 @@ function runTests(baseopts) {
             spy.should.have.been.calledWith('change', changePath);
             spy.should.not.have.been.calledWith('add', unlinkPath);
             spy.should.not.have.been.calledWith('addDir');
-            /*if (!osXFsWatch) */spy.should.have.been.calledThrice;
+            if (!osXFsWatch) spy.should.have.been.calledThrice;
             done();
           });
           w(fs.writeFile.bind(fs, addPath, 'a', simpleCb))();
