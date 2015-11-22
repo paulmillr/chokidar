@@ -530,11 +530,13 @@ function runTests(baseopts) {
       var watchPath = getFixturePath('../../test-*/' + subdir + '/**/a*.txt');
       watcher = chokidar.watch(watchPath, options)
         .on('all', spy)
-        .on('ready', d(function() {
-          fs.writeFileSync(getFixturePath('add.txt'), 'a');
-          fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'a');
-          fs.unlinkSync(getFixturePath('subdir/a.txt'));
-          fs.unlinkSync(getFixturePath('subdir/b.txt'));
+        .on('ready', function() {
+          w(function() {
+            fs.writeFile(getFixturePath('add.txt'), Date.now(), simpleCb);
+            fs.writeFile(getFixturePath('subdir/subsub/ab.txt'), Date.now(), simpleCb);
+            fs.unlink(getFixturePath('subdir/a.txt'), simpleCb);
+            fs.unlink(getFixturePath('subdir/b.txt'), simpleCb);
+          })();
           waitFor([[spy, 5], [spy.withArgs('add'), 3]], function() {
             spy.withArgs('add').should.have.been.calledThrice;
             spy.withArgs('unlink').should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
@@ -543,7 +545,7 @@ function runTests(baseopts) {
             if (!osXFsWatch) spy.withArgs('change').should.have.been.calledOnce;
             done();
           });
-        }));
+        });
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
@@ -612,38 +614,37 @@ function runTests(baseopts) {
     it('should not confuse glob-like filenames with globs', function(done) {
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob].txt');
-      fs.writeFileSync(filePath, 'b');
-      d(function() {
+      fs.writeFile(filePath, 'b', w(function() {
         stdWatcher()
           .on('all', spy)
-          .on('ready', d(function() {
+          .on('ready', function() {
             spy.should.have.been.calledWith('add', filePath);
-            fs.writeFileSync(filePath, 'c');
             waitFor([spy.withArgs('change', filePath)], function() {
               spy.should.have.been.calledWith('change', filePath);
               done();
             });
-          }));
-      }, true)();
+            w(fs.writeFile.bind(fs, filePath, Date.now(), simpleCb))();
+          });
+      }));
     });
     it('should not prematurely filter dirs against complex globstar patterns', function(done) {
       var spy = sinon.spy();
+      var deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
       fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
       fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
       fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), 0x1ed);
-      var deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
       fs.writeFileSync(deepFile, 'b');
       var watchPath = getFixturePath('../../test-*/' + subdir + '/**/subsubsub/*.txt');
       watcher = chokidar.watch(watchPath, options)
         .on('all', spy)
-        .on('ready', d(function() {
-          fs.writeFileSync(deepFile, 'a');
+        .on('ready', function() {
           waitFor([[spy, 2]], function() {
             spy.should.have.been.calledWith('add', deepFile);
             spy.should.have.been.calledWith('change', deepFile);
             done();
           });
-        }));
+          w(fs.writeFile.bind(fs, deepFile, Date.now(), simpleCb))();
+        });
     });
   });
   describe('watch symlinks', function() {
@@ -709,19 +710,17 @@ function runTests(baseopts) {
       var spy = sinon.spy();
       var testDir = sysPath.join(linkedDir, 'subdir');
       var testFile = sysPath.join(testDir, 'add.txt');
-      d(function() {
-        watcher = chokidar.watch(testDir, options)
-          .on('all', spy)
-          .on('ready', d(function() {
-            spy.should.have.been.calledWith('addDir', testDir);
-            spy.should.have.been.calledWith('add', testFile);
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            waitFor([spy.withArgs('change')], function() {
-              spy.should.have.been.calledWith('change', testFile);
-              done();
-            });
-          }));
-      }, true)();
+      watcher = chokidar.watch(testDir, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('addDir', testDir);
+          spy.should.have.been.calledWith('add', testFile);
+          waitFor([spy.withArgs('change')], function() {
+            spy.should.have.been.calledWith('change', testFile);
+            done();
+          });
+          fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
+        });
     });
     it('should not recurse indefinitely on circular symlinks', function(done) {
       fs.symlinkSync(fixturesPath, getFixturePath('subdir/circular'));
@@ -774,44 +773,42 @@ function runTests(baseopts) {
       options.followSymlinks = false;
       var linkPath = getFixturePath('link');
       fs.symlinkSync(getFixturePath('subdir'), linkPath);
-      d(function() {
-        stdWatcher()
-          .on('all', spy)
-          .on('ready', d(function() {
-            fs.writeFileSync(getFixturePath('subdir/add.txt'), 'c');
-            fs.unlinkSync(linkPath);
-            fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
-            waitFor([spy.withArgs('change', linkPath)], function() {
-              spy.should.not.have.been.calledWith('addDir', linkPath);
-              spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
-              spy.should.have.been.calledWith('add', linkPath);
-              spy.should.have.been.calledWith('change', linkPath);
-              done();
-            });
-          }));
-      }, true)();
+      stdWatcher()
+        .on('all', spy)
+        .on('ready', w(function() {
+          fs.writeFileSync(getFixturePath('subdir/add.txt'), Date.now());
+          fs.unlinkSync(linkPath);
+          fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
+          waitFor([spy.withArgs('change', linkPath)], function() {
+            spy.should.not.have.been.calledWith('addDir', linkPath);
+            spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
+            spy.should.have.been.calledWith('add', linkPath);
+            spy.should.have.been.calledWith('change', linkPath);
+            done();
+          });
+        }, options.usePolling ? 900 : undefined));
     });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
       var spy = sinon.spy();
       var linkedPath = getFixturePath('outside');
       var linkedFilePath = sysPath.join(linkedPath, 'text.txt');
+      var linkPath = getFixturePath('subdir/subsub');
       fs.mkdirSync(linkedPath, 0x1ed);
       fs.writeFileSync(linkedFilePath, 'c');
-      var linkPath = getFixturePath('subdir/subsub');
       fs.symlinkSync(linkedPath, linkPath);
       watcher2 = chokidar.watch(getFixturePath('subdir'), options)
-        .on('ready', d(function() {
+        .on('ready', w(function() {
           var watchedPath = getFixturePath('subdir/subsub/text.txt');
           watcher = chokidar.watch(watchedPath, options)
             .on('all', spy)
-            .on('ready', d(function() {
+            .on('ready', w(function() {
               fs.writeFileSync(linkedFilePath, 'd');
               waitFor([spy.withArgs('change')], function() {
                 spy.should.have.been.calledWith('change', watchedPath);
                 done();
               });
             }));
-        }, true));
+        }, options.usePolling ? 900 : undefined));
     });
   });
   describe('watch arrays of paths/globs', function() {
@@ -1488,7 +1485,7 @@ function runTests(baseopts) {
       var spy = sinon.spy();
       watcher = chokidar.watch(fixturesPath, options)
         .on('all', spy)
-        .on('ready', d(function() {
+        .on('ready', w(function() {
           // test with both relative and absolute paths
           var subdirRel = sysPath.relative(process.cwd(), getFixturePath('subdir'));
           watcher.unwatch([subdirRel, getFixturePath('unl*')]);
