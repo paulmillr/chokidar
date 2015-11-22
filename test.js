@@ -1190,9 +1190,11 @@ function runTests(baseopts) {
         options.cwd = fixturesPath;
         watcher = chokidar.watch('**', options)
           .on('all', spy)
-          .on('ready', d(function() {
-            fs.writeFileSync(getFixturePath('change.txt'), 'c');
-            fs.unlinkSync(getFixturePath('unlink.txt'));
+          .on('ready', function() {
+            w(function() {
+              fs.writeFile(getFixturePath('change.txt'), 'c', simpleCb);
+              fs.unlink(getFixturePath('unlink.txt'), simpleCb);
+            })();
             waitFor([spy.withArgs('unlink')], function() {
               spy.should.have.been.calledWith('add', 'change.txt');
               spy.should.have.been.calledWith('add', 'unlink.txt');
@@ -1200,7 +1202,7 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('unlink', 'unlink.txt');
               done();
             });
-          }));
+          });
       });
       it('should allow separate watchers to have different cwds', function(done) {
         var spy1 = sinon.spy();
@@ -1211,12 +1213,14 @@ function runTests(baseopts) {
         options2.cwd = getFixturePath('subdir');
         watcher = chokidar.watch(getFixturePath('**'), options)
           .on('all', spy1)
-          .on('ready', d(function() {
+          .on('ready', w(function() {
             watcher2 = chokidar.watch(fixturesPath, options2)
               .on('all', spy2)
-              .on('ready', d(function() {
-                fs.writeFileSync(getFixturePath('change.txt'), 'c');
-                fs.unlinkSync(getFixturePath('unlink.txt'));
+              .on('ready', function() {
+                w(function() {
+                  fs.writeFile(getFixturePath('change.txt'), 'c', simpleCb);
+                  fs.unlink(getFixturePath('unlink.txt'), simpleCb);
+                })();
                 waitFor([spy1.withArgs('unlink'), spy2.withArgs('unlink')], function() {
                   spy1.should.have.been.calledWith('change', 'change.txt');
                   spy1.should.have.been.calledWith('unlink', 'unlink.txt');
@@ -1226,8 +1230,8 @@ function runTests(baseopts) {
                   spy2.should.have.been.calledWith('unlink', sysPath.join('..', 'unlink.txt'));
                   done();
                 });
-              }));
-          }, true));
+              });
+          }));
       });
       it('should ignore files even with cwd', function(done) {
         fs.writeFileSync(getFixturePath('change.txt'), 'hello');
@@ -1242,12 +1246,7 @@ function runTests(baseopts) {
         options.ignored = 'ignored-option.txt';
         watcher = chokidar.watch(files, options)
           .on('all', spy)
-          .on('ready', d(function() {
-            fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
-            fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
-            fs.unlinkSync(getFixturePath('ignored.txt'));
-            fs.unlinkSync(getFixturePath('ignored-option.txt'));
-            fs.writeFileSync(getFixturePath('change.txt'), 'change');
+          .on('ready', function() {
             waitFor([spy.withArgs('change', 'change.txt')], function() {
               spy.should.have.been.calledWith('add', 'change.txt');
               spy.should.not.have.been.calledWith('add', 'ignored.txt');
@@ -1257,7 +1256,12 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('change', 'change.txt');
               done();
             });
-          }), true);
+            fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
+            fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
+            fs.unlinkSync(getFixturePath('ignored.txt'));
+            fs.unlinkSync(getFixturePath('ignored-option.txt'));
+            fs.writeFileSync(getFixturePath('change.txt'), 'change');
+          });
       });
     });
     describe('ignorePermissionErrors', function() {
