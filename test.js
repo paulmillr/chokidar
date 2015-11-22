@@ -29,6 +29,8 @@ var watcher,
     node010,
     osXFsWatch,
     osXFsWatch010,
+    win32Polling,
+    win32Polling010,
     slowerDelay,
     testCount = 1,
     mochaIt = it;
@@ -109,18 +111,17 @@ function runTests(baseopts) {
   baseopts.persistent = true;
 
   before(function() {
-    // use to prevent failures caused by known issue with fs.watch on OS X
-    // unpredictably emitting extra change and unlink events
-    osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
-
+    // flags for bypassing special-case test failures on CI
     node010 = process.version.slice(0, 5) === 'v0.10';
-
+    osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
     osXFsWatch010 = osXFsWatch && node010;
+    win32Polling = os === 'win32' && baseopts.usePolling;
+    win32Polling010 = win32Polling && node010;
 
     if (osXFsWatch) {
       slowerDelay = 200;
     } else if (node010) {
-      slowerDelay = (os === 'win32' && baseopts.usePolling) ? 900 : 200;
+      slowerDelay = win32Polling010 ? 900 : 200;
     } else {
       slowerDelay = undefined;
     }
@@ -360,15 +361,15 @@ function runTests(baseopts) {
         .on('ready', function() {
           fs.mkdir(parentPath, w(function() {
             fs.rmdirSync(parentPath);
-          }, 300));
+          }, win32Polling ? 900 : 300));
           waitFor([unlinkSpy.withArgs(parentPath)], function() {
             unlinkSpy.should.have.been.calledWith(parentPath);
             fs.mkdir(parentPath, w(function() {
               fs.mkdir(subPath, simpleCb);
-            }, (os === 'win32' && options.usePolling) ? 1800 : 1200));
+            }, win32Polling ? 1800 : 1200));
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledWith(parentPath);
-              if (node010 && os === 'win32' && options.usePolling) return done();
+              if (win32Polling010) return done();
               addSpy.should.have.been.calledWith(subPath);
               done();
             });
@@ -964,9 +965,9 @@ function runTests(baseopts) {
                   spy.should.have.been.calledWith('add', testPath);
                   spy.should.not.have.been.calledWith('addDir');
                   done();
-                }, (node010 && os === 'win32') ? 1000 : 200));
+                }, win32Polling010 ? 1000 : 200));
               });
-          }, (node010 && os === 'win32') ? 1000 : 200));
+          }, win32Polling010 ? 1000 : 200));
         });
       });
     });
@@ -1137,7 +1138,7 @@ function runTests(baseopts) {
             fs.mkdir(subdir2, 0x1ed, simpleCb);
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledThrice;
-              if (node010 && os === 'win32' && options.usePolling) return done();
+              if (win32Polling010) return done();
               fs.rmdir(subdir2, simpleCb);
               waitFor([unlinkSpy], w(function() {
                 unlinkSpy.should.have.been.calledWith('unlinkDir', subdir2);
@@ -1258,7 +1259,7 @@ function runTests(baseopts) {
             fs.unlinkSync(getFixturePath('ignored-option.txt'));
             w(function() {
               fs.writeFileSync(getFixturePath('change.txt'), 'change');
-            }, (node010 && os === 'win32') ? 1000 : undefined)();
+            }, (win32Polling010) ? 1000 : undefined)();
             waitFor([spy.withArgs('change', 'change.txt')], function() {
               spy.should.have.been.calledWith('add', 'change.txt');
               spy.should.not.have.been.calledWith('add', 'ignored.txt');
