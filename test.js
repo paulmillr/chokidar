@@ -1219,10 +1219,6 @@ function runTests(baseopts) {
             watcher2 = chokidar.watch(fixturesPath, options2)
               .on('all', spy2)
               .on('ready', function() {
-                w(function() {
-                  fs.writeFile(getFixturePath('change.txt'), 'c', simpleCb);
-                  fs.unlink(getFixturePath('unlink.txt'), simpleCb);
-                })();
                 waitFor([spy1.withArgs('unlink'), spy2.withArgs('unlink')], function() {
                   spy1.should.have.been.calledWith('change', 'change.txt');
                   spy1.should.have.been.calledWith('unlink', 'unlink.txt');
@@ -1231,6 +1227,9 @@ function runTests(baseopts) {
                   spy2.should.have.been.calledWith('change', sysPath.join('..', 'change.txt'));
                   spy2.should.have.been.calledWith('unlink', sysPath.join('..', 'unlink.txt'));
                   done();
+                });
+                fs.writeFile(getFixturePath('change.txt'), 'c', function() {
+                  fs.unlink(getFixturePath('unlink.txt'), simpleCb);
                 });
               });
           }));
