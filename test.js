@@ -100,7 +100,7 @@ describe('chokidar', function() {
 
 function simpleCb(err) { if (err) throw err; }
 function w(fn, to) {
-  return setTimeout.bind(null, fn, to || (slowerDelay ? 300 : 50));
+  return setTimeout.bind(null, fn, to || slowerDelay || 50);
 }
 
 function runTests(baseopts) {
@@ -111,7 +111,9 @@ function runTests(baseopts) {
     // unpredictably emitting extra change and unlink events
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
 
-    slowerDelay = osXFsWatch || process.version.slice(0, 5) === 'v0.10';
+    if (osXFsWatch || process.version.slice(0, 5) === 'v0.10') {
+      slowerDelay = (os === 'win32' && baseopts.usePolling) ? 600 : 200;
+    }
   });
 
   after(closeWatchers);
