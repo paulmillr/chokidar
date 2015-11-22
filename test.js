@@ -152,9 +152,6 @@ function runTests(baseopts) {
   function dd(fn, slower) {
     return d(fn, !slower, true);
   }
-  function w(fn, to) {
-    return setTimeout.bind(null, fn, to || 25);
-  }
 
   describe('watch a directory', function() {
     var readySpy, rawSpy;
