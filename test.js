@@ -148,16 +148,6 @@ function runTests(baseopts) {
     }, 5);
     var to = setTimeout(finish, 3000);
   }
-  function d(fn, quicker, forceTimeout) {
-    if (options.usePolling || forceTimeout) {
-      return setTimeout.bind(null, fn, quicker ? 300 : 900);
-    } else {
-      return setTimeout.bind(null, fn, 25);
-    }
-  }
-  function dd(fn, slower) {
-    return d(fn, !slower, true);
-  }
 
   describe('watch a directory', function() {
     var readySpy, rawSpy;
