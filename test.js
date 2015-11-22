@@ -462,14 +462,16 @@ function runTests(baseopts) {
         .on('all', spy)
         .on('ready', function() {
           spy.should.not.have.been.called;
-          waitFor([[spy, 2]], function() {
+          waitFor([spy.withArgs('add')], function() {
             spy.should.have.been.calledWith('addDir', testDir);
             spy.should.have.been.calledWith('add', testPath);
             done();
           });
-          w(fs.mkdir.bind(fs, testDir, 0x1ed, function() {
-            w(fs.writeFile.bind(fs, testPath, 'hello', simpleCb), 100)();
-          }, 100))();
+          w(function() {
+            fs.mkdir(testDir, 0x1ed, w(function() {
+              fs.writeFile(testPath, 'hello', simpleCb);
+            }));
+          })();
         });
     });
   });
