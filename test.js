@@ -1482,12 +1482,12 @@ function runTests(baseopts) {
             fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
             fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
           })();
-          waitFor([spy], function() {
+          waitFor([spy], w(function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add');
             if (!osXFsWatch010) spy.should.have.been.calledOnce;
             done();
-          });
+          }, 300));
         });
     });
     it('should ignore unwatched paths that are a subset of watched paths', function(done) {
@@ -1503,13 +1503,13 @@ function runTests(baseopts) {
             fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
             fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
           })();
-          waitFor([spy.withArgs('change')], function() {
+          waitFor([spy.withArgs('change')], w(function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
             spy.should.not.have.been.calledWith('unlink');
             if (!osXFsWatch010) spy.should.have.been.calledOnce;
             done();
-          });
+          }, 300));
         }));
     });
     it('should unwatch relative paths', function(done) {
@@ -1524,12 +1524,12 @@ function runTests(baseopts) {
           watcher.unwatch(subdir);
           fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
           fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
-          waitFor([spy], function() {
+          waitFor([spy], w(function() {
             spy.should.have.been.calledWith('change', changeFile);
             spy.should.not.have.been.calledWith('add');
             if (!osXFsWatch010) spy.should.have.been.calledOnce;
             done();
-          });
+          }, 300));
         }));
     });
     it('should watch paths that were unwatched and added again', function(done) {
