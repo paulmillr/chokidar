@@ -1255,8 +1255,8 @@ function runTests(baseopts) {
         watcher = chokidar.watch(files, options)
           .on('all', spy)
           .on('ready', function() {
-            fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
-            fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
+            fs.writeFileSync(getFixturePath('ignored.txt'), Date.now());
+            fs.writeFileSync(getFixturePath('ignored-option.txt'), Date.now());
             fs.unlink(getFixturePath('ignored.txt'), simpleCb);
             fs.unlink(getFixturePath('ignored-option.txt'), simpleCb);
             w(function() {
@@ -1266,6 +1266,8 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('add', 'change.txt');
               spy.should.not.have.been.calledWith('add', 'ignored.txt');
               spy.should.not.have.been.calledWith('add', 'ignored-option.txt');
+              spy.should.not.have.been.calledWith('change', 'ignored.txt');
+              spy.should.not.have.been.calledWith('change', 'ignored-option.txt');
               spy.should.not.have.been.calledWith('unlink', 'ignored.txt');
               spy.should.not.have.been.calledWith('unlink', 'ignored-option.txt');
               spy.should.have.been.calledWith('change', 'change.txt');
