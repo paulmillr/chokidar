@@ -413,7 +413,9 @@ FSWatcher.prototype._getWatchedDir = function(directory) {
   var watcherRemove = this._remove.bind(this);
   if (!(dir in this._watched)) this._watched[dir] = {
     _items: Object.create(null),
-    add: function(item) {this._items[item] = true;},
+    add: function(item) {
+      if (item !== '.') this._items[item] = true;
+    },
     remove: function(item) {
       delete this._items[item];
       if (!this.children().length) {
@@ -612,6 +614,18 @@ FSWatcher.prototype.close = function() {
 
   this.removeAllListeners();
   return this;
+};
+
+// Public method: Expose list of watched paths
+
+// Returns object w/ dir paths as keys and arrays of contained paths as values.
+FSWatcher.prototype.getWatched = function() {
+  var watchList = {};
+  Object.keys(this._watched).forEach(function(dir) {
+    var key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
+    watchList[key || '.'] = Object.keys(this._watched[dir]._items).sort();
+  }.bind(this));
+  return watchList;
 };
 
 // Attach watch handler prototype methods

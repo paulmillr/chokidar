@@ -180,6 +180,7 @@ function runTests(baseopts) {
       watcher.emit.should.be.a('function');
       watcher.add.should.be.a('function');
       watcher.close.should.be.a('function');
+      watcher.getWatched.should.be.a('function');
     });
     it('should emit `add` event when file was added', function(done) {
       var spy = sinon.spy();
@@ -1462,6 +1463,31 @@ function runTests(baseopts) {
             spy.should.have.been.calledWith('addDir');
             done();
           });
+      });
+    });
+  });
+  describe('getWatched', function() {
+    it('should return the watched paths', function(done) {
+      var expected = {};
+      expected[sysPath.dirname(fixturesPath)] = [subdir.toString()];
+      expected[fixturesPath] = ['change.txt', 'unlink.txt'];
+      stdWatcher().on('ready', function() {
+        expect(watcher.getWatched()).to.deep.equal(expected);
+        done();
+      });
+    });
+    it('should set keys relative to cwd & include added paths', function(done) {
+      options.cwd = fixturesPath;
+      var expected = {
+        '.': ['change.txt', 'subdir', 'unlink.txt'],
+        '..': [subdir.toString()],
+        'subdir': []
+      };
+      fs.mkdir(getFixturePath('subdir'), 0x1ed, function() {
+        stdWatcher().on('ready', function() {
+          expect(watcher.getWatched()).to.deep.equal(expected);
+          done();
+        })
       });
     });
   });
