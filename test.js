@@ -360,7 +360,7 @@ function runTests(baseopts) {
         .on('addDir', addSpy)
         .on('ready', function() {
           fs.mkdir(parentPath, w(function() {
-            fs.rmdirSync(parentPath);
+            fs.rmdir(parentPath, simpleCb);
           }, win32Polling ? 900 : 300));
           waitFor([unlinkSpy.withArgs(parentPath)], function() {
             unlinkSpy.should.have.been.calledWith(parentPath);
@@ -806,7 +806,7 @@ function runTests(baseopts) {
           watcher = chokidar.watch(watchedPath, options)
             .on('all', spy)
             .on('ready', w(function() {
-              fs.writeFileSync(linkedFilePath, Date.now());
+              fs.writeFile(linkedFilePath, Date.now(), simpleCb);
               waitFor([spy.withArgs('change')], function() {
                 spy.should.have.been.calledWith('change', watchedPath);
                 done();
@@ -1257,10 +1257,10 @@ function runTests(baseopts) {
           .on('ready', function() {
             fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
             fs.writeFileSync(getFixturePath('ignored-option.txt'), 'ignored option');
-            fs.unlinkSync(getFixturePath('ignored.txt'));
-            fs.unlinkSync(getFixturePath('ignored-option.txt'));
+            fs.unlink(getFixturePath('ignored.txt'), simpleCb);
+            fs.unlink(getFixturePath('ignored-option.txt'), simpleCb);
             w(function() {
-              fs.writeFileSync(getFixturePath('change.txt'), 'change');
+              fs.writeFile(getFixturePath('change.txt'), 'change', simpleCb);
             }, (win32Polling010) ? 1000 : undefined)();
             waitFor([spy.withArgs('change', 'change.txt')], function() {
               spy.should.have.been.calledWith('add', 'change.txt');
