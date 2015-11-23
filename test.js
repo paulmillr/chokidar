@@ -118,10 +118,10 @@ function runTests(baseopts) {
     win32Polling = os === 'win32' && baseopts.usePolling;
     win32Polling010 = win32Polling && node010;
 
-    if (osXFsWatch) {
+    if (win32Polling010) {
+      slowerDelay = 900;
+    } else if (node010 || osXFsWatch) {
       slowerDelay = 200;
-    } else if (node010) {
-      slowerDelay = win32Polling010 ? 900 : 200;
     } else {
       slowerDelay = undefined;
     }
