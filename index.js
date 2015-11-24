@@ -528,8 +528,9 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
 
   // set aside negated glob strings
   paths = paths.filter(function(path) {
-    if (path[0] === '!') this._ignoredPaths[path.substring(1)] = true;
-    else {
+    if (path[0] === '!') {
+      this._ignoredPaths[path.substring(1)] = true;
+    } else {
       // if a path is being added that was previously ignored, stop ignoring it
       delete this._ignoredPaths[path];
       delete this._ignoredPaths[path + '/**/*'];
