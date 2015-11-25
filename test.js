@@ -26,7 +26,7 @@ var watcher,
     fixturesPath = getFixturePath(''),
     subdir = 0,
     options,
-    node010,
+    node010 = process.version.slice(0, 5) === 'v0.10',
     osXFsWatch,
     osXFsWatch010,
     win32Polling,
@@ -97,9 +97,13 @@ describe('chokidar', function() {
     chokidar.watch.should.be.a('function');
   });
 
-  describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+  if (os === 'darwin') {
+    describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
+  }
+  if (os !== 'darwin' || !node010) {
+    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+  }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
-  if (os === 'darwin') describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
 });
 
 function simpleCb(err) { if (err) throw err; }
@@ -112,7 +116,6 @@ function runTests(baseopts) {
 
   before(function() {
     // flags for bypassing special-case test failures on CI
-    node010 = process.version.slice(0, 5) === 'v0.10';
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
     osXFsWatch010 = osXFsWatch && node010;
     win32Polling = os === 'win32' && baseopts.usePolling;
