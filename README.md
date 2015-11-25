@@ -106,6 +106,9 @@ watcher.on('change', function(path, stats) {
 watcher.add('new-file');
 watcher.add(['new-file-2', 'new-file-3', '**/other-file*']);
 
+// Get list of actual paths being watched on the filesystem
+var watchedPaths = watcher.getWatched();
+
 // Un-watch some files.
 watcher.unwatch('new-file*');
 
@@ -234,6 +237,10 @@ name and path for every event other than `ready`, `raw`, and `error`.
 * `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
+* `.getWatched()`: Returns an object representing all the paths on the file
+system being watched by this `FSWatcher` instance. The object's keys are all the
+directories (using absolute paths unless the `cwd` option was used), and the
+values are arrays of the names of the items contained in each directory.
 
 ## CLI
 
