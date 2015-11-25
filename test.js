@@ -355,6 +355,7 @@ function runTests(baseopts) {
       });
     });
     it('should watch removed and re-added directories', function(done) {
+      if (win32Polling010) return done();
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var parentPath = getFixturePath('subdir2');
@@ -370,7 +371,7 @@ function runTests(baseopts) {
             unlinkSpy.should.have.been.calledWith(parentPath);
             fs.mkdir(parentPath, 0x1ed, w(function() {
               fs.mkdir(subPath, 0x1ed, simpleCb);
-            }, win32Polling ? 2000 : 1200));
+            }, win32Polling ? 1800 : 1200));
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledWith(parentPath);
               addSpy.should.have.been.calledWith(subPath);
