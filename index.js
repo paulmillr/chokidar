@@ -498,9 +498,16 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // Avoid conflicts if we later create another file with the same name
   if (!this.options.useFsEvents) {
-    this.unwatch(path);
+    this._closePath(path);
   }
 };
+
+FSWatcher.prototype._closePath = function(path) {
+  if (!this._closers[path]) return;
+  this._closers[path]();
+  delete this._closers[path];
+  this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
+}
 
 // Public method: Adds paths to be watched on an existing FSWatcher instance
 
@@ -578,23 +585,22 @@ FSWatcher.prototype.unwatch = function(paths) {
   paths = flatten(arrify(paths));
 
   paths.forEach(function(path) {
-    if (this._closers[path]) {
-      this._closers[path]();
-      delete this._closers[path];
-      this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
-    } else {
-      //convert to absolute path
+    // convert to absolute path unless relative path already matches
+    if (!isAbsolute(path) && !this._closers[path]) {
+      if (this.options.cwd) path = sysPath.join(this.options.cwd, path);
       path = sysPath.resolve(path);
-
-      this._ignoredPaths[path] = true;
-      if (path in this._watched) {
-        this._ignoredPaths[path + '/**/*'] = true;
-      }
-
-      // reset the cached userIgnored anymatch fn
-      // to make ignoredPaths changes effective
-      this._userIgnored = null;
     }
+
+    this._closePath(path);
+
+    this._ignoredPaths[path] = true;
+    if (path in this._watched) {
+      this._ignoredPaths[path + '/**/*'] = true;
+    }
+
+    // reset the cached userIgnored anymatch fn
+    // to make ignoredPaths changes effective
+    this._userIgnored = null;
   }, this);
 
   return this;
