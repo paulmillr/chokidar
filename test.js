@@ -284,6 +284,7 @@ function runTests(baseopts) {
         });
     });
     it('should emit `add`, not `change`, when previously deleted file is re-added', function(done) {
+      if (win32Polling010) return done();
       var unlinkSpy = sinon.spy(function unlink(){});
       var addSpy = sinon.spy(function add(){});
       var changeSpy = sinon.spy(function change(){});
@@ -471,7 +472,7 @@ function runTests(baseopts) {
             fs.mkdir(testDir, 0x1ed, w(function() {
               fs.writeFile(testPath, 'hello', simpleCb);
             }, win32Polling010 ? 900 : undefined));
-          })();
+          }, win32Polling010 ? 900 : undefined)();
           waitFor([spy.withArgs('add')], function() {
             spy.should.have.been.calledWith('addDir', testDir);
             spy.should.have.been.calledWith('add', testPath);
