@@ -384,6 +384,7 @@ function runTests(baseopts) {
     });
   });
   describe('watch individual files', function() {
+    before(closeWatchers);
     it('should detect changes', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
@@ -482,6 +483,7 @@ function runTests(baseopts) {
     });
   });
   describe('watch glob patterns', function() {
+    before(closeWatchers);
     it('should correctly watch and emit based on glob input', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('*a*.txt');
@@ -659,6 +661,7 @@ function runTests(baseopts) {
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
+    before(closeWatchers);
     var linkedDir;
     beforeEach(function(done) {
       linkedDir = sysPath.resolve(fixturesPath, '..', subdir + '-link');
@@ -824,6 +827,7 @@ function runTests(baseopts) {
     });
   });
   describe('watch arrays of paths/globs', function() {
+    before(closeWatchers);
     it('should watch all paths in an array', function(done) {
       var spy = sinon.spy();
       var testPath = getFixturePath('change.txt');
@@ -867,6 +871,7 @@ function runTests(baseopts) {
     });
   });
   describe('watch options', function() {
+    before(closeWatchers);
     describe('ignoreInitial', function() {
       describe('false', function() {
         beforeEach(function() { options.ignoreInitial = false; });
@@ -1203,7 +1208,6 @@ function runTests(baseopts) {
       });
     });
     describe('cwd', function() {
-      if (node010) before(closeWatchers);
       it('should emit relative paths based on cwd', function(done) {
         options.cwd = fixturesPath;
         var spy = sinon.spy();
@@ -1475,6 +1479,7 @@ function runTests(baseopts) {
     });
   });
   describe('getWatched', function() {
+    before(closeWatchers);
     it('should return the watched paths', function(done) {
       var expected = {};
       expected[sysPath.dirname(fixturesPath)] = [subdir.toString()];
