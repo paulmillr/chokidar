@@ -369,11 +369,13 @@ function runTests(baseopts) {
           waitFor([unlinkSpy.withArgs(parentPath)], function() {
             unlinkSpy.should.have.been.calledWith(parentPath);
             fs.mkdir(parentPath, w(function() {
-              fs.mkdir(subPath, simpleCb);
+              fs.mkdir(subPath, function() {
+                // file not usually necessary, but helps test pass more consistently
+                fs.writeFile(sysPath.join(subPath, 'a.txt'), Date.now(), simpleCb);
+              });
             }, win32Polling ? 1800 : 1200));
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledWith(parentPath);
-              if (win32Polling010) return done();
               addSpy.should.have.been.calledWith(subPath);
               done();
             });
@@ -783,10 +785,12 @@ function runTests(baseopts) {
       fs.symlinkSync(getFixturePath('subdir'), linkPath);
       stdWatcher()
         .on('all', spy)
-        .on('ready', w(function() {
-          fs.writeFileSync(getFixturePath('subdir/add.txt'), Date.now());
-          fs.unlinkSync(linkPath);
-          fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
+        .on('ready', function() {
+          w(function() {
+            fs.writeFileSync(getFixturePath('subdir/add.txt'), Date.now());
+            fs.unlinkSync(linkPath);
+            fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
+          }, options.usePolling ? 1200 : 300)();
           waitFor([spy.withArgs('change', linkPath)], function() {
             spy.should.not.have.been.calledWith('addDir', linkPath);
             spy.should.not.have.been.calledWith('add', getFixturePath('link/add.txt'));
@@ -794,7 +798,7 @@ function runTests(baseopts) {
             spy.should.have.been.calledWith('change', linkPath);
             done();
           });
-        }, options.usePolling ? 1200 : undefined));
+        });
     });
     it('should not reuse watcher when following a symlink to elsewhere', function(done) {
       var spy = sinon.spy();
