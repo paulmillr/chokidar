@@ -1519,7 +1519,7 @@ function runTests(baseopts) {
           waitFor([spy], w(function() {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add');
-            if (!osXFsWatch010) spy.should.have.been.calledOnce;
+            if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
           }, 300));
         });
@@ -1541,7 +1541,7 @@ function runTests(baseopts) {
             spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
             spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
             spy.should.not.have.been.calledWith('unlink');
-            if (!osXFsWatch010) spy.should.have.been.calledOnce;
+            if (!osXFsWatch) spy.should.have.been.calledOnce;
             done();
           }, 300));
         }));
