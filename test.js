@@ -1196,6 +1196,7 @@ function runTests(baseopts) {
       });
     });
     describe('cwd', function() {
+      if (node010) before(closeWatchers);
       it('should emit relative paths based on cwd', function(done) {
         options.cwd = fixturesPath;
         var spy = sinon.spy();
