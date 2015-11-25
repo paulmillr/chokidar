@@ -363,17 +363,14 @@ function runTests(baseopts) {
         .on('unlinkDir', unlinkSpy)
         .on('addDir', addSpy)
         .on('ready', function() {
-          fs.mkdir(parentPath, w(function() {
+          fs.mkdir(parentPath, 0x1ed, w(function() {
             fs.rmdir(parentPath, simpleCb);
           }, win32Polling ? 900 : 300));
           waitFor([unlinkSpy.withArgs(parentPath)], function() {
             unlinkSpy.should.have.been.calledWith(parentPath);
-            fs.mkdir(parentPath, w(function() {
-              fs.mkdir(subPath, function() {
-                // file not usually necessary, but helps test pass more consistently
-                fs.writeFile(sysPath.join(subPath, 'a.txt'), Date.now(), simpleCb);
-              });
-            }, win32Polling ? 1800 : 1200));
+            fs.mkdir(parentPath, 0x1ed, w(function() {
+              fs.mkdir(subPath, 0x1ed, simpleCb);
+            }, win32Polling ? 2000 : 1200));
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledWith(parentPath);
               addSpy.should.have.been.calledWith(subPath);
