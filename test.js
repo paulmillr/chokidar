@@ -543,9 +543,9 @@ function runTests(baseopts) {
             })();
             waitFor([[spy.withArgs('add'), 3], spy.withArgs('unlink'), spy.withArgs('change')], function() {
               spy.withArgs('add').should.have.been.calledThrice;
-              spy.withArgs('unlink').should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
-              spy.withArgs('change').should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
-              if (!(node010 && os === 'darwin')) {
+              spy.should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
+              spy.should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
+              if (!node010) {
                 spy.withArgs('unlink').should.have.been.calledOnce;
                 spy.withArgs('change').should.have.been.calledOnce;
               }
