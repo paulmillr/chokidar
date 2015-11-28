@@ -1589,6 +1589,27 @@ function runTests(baseopts) {
           })();
         }));
     });
+    it('should unwatch paths that are relative to options.cwd', function(done) {
+      options.cwd = fixturesPath;
+      var spy = sinon.spy();
+      watcher = chokidar.watch('.', options)
+        .on('all', spy)
+        .on('ready', function() {
+          watcher.unwatch(['subdir', getFixturePath('unlink.txt')]);
+          w(function() {
+            fs.unlink(getFixturePath('unlink.txt'), simpleCb);
+            fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
+            fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
+          })();
+          waitFor([spy], w(function() {
+            spy.should.have.been.calledWith('change', 'change.txt');
+            spy.should.not.have.been.calledWith('add');
+            spy.should.not.have.been.calledWith('unlink');
+            if (!osXFsWatch010) spy.should.have.been.calledOnce;
+            done();
+          }, 300));
+        });
+    });
   });
   describe('close', function() {
     it('should ignore further events on close', function(done) {
