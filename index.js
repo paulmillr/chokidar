@@ -329,7 +329,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
       .filter(function(path) {
         return typeof path === 'string' && !isGlob(path);
       }).map(function(path) {
-        return path + '/**/*';
+        return path + '/**';
       });
     this._userIgnored = anymatch(
       this._globIgnored.concat(ignored).concat(paths)
@@ -542,7 +542,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
     } else {
       // if a path is being added that was previously ignored, stop ignoring it
       delete this._ignoredPaths[path];
-      delete this._ignoredPaths[path + '/**/*'];
+      delete this._ignoredPaths[path + '/**'];
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
@@ -595,7 +595,7 @@ FSWatcher.prototype.unwatch = function(paths) {
 
     this._ignoredPaths[path] = true;
     if (path in this._watched) {
-      this._ignoredPaths[path + '/**/*'] = true;
+      this._ignoredPaths[path + '/**'] = true;
     }
 
     // reset the cached userIgnored anymatch fn
