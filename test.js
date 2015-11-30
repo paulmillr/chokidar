@@ -1072,7 +1072,7 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
               spy.should.have.been.calledWith('add', getFixturePath('unlink.txt'));
               spy.should.not.have.been.calledWith('change');
-              if (!osXFsWatch010) spy.callCount.should.equal(4);
+              if (!osXFsWatch) spy.callCount.should.equal(4);
               done();
             });
           });
@@ -1097,7 +1097,7 @@ function runTests(baseopts) {
               spy.should.have.been.calledWith('change', addPath);
               spy.should.not.have.been.calledWith('add', ignoredPath);
               spy.should.not.have.been.calledWith('change', ignoredPath);
-              if (!osXFsWatch010) spy.callCount.should.equal(8);
+              if (!osXFsWatch) spy.callCount.should.equal(8);
               done();
             });
           });
