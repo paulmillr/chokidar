@@ -557,7 +557,7 @@ function runTests(baseopts) {
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
       var testPath = 'test-*/' + subdir + '/*a*.txt';
-      // getFixturesPath() returns absolute paths, so use sysPath.join() instead
+      // getFixturePath() returns absolute paths, so use sysPath.join() instead
       var addPath = sysPath.join('test-fixtures', subdir.toString(), 'add.txt');
       var changePath = sysPath.join('test-fixtures', subdir.toString(), 'change.txt');
       var unlinkPath = sysPath.join('test-fixtures', subdir.toString(), 'unlink.txt');
@@ -654,6 +654,33 @@ function runTests(baseopts) {
             spy.should.have.been.calledWith('add', deepFile);
             spy.should.have.been.calledWith('change', deepFile);
             done();
+          });
+        });
+    });
+    it('should emit matching dir events', function(done) {
+      var spy = sinon.spy();
+      // test with and without globstar matches
+      var watchPaths = [getFixturePath('*'), getFixturePath('subdir/subsub/**/*')];
+      var deepDir = getFixturePath('subdir/subsub/subsubsub');
+      var deepFile = sysPath.join(deepDir, 'a.txt');
+      fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
+      watcher = chokidar.watch(watchPaths, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('addDir', getFixturePath('subdir'));
+          spy.withArgs('addDir').should.have.been.calledOnce;
+          fs.mkdirSync(deepDir, 0x1ed);
+          fs.writeFileSync(deepFile, Date.now());
+          waitFor([spy.withArgs('addDir', deepDir), spy.withArgs('add', deepFile)], function() {
+            if (win32Polling) return done();
+            spy.should.have.been.calledWith('addDir', deepDir);
+            fs.unlinkSync(deepFile);
+            fs.rmdirSync(deepDir);
+            waitFor([spy.withArgs('unlinkDir')], function() {
+              spy.should.have.been.calledWith('unlinkDir', deepDir);
+              done();
+            });
           });
         });
     });
