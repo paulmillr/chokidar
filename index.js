@@ -350,16 +350,39 @@ var replacerRe = /^\.[\/\\]/;
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   path = path.replace(replacerRe, '');
   var watchPath = depth || !isGlob(path) ? path : globParent(path);
+  var fullWatchPath = sysPath.resolve(watchPath);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
+  var follow = this.options.followSymlinks;
+  var globSymlink = hasGlob && follow ? null : false;
+
+  var checkGlobSymlink = function(entry) {
+    // only need to resolve once
+    // first entry should always have entry.parentDir === ''
+    if (globSymlink == null) {
+      globSymlink = entry.fullParentDir === fullWatchPath ? false : {
+        realPath: entry.fullParentDir,
+        linkPath: fullWatchPath
+      };
+    }
+
+    if (globSymlink) {
+      return entry.fullPath.replace(globSymlink.realPath, globSymlink.linkPath);
+    }
+
+    return entry.fullPath;
+  };
 
   var entryPath = function(entry) {
-    return sysPath.join(watchPath, sysPath.relative(watchPath, entry.fullPath));
+    return sysPath.join(watchPath,
+      sysPath.relative(watchPath, checkGlobSymlink(entry))
+    );
   };
 
   var filterPath = function(entry) {
-    return (!hasGlob || globFilter(entryPath(entry))) &&
-      this._isntIgnored(entryPath(entry), entry.stat) &&
+    var resolvedPath = entryPath(entry);
+    return (!hasGlob || globFilter(resolvedPath)) &&
+      this._isntIgnored(resolvedPath, entry.stat) &&
       (this.options.ignorePermissionErrors ||
         this._hasReadPermissions(entry.stat));
   }.bind(this);
@@ -376,7 +399,7 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
 
   var filterDir = function(entry) {
     if (hasGlob) {
-      var entryParts = getDirParts(entry.fullPath);
+      var entryParts = getDirParts(checkGlobSymlink(entry));
       var globstar = false;
       unmatchedGlob = !dirParts.every(function(part, i) {
         if (part === '**') globstar = true;
@@ -386,7 +409,6 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
     return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stat);
   }.bind(this);
 
-  var follow = this.options.followSymlinks;
   return {
     followSymlinks: follow,
     statMethod: follow ? 'stat' : 'lstat',

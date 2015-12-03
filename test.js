@@ -851,6 +851,26 @@ function runTests(baseopts) {
             }));
         }, options.usePolling ? 900 : undefined));
     });
+    it('should properly match glob patterns that include a symlinked dir', function(done) {
+      var dirSpy = sinon.spy(function dirSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
+      // test with relative path to ensure proper resolution
+      var watchDir = sysPath.relative(process.cwd(), linkedDir);
+      watcher = chokidar.watch(sysPath.join(watchDir, '**/*'), options)
+        .on('addDir', dirSpy)
+        .on('add', addSpy)
+        .on('ready', function() {
+          // only the children are matched by the glob pattern, not the link itself
+          addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'change.txt'));
+          addSpy.should.have.been.calledThrice; // also unlink.txt & subdir/add.txt
+          dirSpy.should.have.been.calledWith(sysPath.join(watchDir, 'subdir'));
+          fs.writeFile(sysPath.join(watchDir, 'add.txt'), simpleCb);
+          waitFor([[addSpy, 4]], function() {
+            addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'add.txt'));
+            done();
+          });
+        });
+    });
   });
   describe('watch arrays of paths/globs', function() {
     before(closeWatchers);
