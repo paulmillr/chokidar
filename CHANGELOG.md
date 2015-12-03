@@ -1,5 +1,11 @@
-# Chokidar 1.3.0 (18 November 2015)
+# Chokidar 1.4.0 (3 December 2015)
+* Add `.getWatched()` method, exposing all file system entries being watched
+* Apply `awaitWriteFinish` methodology to `change` events (in addition to `add`)
+* Fix handling of symlinks within glob paths (#293)
+* Fix `addDir` and `unlinkDir` events under globs (#337, #401)
+* Fix issues with `.unwatch()` (#374, #403)
 
+# Chokidar 1.3.0 (18 November 2015)
 * Improve `awaitWriteFinish` option behavior
 * Fix some `cwd` option behavior on Windows
 * `awaitWriteFinish` and `cwd` are now compatible
