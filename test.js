@@ -672,7 +672,7 @@ function runTests(baseopts) {
           spy.withArgs('addDir').should.have.been.calledOnce;
           fs.mkdirSync(deepDir, 0x1ed);
           fs.writeFileSync(deepFile, Date.now());
-          waitFor([spy.withArgs('addDir', deepDir), spy.withArgs('add', deepFile)], function() {
+          waitFor([[spy.withArgs('addDir'), 2], spy.withArgs('add', deepFile)], function() {
             if (win32Polling) return done();
             spy.should.have.been.calledWith('addDir', deepDir);
             fs.unlinkSync(deepFile);
