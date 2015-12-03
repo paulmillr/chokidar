@@ -156,7 +156,7 @@ function runTests(baseopts) {
     var intrvl = setInterval(function() {
       if (spies.every(isSpyReady)) finish();
     }, 5);
-    var to = setTimeout(finish, 3000);
+    var to = setTimeout(finish, 3500);
   }
 
   describe('watch a directory', function() {
@@ -278,7 +278,7 @@ function runTests(baseopts) {
             addSpy.should.have.been.calledWith(newPath);
             expect(addSpy.args[0][1]).to.be.ok; // stats
             rawSpy.should.have.been.called;
-            if (!osXFsWatch010) unlinkSpy.should.have.been.calledOnce;
+            if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
             done();
           });
         });
@@ -372,7 +372,7 @@ function runTests(baseopts) {
             unlinkSpy.should.have.been.calledWith(parentPath);
             fs.mkdir(parentPath, 0x1ed, w(function() {
               fs.mkdir(subPath, 0x1ed, simpleCb);
-            }, win32Polling ? 1800 : 1200));
+            }, win32Polling ? 2200 : 1200));
             waitFor([[addSpy, 3]], function() {
               addSpy.should.have.been.calledWith(parentPath);
               addSpy.should.have.been.calledWith(subPath);
@@ -1629,7 +1629,7 @@ function runTests(baseopts) {
               fs.writeFile(getFixturePath('change.txt'), Date.now(), simpleCb);
               waitFor([spy], function() {
                 spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-                spy.should.have.been.calledOnce;
+                if (!osXFsWatch) spy.should.have.been.calledOnce;
                 done();
               });
             })();
