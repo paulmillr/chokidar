@@ -7,6 +7,7 @@ var anymatch = require('anymatch');
 var globParent = require('glob-parent');
 var isGlob = require('is-glob');
 var isAbsolute = require('path-is-absolute');
+var inherits = require('inherits');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
@@ -51,6 +52,7 @@ var isString = function(thing) {
 //    .on('all', function(event, path) {console.log(path, ' emitted ', event);})
 //
 function FSWatcher(_opts) {
+  EventEmitter.call(this);
   var opts = {};
   // in case _opts that is passed in is a frozen object
   if (_opts) for (var opt in _opts) opts[opt] = _opts[opt];
@@ -125,7 +127,7 @@ function FSWatcher(_opts) {
   Object.freeze(opts);
 }
 
-FSWatcher.prototype = Object.create(EventEmitter.prototype);
+inherits(FSWatcher, EventEmitter);
 
 // Common helpers
 // --------------
