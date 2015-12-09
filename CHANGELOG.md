@@ -1,3 +1,6 @@
+# Chokidar 1.4.1 (Dec 9, 2015)
+* The watcher could now be correctly subclassed with ES6 class syntax.
+
 # Chokidar 1.4.0 (3 December 2015)
 * Add `.getWatched()` method, exposing all file system entries being watched
 * Apply `awaitWriteFinish` methodology to `change` events (in addition to `add`)
