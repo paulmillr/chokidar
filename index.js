@@ -180,7 +180,11 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
         emitEvent();
       } else if (stats) {
         // if stats doesn't exist the file must have been deleted
-        args.push(stats);
+        if (args.length > 2) {
+          args[2] = stats;
+        } else {
+          args.push(stats);
+        }
         emitEvent();
       }
     };
