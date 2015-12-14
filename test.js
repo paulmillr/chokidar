@@ -1417,6 +1417,22 @@ function runTests(baseopts) {
             });
           });
       });
+      it('should emit with the final stats', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('add.txt');
+        stdWatcher()
+          .on('all', spy)
+          .on('ready', function() {
+            fs.writeFile(testPath, 'hello ', w(function() {
+              fs.appendFileSync(testPath, 'world!');
+            }, 300));
+            waitFor([spy], function() {
+              spy.should.have.been.calledWith('add', testPath);
+              expect(spy.args[0][2].size).to.equal(12);
+              done();
+            });
+          });
+      });
       it('should not emit change event while a file has not been fully written', function(done) {
         var spy = sinon.spy();
         var testPath = getFixturePath('add.txt');
