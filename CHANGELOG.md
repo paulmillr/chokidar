@@ -1,3 +1,6 @@
+# Chokidar 1.4.2 (Dec 30, 2015)
+* Now correctly emitting `stats` with `awaitWriteFinish` option.
+
 # Chokidar 1.4.1 (Dec 9, 2015)
 * The watcher could now be correctly subclassed with ES6 class syntax.
 
