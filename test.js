@@ -5,10 +5,10 @@ var chai = require('chai');
 var expect = chai.expect;
 var should = chai.should();
 var sinon = require('sinon');
-chai.use(require('sinon-chai'));
 var rimraf = require('rimraf');
 var fs = require('fs');
 var sysPath = require('path');
+chai.use(require('sinon-chai'));
 var os = process.platform;
 
 function getFixturePath (subPath) {
