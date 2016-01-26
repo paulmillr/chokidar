@@ -237,4 +237,4 @@ with `add`.
 * Fixed compilation on windows.
 
 # Chokidar 0.1.0 (20 April 2012)
-* Initial release.
+* Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/6ef7025a03320a5815101a85bbf1e888317a1cd8/src/fs_utils.coffee#L62)
