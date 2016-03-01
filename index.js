@@ -159,7 +159,9 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
           this.emit.apply(this, ['all'].concat(this._pendingUnlinks[path]));
           delete this._pendingUnlinks[path];
         }.bind(this));
-      }.bind(this), 100);
+      }.bind(this), typeof this.options.atomic === "number"
+        ? this.options.atomic
+        : 100);
       return this;
     } else if (event === 'add' && this._pendingUnlinks[path]) {
       event = args[0] = 'change';
