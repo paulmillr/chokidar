@@ -1548,15 +1548,14 @@ function runTests(baseopts) {
             stdWatcher()
               .on('all', spy)
               .on('ready', function() {
-                fs.writeFile(testPath, 'edit', simpleCb);
-                w(function() {
+                fs.writeFile(testPath, 'edit', w(function() {
                   fs.unlink(testPath, simpleCb);
                   waitFor([spy.withArgs('unlink')], function() {
                     spy.should.not.have.been.calledWith('change', filename);
                     spy.should.have.been.calledWith('unlink', filename);
                     done();
                   });
-                }, 10)();
+                }));
               });
           }));
         }));
