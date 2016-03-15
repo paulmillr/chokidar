@@ -1552,6 +1552,7 @@ function runTests(baseopts) {
                 w(function() {
                   fs.unlink(testPath, simpleCb);
                   waitFor([spy.withArgs('unlink')], function() {
+                    spy.should.not.have.been.calledWith('change', filename);
                     spy.should.have.been.calledWith('unlink', filename);
                     done();
                   });

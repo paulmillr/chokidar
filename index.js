@@ -191,7 +191,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
       }
     };
 
-    this._awaitWriteFinish(path, awf.stabilityThreshold, awfEmit);
+    this._awaitWriteFinish(path, awf.stabilityThreshold, event, awfEmit);
     return this;
   }
 
@@ -264,7 +264,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // * awfEmit - function, to be called when ready for event to be emitted
 // Polls a newly created file for size variations. When files size does not
 // change for 'threshold' milliseconds calls callback.
-FSWatcher.prototype._awaitWriteFinish = function(path, threshold, awfEmit) {
+FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit) {
   var timeoutHandler;
 
   var fullPath = path;
@@ -305,6 +305,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, awfEmit) {
       cancelWait: function() {
         delete this._pendingWrites[path];
         clearTimeout(timeoutHandler);
+        return event;
       }.bind(this)
     };
     timeoutHandler = setTimeout(
@@ -514,9 +515,11 @@ FSWatcher.prototype._remove = function(directory, item) {
   parent.remove(item);
 
   // If we wait for this file to be fully written, cancel the wait.
-  if (this.options.awaitWriteFinish && this._pendingWrites[path]) {
-    this._pendingWrites[path].cancelWait();
-    return;
+  var relPath = path;
+  if (this.options.cwd) relPath = sysPath.relative(this.options.cwd, path);
+  if (this.options.awaitWriteFinish && this._pendingWrites[relPath]) {
+    var event = this._pendingWrites[relPath].cancelWait();
+    if (event === 'add') return;
   }
 
   // The Entry will either be a directory that just got removed
