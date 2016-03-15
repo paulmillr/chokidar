@@ -1,3 +1,6 @@
+# Chokidar 1.4.3 (Feb 26, 2016)
+* Update async-each dependency to ^1.0.0
+
 # Chokidar 1.4.2 (Dec 30, 2015)
 * Now correctly emitting `stats` with `awaitWriteFinish` option.
 
