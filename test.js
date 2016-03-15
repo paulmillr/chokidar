@@ -1538,6 +1538,28 @@ function runTests(baseopts) {
             done();
           });
       });
+      it('should emit an unlink event when a file is updated and deleted just after that', function(done) {
+        var spy = sinon.spy();
+        var testPath = getFixturePath('subdir/add.txt');
+        var filename = sysPath.basename(testPath);
+        options.cwd = sysPath.dirname(testPath);
+        fs.mkdir(options.cwd, w(function() {
+          fs.writeFile(testPath, 'hello', w(function() {
+            stdWatcher()
+              .on('all', spy)
+              .on('ready', function() {
+                fs.writeFile(testPath, 'edit', w(function() {
+                  fs.unlink(testPath, simpleCb);
+                  waitFor([spy.withArgs('unlink')], function() {
+                    spy.should.not.have.been.calledWith('change', filename);
+                    spy.should.have.been.calledWith('unlink', filename);
+                    done();
+                  });
+                }));
+              });
+          }));
+        }));
+      });
     });
   });
   describe('getWatched', function() {
