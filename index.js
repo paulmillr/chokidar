@@ -46,10 +46,10 @@ var isString = function(thing) {
 //
 //  var watcher = new FSWatcher()
 //    .add(directories)
-//    .on('add', function(path) {console.log('File', path, 'was added');})
-//    .on('change', function(path) {console.log('File', path, 'was changed');})
-//    .on('unlink', function(path) {console.log('File', path, 'was removed');})
-//    .on('all', function(event, path) {console.log(path, ' emitted ', event);})
+//    .on('add', path => console.log('File', path, 'was added'))
+//    .on('change', path => console.log('File', path, 'was changed'))
+//    .on('unlink', path => console.log('File', path, 'was removed'))
+//    .on('all', (event, path) => console.log(path, ' emitted ', event))
 //
 function FSWatcher(_opts) {
   EventEmitter.call(this);
