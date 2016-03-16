@@ -5,8 +5,6 @@
 [![NPM](https://nodei.co/npm-dl/chokidar.png)](https://nodei.co/npm/chokidar/)
 [![NPM](https://nodei.co/npm/chokidar.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/chokidar/)
 
-#### [See what's new in v1.0](https://github.com/paulmillr/chokidar/blob/master/CHANGELOG.md#chokidar-100-7-april-2015)
-
 ## Why?
 Node.js `fs.watch`:
 
