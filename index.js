@@ -203,7 +203,9 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     this.options.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
-    fs.stat(path, function(error, stats) {
+    var fullPath = path;
+    if (this.options.cwd) fullPath = sysPath.join(this.options.cwd, path);
+    fs.stat(fullPath, function(error, stats) {
       // Suppress event when fs.stat fails, to avoid sending undefined 'stat'
       if (error || !stats) return;
 
