@@ -299,19 +299,20 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
     }.bind(this));
   }.bind(this));
 
-  if (this._pendingWrites[path]) this._pendingWrites[path].cancelWait();
-
-  this._pendingWrites[path] = {
-    lastChange: now,
-    cancelWait: function() {
-      delete this._pendingWrites[path];
-      clearTimeout(timeoutHandler);
-    }.bind(this)
-  };
-  timeoutHandler = setTimeout(
-    awaitWriteFinish.bind(this),
-    this.options.awaitWriteFinish.pollInterval
-  );
+  if (!(path in this._pendingWrites)) {
+    this._pendingWrites[path] = {
+      lastChange: now,
+      cancelWait: function() {
+        delete this._pendingWrites[path];
+        clearTimeout(timeoutHandler);
+        return event;
+      }.bind(this)
+    };
+    timeoutHandler = setTimeout(
+      awaitWriteFinish.bind(this),
+      this.options.awaitWriteFinish.pollInterval
+    );
+  }
 };
 
 // Private method: Determines whether user has asked to ignore this path
