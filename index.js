@@ -148,7 +148,10 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   else if (val1 !== undefined) args.push(val1);
 
   var awf = this.options.awaitWriteFinish;
-  if (awf && this._pendingWrites[path]) return this;
+  if (awf && this._pendingWrites[path]) {
+    this._pendingWrites[path].lastChange = new Date();
+    return this;
+  }
 
   if (this.options.atomic) {
     if (event === 'unlink') {
