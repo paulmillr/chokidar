@@ -1283,7 +1283,9 @@ function runTests(baseopts) {
           watcher = chokidar.watch('.', options)
             .on('addDir', spy)
             .on('ready', function() {
-                fs.rename(testDir, renamedDir, simpleCb)
+                w(function() {
+                  fs.rename(testDir, renamedDir, simpleCb);
+                }, 1000);
                 waitFor([spy], function() {
                   spy.should.have.been.calledOnce;
                   spy.should.have.been.calledWith('subdir-renamed');
