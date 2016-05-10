@@ -177,7 +177,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   }.bind(this);
 
-  if (awf && (event === 'add' || event === 'change') && this._readyEmitted) {
+  if (awf && (event === 'add' || event === 'change')) {
     var awfEmit = function(err, stats) {
       if (err) {
         event = args[0] = 'error';
