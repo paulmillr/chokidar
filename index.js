@@ -115,7 +115,6 @@ function FSWatcher(_opts) {
   this._emitReady = function() {
     if (++readyCalls >= this._readyCount) {
       this._emitReady = Function.prototype;
-      this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
       process.nextTick(this.emit.bind(this, 'ready'));
     }
