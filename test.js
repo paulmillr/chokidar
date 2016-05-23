@@ -1272,6 +1272,29 @@ function runTests(baseopts) {
             });
           });
       });
+      it('should emit `addDir` with alwaysStat for renamed directory', function(done) {
+        options.cwd = fixturesPath;
+        options.alwaysStat = true;
+        options.ignoreInitial = true;
+        var spy = sinon.spy();
+        var testDir = getFixturePath('subdir');
+        var renamedDir = getFixturePath('subdir-renamed');
+        fs.mkdir(testDir, 0x1ed, function() {
+          watcher = chokidar.watch('.', options)
+            .on('addDir', spy)
+            .on('ready', function() {
+                w(function() {
+                  fs.rename(testDir, renamedDir, simpleCb);
+                }, 1000);
+                waitFor([spy], function() {
+                  spy.should.have.been.calledOnce;
+                  spy.should.have.been.calledWith('subdir-renamed');
+                  expect(spy.args[0][1]).to.be.ok; // stats
+                  done();
+                });
+              });
+        });
+      });
       it('should allow separate watchers to have different cwds', function(done) {
         options.cwd = fixturesPath;
         var spy1 = sinon.spy();
