@@ -446,6 +446,30 @@ function runTests(baseopts) {
         }));
     });
   });
+  describe('renamed directory', function() {
+    it('should emit `add` for a file in a renamed directory', function(done) {
+      options.ignoreInitial = true;
+      var spy = sinon.spy();
+      var testDir = getFixturePath('subdir');
+      var testPath = getFixturePath('subdir/add.txt');
+      var renamedDir = getFixturePath('subdir-renamed');
+      var expectedPath = sysPath.join(renamedDir, 'add.txt')
+      fs.mkdir(testDir, 0x1ed, function() {
+        fs.writeFile(testPath, Date.now(), function() {
+          watcher = chokidar.watch(fixturesPath, options)
+            .on('add', spy)
+            .on('ready', function() {
+              fs.rename(testDir, renamedDir, simpleCb);
+              waitFor([spy], function() {
+                spy.should.have.been.calledOnce;
+                spy.should.have.been.calledWith(expectedPath);
+                done();
+              });
+            });
+        });
+      });
+    });
+  });
   describe('watch non-existent paths', function() {
     it('should watch non-existent file and detect add', function(done) {
       var spy = sinon.spy();
