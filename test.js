@@ -461,7 +461,7 @@ function runTests(baseopts) {
             .on('ready', function() {
               setTimeout(function() {
                 fs.rename(testDir, renamedDir, simpleCb);
-              });
+              }, 500);
               waitFor([spy], function() {
                 spy.should.have.been.calledOnce;
                 spy.should.have.been.calledWith(expectedPath);
@@ -1003,7 +1003,7 @@ function runTests(baseopts) {
               w(function() {
                 spy.should.not.have.been.called;
                 done();
-              }, 500)();
+              }, 1000)();
           });
         });
         it('should notice when a file appears in an empty directory', function(done) {
@@ -1311,7 +1311,7 @@ function runTests(baseopts) {
             .on('ready', function() {
               setTimeout(function() {
                 fs.rename(testDir, renamedDir, simpleCb);
-              }, 1000);
+              }, 500);
               waitFor([spy], function() {
                 spy.should.have.been.calledOnce;
                 spy.should.have.been.calledWith('subdir-renamed');
