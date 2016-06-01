@@ -459,7 +459,9 @@ function runTests(baseopts) {
           watcher = chokidar.watch(fixturesPath, options)
             .on('add', spy)
             .on('ready', function() {
-              fs.rename(testDir, renamedDir, simpleCb);
+              setTimeout(function() {
+                fs.rename(testDir, renamedDir, simpleCb);
+              });
               waitFor([spy], function() {
                 spy.should.have.been.calledOnce;
                 spy.should.have.been.calledWith(expectedPath);
@@ -1307,16 +1309,16 @@ function runTests(baseopts) {
           watcher = chokidar.watch('.', options)
             .on('addDir', spy)
             .on('ready', function() {
-                w(function() {
-                  fs.rename(testDir, renamedDir, simpleCb);
-                }, 1000);
-                waitFor([spy], function() {
-                  spy.should.have.been.calledOnce;
-                  spy.should.have.been.calledWith('subdir-renamed');
-                  expect(spy.args[0][1]).to.be.ok; // stats
-                  done();
-                });
+              setTimeout(function() {
+                fs.rename(testDir, renamedDir, simpleCb);
+              }, 1000);
+              waitFor([spy], function() {
+                spy.should.have.been.calledOnce;
+                spy.should.have.been.calledWith('subdir-renamed');
+                expect(spy.args[0][1]).to.be.ok; // stats
+                done();
               });
+            });
         });
       });
       it('should allow separate watchers to have different cwds', function(done) {
