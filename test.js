@@ -6,7 +6,7 @@ var expect = chai.expect;
 var should = chai.should();
 var sinon = require('sinon');
 var rimraf = require('rimraf');
-var fs = require('fs');
+var fs = require('graceful-fs');
 var sysPath = require('path');
 chai.use(require('sinon-chai'));
 var os = process.platform;
