@@ -459,9 +459,9 @@ function runTests(baseopts) {
           watcher = chokidar.watch(fixturesPath, options)
             .on('add', spy)
             .on('ready', function() {
-              setTimeout(function() {
+              w(function() {
                 fs.rename(testDir, renamedDir, simpleCb);
-              }, 500);
+              }, 1000)();
               waitFor([spy], function() {
                 spy.should.have.been.calledOnce;
                 spy.should.have.been.calledWith(expectedPath);
@@ -1307,11 +1307,11 @@ function runTests(baseopts) {
         var renamedDir = getFixturePath('subdir-renamed');
         fs.mkdir(testDir, 0x1ed, function() {
           watcher = chokidar.watch('.', options)
-            .on('addDir', spy)
             .on('ready', function() {
-              setTimeout(function() {
+              w(function() {
+                watcher.on('addDir', spy)
                 fs.rename(testDir, renamedDir, simpleCb);
-              }, 500);
+              }, 1000)();
               waitFor([spy], function() {
                 spy.should.have.been.calledOnce;
                 spy.should.have.been.calledWith('subdir-renamed');
