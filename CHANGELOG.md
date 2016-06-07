@@ -1,3 +1,12 @@
+# Chokidar 1.5.1 (May 20, 2016)
+* To help prevent exhaustion of FSEvents system limitations, consolidate watch
+  instances to the common parent upon detection of separate watch instances on
+  many siblings
+
+# Chokidar 1.5.0 (May 10, 2016)
+* Make debounce delay setting used with `atomic: true` user-customizable
+* Fixes and improvements to `awaitWriteFinish` features
+
 # Chokidar 1.4.3 (Feb 26, 2016)
 * Update async-each dependency to ^1.0.0
 
