@@ -1,3 +1,7 @@
+# Chokidar 1.5.2 (Jun 7, 2016)
+* Fix missing `addDir` events when using `cwd` and `alwaysStat` options
+* Fix missing `add` events for files within a renamed directory
+
 # Chokidar 1.5.1 (May 20, 2016)
 * To help prevent exhaustion of FSEvents system limitations, consolidate watch
   instances to the common parent upon detection of separate watch instances on
