@@ -1765,4 +1765,61 @@ function runTests(baseopts) {
       });
     });
   });
+  describe('env variable option override', function() {
+    describe('CHOKIDAR_USEPOLLING', function() {
+      afterEach(function() {
+        delete process.env.CHOKIDAR_USEPOLLING;
+      });
+
+      it('should make options.usePolling `true` when CHOKIDAR_USEPOLLING is set to true', function(done) {
+        options.usePolling = false;
+        process.env.CHOKIDAR_USEPOLLING = true;
+
+        watcher = chokidar.watch(fixturesPath, options).on('ready', function() {
+          watcher.options.usePolling.should.be.true;
+          done();
+        });
+      });
+
+      it('should make options.usePolling `true` when CHOKIDAR_USEPOLLING is set to 1', function(done) {
+        options.usePolling = false;
+        process.env.CHOKIDAR_USEPOLLING = 1;
+
+        watcher = chokidar.watch(fixturesPath, options).on('ready', function() {
+          watcher.options.usePolling.should.be.true;
+          done();
+        });
+      });
+
+      it('should make options.usePolling `false` when CHOKIDAR_USEPOLLING is set to false', function(done) {
+        options.usePolling = true;
+        process.env.CHOKIDAR_USEPOLLING = false;
+
+        watcher = chokidar.watch(fixturesPath, options).on('ready', function() {
+          watcher.options.usePolling.should.be.false;
+          done();
+        });
+      });
+
+      it('should make options.usePolling `false` when CHOKIDAR_USEPOLLING is set to 0', function(done) {
+        options.usePolling = true;
+        process.env.CHOKIDAR_USEPOLLING = false;
+
+        watcher = chokidar.watch(fixturesPath, options).on('ready', function() {
+          watcher.options.usePolling.should.be.false;
+          done();
+        });
+      });
+
+      it('should not attenuate options.usePolling when CHOKIDAR_USEPOLLING is set to an arbitrary value', function(done) {
+        options.usePolling = true;
+        process.env.CHOKIDAR_USEPOLLING = 'foo';
+
+        watcher = chokidar.watch(fixturesPath, options).on('ready', function() {
+          watcher.options.usePolling.should.be.true;
+          done();
+        });
+      });
+    });
+  });
 }
