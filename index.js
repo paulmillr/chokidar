@@ -92,13 +92,16 @@ function FSWatcher(_opts) {
 
   // Global override (useful for end-developers that need to force polling for all
   // instances of chokidar, regardless of usage/dependency depth)
-  if (process.env.CHOKIDAR_USEPOLLING !== undefined) {
-    var envLower = process.env.CHOKIDAR_USEPOLLING.toLowerCase();
+  var envPoll = process.env.CHOKIDAR_USEPOLLING;
+  if (envPoll !== undefined) {
+    var envLower = envPoll.toLowerCase();
 
     if (envLower === 'false' || envLower === '0') {
       opts.usePolling = false;
     } else if (envLower === 'true' || envLower === '1') {
       opts.usePolling = true;
+    } else {
+      opts.usePolling = !!envLower
     }
   }
 
