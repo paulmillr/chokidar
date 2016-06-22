@@ -1,3 +1,7 @@
+# Chokidar 1.6.0 (Jun 22, 2016)
+* Added ability for force `usePolling` mode by setting `CHOKIDAR_USEPOLLING`
+  env variable
+
 # Chokidar 1.5.2 (Jun 7, 2016)
 * Fix missing `addDir` events when using `cwd` and `alwaysStat` options
 * Fix missing `add` events for files within a renamed directory
