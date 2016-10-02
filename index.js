@@ -658,11 +658,21 @@ FSWatcher.prototype.unwatch = function(paths) {
   return this;
 };
 
-// Public method: Close watchers and remove all listeners from watched paths.
-
+// Private method: Close watchers and remove all listeners from watched paths.
+//
+// * cb     - function to be called after watcher has been successfully closed.
+//
 // Returns instance of FSWatcher for chaining.
-FSWatcher.prototype.close = function() {
-  if (this.closed) return this;
+FSWatcher.prototype.close = function(cb) {
+  if (this.closed) {
+      if (cb) cb();
+      return this;
+  }
+
+  if (!this._readyEmitted) {
+      this.on('ready', this.close.bind(this, cb));
+      return this;
+  }
 
   this.closed = true;
   Object.keys(this._closers).forEach(function(watchPath) {
@@ -672,6 +682,7 @@ FSWatcher.prototype.close = function() {
   this._watched = Object.create(null);
 
   this.removeAllListeners();
+  if (cb) cb();
   return this;
 };
 

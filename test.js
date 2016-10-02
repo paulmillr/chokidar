@@ -77,21 +77,37 @@ beforeEach(function() {
   fixturesPath = getFixturePath('');
 });
 
-function closeWatchers() {
+function closeWatchers(done) {
   var u;
-  while (u = usedWatchers.pop()) u.close();
+  if (!usedWatchers.length) done();
+  while (u = usedWatchers.pop()) {
+    u.close(closeWatchers.bind(null, done));
+  }
 }
-function disposeWatcher(watcher) {
-  if (!watcher || !watcher.close) return;
-  osXFsWatch ? usedWatchers.push(watcher) : watcher.close();
+function disposeWatcher(watcher, done) {
+  if (!watcher || !watcher.close) {
+      done();
+      return;
+  }
+  osXFsWatch ? usedWatchers.push(watcher) : watcher.close(done);
+  return
 }
-afterEach(function() {
-  disposeWatcher(watcher);
-  disposeWatcher(watcher2);
+afterEach(function(done) {
+  function _done() {
+    if ((!watcher || watcher.closed) && (!watcher2 || watcher2.closed)) {
+      done();
+    }
+  }
+  disposeWatcher(watcher, _done);
+  disposeWatcher(watcher2, _done);
+  if (osXFsWatch) {
+      done();
+  }
 });
 
 describe('chokidar', function() {
-  this.timeout(6000);
+  this.timeout(10000);
+  this.slow(400);
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
@@ -1746,17 +1762,18 @@ function runTests(baseopts) {
         });
     });
   });
-  describe('close', function() {
+  describe('close', function(done) {
     it('should ignore further events on close', function(done) {
       var spy = sinon.spy();
       watcher = chokidar.watch(fixturesPath, options).once('add', function() {
         watcher.once('add', function() {
-          watcher.on('add', spy).close();
-          fs.writeFile(getFixturePath('add.txt'), Date.now(), simpleCb);
-          w(function() {
-            spy.should.not.have.been.called;
-            done();
-          }, 900)();
+          watcher.on('add', spy).close(function() {
+              fs.writeFile(getFixturePath('add.txt'), Date.now(), simpleCb);
+              w(function() {
+                spy.should.not.have.been.called;
+                done();
+              }, 900)();
+          });
         });
       }).on('ready', function() {
         fs.writeFile(getFixturePath('add.txt'), 'hello', function() {
