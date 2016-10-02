@@ -658,21 +658,11 @@ FSWatcher.prototype.unwatch = function(paths) {
   return this;
 };
 
-// Private method: Close watchers and remove all listeners from watched paths.
-//
-// * cb     - function to be called after watcher has been successfully closed.
-//
-// Returns instance of FSWatcher for chaining.
-FSWatcher.prototype.close = function(cb) {
-  if (this.closed) {
-      if (cb) cb();
-      return this;
-  }
+// Public method: Close watchers and remove all listeners from watched paths.
 
-  if (!this._readyEmitted) {
-      this.on('ready', this.close.bind(this, cb));
-      return this;
-  }
+// Returns instance of FSWatcher for chaining.
+FSWatcher.prototype.close = function() {
+  if (this.closed) return this;
 
   this.closed = true;
   Object.keys(this._closers).forEach(function(watchPath) {
@@ -682,9 +672,25 @@ FSWatcher.prototype.close = function(cb) {
   this._watched = Object.create(null);
 
   this.removeAllListeners();
-  if (cb) cb();
   return this;
 };
+
+// Public method: ready-aware `FSWatcher.prototype.close`.
+// https://github.com/paulmillr/chokidar/issues/434
+
+// Returns instance of FSWatcher for chaining.
+FSWatcher.prototype.stop = function(cb) {
+  if (!this._readyEmitted) {
+    this.on('ready', this.stop.bind(this, cb));
+  } else {
+    process.nextTick(function() {
+        this.close();
+        if (cb) cb();
+    }.bind(this));
+  }
+  return this;
+};
+
 
 // Public method: Expose list of watched paths
 

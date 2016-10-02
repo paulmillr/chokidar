@@ -238,6 +238,7 @@ name and path for every event other than `ready`, `raw`, and `error`.
 * `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
+* `.stop(?cb)`: Asynchronous `.close()`. (https://github.com/paulmillr/chokidar/issues/434)
 * `.getWatched()`: Returns an object representing all the paths on the file
 system being watched by this `FSWatcher` instance. The object's keys are all the
 directories (using absolute paths unless the `cwd` option was used), and the
