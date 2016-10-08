@@ -1100,6 +1100,40 @@ function runTests(baseopts) {
             }, 300));
           }));
       });
+      it('should ignore paths provided only a directory name without ending slash', function(done) {
+        var spy = sinon.spy();
+        var testDir = getFixturePath('subdir');
+        var testFile = sysPath.join(testDir, 'add.txt');
+        options.ignored = 'subdir';
+        fs.mkdirSync(testDir, 0x1ed);
+        fs.writeFileSync(testFile, 'b');
+        watcher = chokidar.watch(fixturesPath, options)
+          .on('all', spy)
+          .on('ready', w(function() {
+            fs.writeFile(testFile, Date.now(), w(function() {
+              spy.should.not.have.been.calledWith('add', testFile);
+              spy.should.not.have.been.calledWith('change', testFile);
+              done();
+            }, 300));
+          }));
+      });
+      it('should ignore paths provided only a directory name with ending slash', function(done) {
+        var spy = sinon.spy();
+        var testDir = getFixturePath('subdir');
+        var testFile = sysPath.join(testDir, 'add.txt');
+        options.ignored = 'subdir/';
+        fs.mkdirSync(testDir, 0x1ed);
+        fs.writeFileSync(testFile, 'b');
+        watcher = chokidar.watch(fixturesPath, options)
+          .on('all', spy)
+          .on('ready', w(function() {
+            fs.writeFile(testFile, Date.now(), w(function() {
+              spy.should.not.have.been.calledWith('add', testFile);
+              spy.should.not.have.been.calledWith('change', testFile);
+              done();
+            }, 300));
+          }));
+      });
       it('should allow regex/fn ignores', function(done) {
         options.cwd = fixturesPath;
         options.ignored = /add/;

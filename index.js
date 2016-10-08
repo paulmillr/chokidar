@@ -34,6 +34,19 @@ var isString = function(thing) {
   return typeof thing === 'string';
 };
 
+var globify = function(path) {
+  var ret;
+  if (path.slice(-1) === sysPath.sep) {
+    ret = path + '**';
+  } else {
+    ret = path + sysPath.sep + '**';
+  }
+  if (!sysPath.isAbsolute(path)) {
+    ret = '**' + sysPath.sep + ret;
+  }
+  return ret;
+};
+
 // Public: Main class.
 // Watches files & directories for changes.
 //
@@ -356,9 +369,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
     var paths = arrify(ignored)
       .filter(function(path) {
         return typeof path === 'string' && !isGlob(path);
-      }).map(function(path) {
-        return path + '/**';
-      });
+      }).map(globify);
     this._userIgnored = anymatch(
       this._globIgnored.concat(ignored).concat(paths)
     );
@@ -594,7 +605,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
     } else {
       // if a path is being added that was previously ignored, stop ignoring it
       delete this._ignoredPaths[path];
-      delete this._ignoredPaths[path + '/**'];
+      delete this._ignoredPaths[globify(path)];
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
@@ -647,7 +658,7 @@ FSWatcher.prototype.unwatch = function(paths) {
 
     this._ignoredPaths[path] = true;
     if (path in this._watched) {
-      this._ignoredPaths[path + '/**'] = true;
+      this._ignoredPaths[globify(path)] = true;
     }
 
     // reset the cached userIgnored anymatch fn
