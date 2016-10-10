@@ -177,7 +177,8 @@ leads to high CPU utilization, consider setting this to `false`. It is
 typically necessary to **set this to `true` to successfully watch files over
 a network**, and it may be necessary to successfully watch files in other
 non-standard situations. Setting to `true` explicitly on OS X overrides the
-`useFsEvents` default.
+`useFsEvents` default. You may also set the CHOKIDAR_USEPOLLING env variable
+to true (1) or false (0) in order to override this option.
 * _Polling-specific settings_ (effective when `usePolling: true`)
   * `interval` (default: `100`). Interval of file system polling.
   * `binaryInterval` (default: `300`). Interval of file system
