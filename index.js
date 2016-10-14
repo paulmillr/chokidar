@@ -408,6 +408,7 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   };
 
   var filterPath = function(entry) {
+    if (entry.stat && entry.stat.isSymbolicLink()) return filterDir(entry);
     var resolvedPath = entryPath(entry);
     return (!hasGlob || globFilter(resolvedPath)) &&
       this._isntIgnored(resolvedPath, entry.stat) &&
