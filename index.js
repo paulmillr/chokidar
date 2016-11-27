@@ -104,6 +104,10 @@ function FSWatcher(_opts) {
       opts.usePolling = !!envLower
     }
   }
+  var envInterval = process.env.CHOKIDAR_INTERVAL;
+  if (envInterval !== undefined) {
+      opts.interval = envInterval;
+  }
 
   // Editor atomic write normalization enabled by default with fs.watch
   if (undef('atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
