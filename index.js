@@ -105,7 +105,7 @@ function FSWatcher(_opts) {
     }
   }
   var envInterval = process.env.CHOKIDAR_INTERVAL;
-  if (envInterval !== undefined) {
+  if (envInterval) {
     var envInteger = parseInt(envInterval);
     opts.interval = envInteger;
   }
