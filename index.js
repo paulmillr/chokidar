@@ -106,8 +106,7 @@ function FSWatcher(_opts) {
   }
   var envInterval = process.env.CHOKIDAR_INTERVAL;
   if (envInterval) {
-    var envInteger = parseInt(envInterval);
-    opts.interval = envInteger;
+    opts.interval = parseInt(envInterval);
   }
 
   // Editor atomic write normalization enabled by default with fs.watch
