@@ -77,13 +77,16 @@ beforeEach(function() {
   fixturesPath = getFixturePath('');
 });
 
-function closeWatchers() {
+function closeWatchers(done) {
   var u;
   while (u = usedWatchers.pop()) u.close();
+  if (done) {
+    process.env.TRAVIS && os === 'darwin' ? setTimeout(done, 500) : done();
+  }
 }
 function disposeWatcher(watcher) {
   if (!watcher || !watcher.close) return;
-  osXFsWatch ? usedWatchers.push(watcher) : watcher.close();
+  os === 'darwin' ? usedWatchers.push(watcher) : watcher.close();
 }
 afterEach(function() {
   disposeWatcher(watcher);
@@ -172,7 +175,7 @@ function runTests(baseopts) {
       waitFor([readySpy], function() {
         readySpy.should.have.been.calledOnce;
         rawSpy = undefined;
-        done()
+        closeWatchers(done);
       });
     });
     it('should produce an instance of chokidar.FSWatcher', function() {
