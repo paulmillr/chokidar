@@ -465,7 +465,7 @@ FSWatcher.prototype._getWatchedDir = function(directory) {
   if (!(dir in this._watched)) this._watched[dir] = {
     _items: Object.create(null),
     add: function(item) {
-      if (item !== '.') this._items[item] = true;
+      if (item !== '.' && item !== '..') this._items[item] = true;
     },
     remove: function(item) {
       delete this._items[item];
