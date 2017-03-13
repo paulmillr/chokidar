@@ -346,22 +346,16 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 
   if (!this._userIgnored) {
     var cwd = this.options.cwd;
-    var ignored = this.options.ignored;
-    if (cwd && ignored) {
-      ignored = ignored.map(function (path) {
-        if (typeof path !== 'string') return path;
-        return isAbsolute(path) ? path : sysPath.join(cwd, path);
-      });
-    }
-    var paths = arrify(ignored)
-      .filter(function(path) {
-        return typeof path === 'string' && !isGlob(path);
-      }).map(function(path) {
-        return path + '/**';
-      });
-    this._userIgnored = anymatch(
-      this._globIgnored.concat(ignored).concat(paths)
-    );
+    var paths = this._globIgnored.slice();
+    arrify(this.options.ignored).forEach(function(path) {
+      if (typeof path === 'string') {
+        if (cwd && !isAbsolute(path)) path = sysPath.join(cwd, path);
+        if (!isGlob(path)) paths.push(path + '/**');
+      }
+      // The `path` may be a string, function, regexp, or a mixed array.
+      paths.push(path);
+    });
+    this._userIgnored = anymatch(paths);
   }
 
   return this._userIgnored([path, stats]);
