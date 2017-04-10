@@ -196,7 +196,7 @@ already available from the underlying watch events.
 * `depth` (default: `undefined`). If set, limits how many levels of
 subdirectories will be traversed.
 * `awaitWriteFinish` (default: `false`).
-By default, the `add` event will fire when a file first appear on disk, before
+By default, the `add` event will fire when a file first appears on disk, before
 the entire file has been written. Furthermore, in some cases some `change`
 events will be emitted while the file is being written. In some cases,
 especially when watching for large files there will be a need to wait for the
