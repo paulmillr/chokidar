@@ -667,6 +667,24 @@ function runTests(baseopts) {
           });
       }));
     });
+    it('should treat glob-like paths as literal paths when globbing is disabled', function(done) {
+      options.ignoreGlobs = true;
+      var spy = sinon.spy();
+      var filePath = getFixturePath('nota[glob]/a.txt');
+      var watchPath = getFixturePath('nota[glob]');
+      fs.mkdirSync(watchPath, 0x1ed);
+      fs.writeFileSync(filePath, 'b');
+      watcher = chokidar.watch(watchPath, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('add', filePath);
+          w(fs.writeFile.bind(fs, filePath, Date.now(), simpleCb))();
+          waitFor([spy.withArgs('change', filePath)], function() {
+            spy.should.have.been.calledWith('change', filePath);
+            done();
+          });
+        });
+    });
     it('should not prematurely filter dirs against complex globstar patterns', function(done) {
       var spy = sinon.spy();
       var deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');

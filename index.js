@@ -76,6 +76,7 @@ function FSWatcher(_opts) {
   if (undef('ignorePermissionErrors')) opts.ignorePermissionErrors = false;
   if (undef('interval')) opts.interval = 100;
   if (undef('binaryInterval')) opts.binaryInterval = 300;
+  if (undef('ignoreGlobs')) opts.ignoreGlobs = false;
   this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
   // Enable fsevents on OS X when polling isn't explicitly enabled.
@@ -377,7 +378,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 var replacerRe = /^\.[\/\\]/;
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   path = path.replace(replacerRe, '');
-  var watchPath = depth || !isGlob(path) ? path : globParent(path);
+  var watchPath = depth || this.options.ignoreGlobs || !isGlob(path) ? path : globParent(path);
   var fullWatchPath = sysPath.resolve(watchPath);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
