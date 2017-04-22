@@ -668,7 +668,7 @@ function runTests(baseopts) {
       }));
     });
     it('should treat glob-like paths as literal paths when globbing is disabled', function(done) {
-      options.ignoreGlobs = true;
+      options.disableGlobbing = true;
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob]/a.txt');
       var watchPath = getFixturePath('nota[glob]');
