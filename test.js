@@ -667,7 +667,7 @@ function runTests(baseopts) {
           });
       }));
     });
-    it('should treat glob-like paths as literal paths when globbing is disabled', function(done) {
+    it('should treat glob-like directory names as literal directory names when globbing is disabled', function(done) {
       options.disableGlobbing = true;
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob]/a.txt');
@@ -676,6 +676,32 @@ function runTests(baseopts) {
       var matchingFile = getFixturePath('notag/b.txt');
       var matchingFile2 = getFixturePath('notal');
       fs.mkdirSync(watchPath, 0x1ed);
+      fs.writeFileSync(filePath, 'b');
+      fs.mkdirSync(matchingDir, 0x1ed);
+      fs.writeFileSync(matchingFile, 'c');
+      fs.writeFileSync(matchingFile2, 'd');
+      watcher = chokidar.watch(watchPath, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('add', filePath);
+          spy.should.not.have.been.calledWith('addDir', matchingDir);
+          spy.should.not.have.been.calledWith('add', matchingFile);
+          spy.should.not.have.been.calledWith('add', matchingFile2);
+          w(fs.writeFile.bind(fs, filePath, Date.now(), simpleCb))();
+          waitFor([spy.withArgs('change', filePath)], function() {
+            spy.should.have.been.calledWith('change', filePath);
+            done();
+          });
+        });
+    });
+    it('should treat glob-like filenames as literal filenames when globbing is disabled', function(done) {
+      options.disableGlobbing = true;
+      var spy = sinon.spy();
+      var filePath = getFixturePath('nota[glob]');
+      var watchPath = getFixturePath('nota[glob]');
+      var matchingDir = getFixturePath('notag');
+      var matchingFile = getFixturePath('notag/a.txt');
+      var matchingFile2 = getFixturePath('notal');
       fs.writeFileSync(filePath, 'b');
       fs.mkdirSync(matchingDir, 0x1ed);
       fs.writeFileSync(matchingFile, 'c');
