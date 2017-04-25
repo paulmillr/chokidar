@@ -120,6 +120,7 @@ chokidar.watch('file', {
   ignoreInitial: false,
   followSymlinks: true,
   cwd: '.',
+  disableGlobbing: false,
 
   usePolling: true,
   interval: 100,
@@ -168,6 +169,8 @@ symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
 * `cwd` (no default). The base directory from which watch `paths` are to be
 derived. Paths emitted with events will be relative to this.
+* `disableGlobbing` (default: `false`). If set to `true` then the strings passed to `.watch()` and `.add()` are treated as
+literal path names, even if they look like globs.
 
 #### Performance
 
