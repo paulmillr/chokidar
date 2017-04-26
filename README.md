@@ -183,7 +183,8 @@ non-standard situations. Setting to `true` explicitly on OS X overrides the
 `useFsEvents` default. You may also set the CHOKIDAR_USEPOLLING env variable
 to true (1) or false (0) in order to override this option.
 * _Polling-specific settings_ (effective when `usePolling: true`)
-  * `interval` (default: `100`). Interval of file system polling.
+  * `interval` (default: `100`). Interval of file system polling. You may also 
+    set the CHOKIDAR_INTERVAL env variable to override this option.
   * `binaryInterval` (default: `300`). Interval of file system
   polling for binary files.
   ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))

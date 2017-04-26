@@ -1877,5 +1877,20 @@ function runTests(baseopts) {
         });
       });
     });
+    describe('CHOKIDAR_INTERVAL', function() {
+      afterEach(function() {
+        delete process.env.CHOKIDAR_INTERVAL;
+      });
+
+      it('should make options.interval = CHOKIDAR_INTERVAL when it is set', function(done) {
+        options.interval = 100;
+        process.env.CHOKIDAR_INTERVAL = 1500;
+
+        watcher = chokidar.watch(fixturesPath, options).on('ready', function() {
+          watcher.options.interval.should.be.equal(1500);
+          done();
+        });
+      });
+    });
   });
 }

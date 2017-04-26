@@ -1,3 +1,6 @@
+* Added ability to force `interval` value by setting `CHOKIDAR_INTERVAL`
+  env variable
+
 # Chokidar 1.6.0 (Jun 22, 2016)
 * Added ability for force `usePolling` mode by setting `CHOKIDAR_USEPOLLING`
   env variable
