@@ -1824,8 +1824,8 @@ function runTests(baseopts) {
     it('should not prevent the process from exiting', function(done) {
         var scriptFile = getFixturePath('script.js');
         var scriptContent = '\
-        var chokidar = require("' + __dirname + '");\n\
-        var watcher = chokidar.watch("' + scriptFile + '");\n\
+        var chokidar = require("' + __dirname.replace(/\\/g, '\\\\') + '");\n\
+        var watcher = chokidar.watch("' + scriptFile.replace(/\\/g, '\\\\') + '");\n\
         watcher.close();\n\
         process.stdout.write("closed");\n';
         fs.writeFile(scriptFile, scriptContent, function (err) {
