@@ -1826,13 +1826,10 @@ function runTests(baseopts) {
         var scriptContent = '\
         var chokidar = require("' + __dirname + '");\n\
         var watcher = chokidar.watch("' + scriptFile + '");\n\
-\n\
         watcher.close();\n\
         process.stdout.write("closed");\n';
-
         fs.writeFile(scriptFile, scriptContent, function (err) {
             if (err) throw err;
-
             cp.exec('node ' + scriptFile, function (err, stdout) {
                 if (err) throw err;
                 expect(stdout.toString()).to.equal('closed');
