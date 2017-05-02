@@ -8,6 +8,7 @@ var sinon = require('sinon');
 var rimraf = require('rimraf');
 var fs = require('graceful-fs');
 var sysPath = require('path');
+var cp = require('child_process');
 chai.use(require('sinon-chai'));
 var os = process.platform;
 
@@ -1819,6 +1820,22 @@ function runTests(baseopts) {
           fs.unlink(getFixturePath('add.txt'), simpleCb);
         });
       });
+    });
+    it('should not prevent the process from exiting', function(done) {
+        var scriptFile = getFixturePath('script.js');
+        var scriptContent = '\
+        var chokidar = require("' + __dirname.replace(/\\/g, '\\\\') + '");\n\
+        var watcher = chokidar.watch("' + scriptFile.replace(/\\/g, '\\\\') + '");\n\
+        watcher.close();\n\
+        process.stdout.write("closed");\n';
+        fs.writeFile(scriptFile, scriptContent, function (err) {
+            if (err) throw err;
+            cp.exec('node ' + scriptFile, function (err, stdout) {
+                if (err) throw err;
+                expect(stdout.toString()).to.equal('closed');
+                done();
+            });
+        });
     });
   });
   describe('env variable option override', function() {
