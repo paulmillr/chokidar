@@ -1,5 +1,8 @@
-* Added ability to force `interval` value by setting `CHOKIDAR_INTERVAL`
-  env variable
+# Chokidar 1.7.0 (May 8, 2017)
+* Add `disableGlobbing` option
+* Add ability to force interval value by setting CHOKIDAR_INTERVAL env
+  variable
+* Fix issue with `.close()` being called before `ready`
 
 # Chokidar 1.6.0 (Jun 22, 2016)
 * Added ability for force `usePolling` mode by setting `CHOKIDAR_USEPOLLING`
