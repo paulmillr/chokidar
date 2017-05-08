@@ -82,6 +82,8 @@ function FSWatcher(_opts) {
   // Enable fsevents on OS X when polling isn't explicitly enabled.
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
+  FsEventsHandler.init(opts.requireFseventsCallback);
+
   // If we can't use fsevents, ensure the options reflect it's disabled.
   if (!FsEventsHandler.canUse()) opts.useFsEvents = false;
 
