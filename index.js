@@ -82,10 +82,16 @@ function FSWatcher(_opts) {
   // Enable fsevents on OS X when polling isn't explicitly enabled.
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
-  if (opts.useFsEvents) FsEventsHandler.init(opts.requireFseventsCallback);
+  if (opts.useFsEvents) {
+    FsEventsHandler.initFsEvents(opts.fseventsPath, opts.requireFseventsCallback);
+  }
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  if (!FsEventsHandler.canUse()) opts.useFsEvents = false;
+  if (!FsEventsHandler.canUse()) {
+    opts.useFsEvents = false;
+  } else {
+    importHandler(FsEventsHandler);
+  }
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs.watch.
@@ -702,7 +708,6 @@ function importHandler(handler) {
   });
 }
 importHandler(NodeFsHandler);
-if (FsEventsHandler.canUse()) importHandler(FsEventsHandler);
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
