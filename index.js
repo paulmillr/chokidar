@@ -83,7 +83,7 @@ function FSWatcher(_opts) {
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   if (opts.useFsEvents) {
-    FsEventsHandler.initFsEvents(opts.fseventsPath, opts.requireFseventsCallback);
+    FsEventsHandler.initFsEvents(opts.fseventsPath, opts.useFsEvents, opts.requireFseventsCallback);
   }
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
