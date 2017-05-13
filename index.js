@@ -681,6 +681,23 @@ FSWatcher.prototype.close = function() {
   return this;
 };
 
+// Public method: ready-aware `FSWatcher.prototype.close`.
+// https://github.com/paulmillr/chokidar/issues/434
+
+// Returns instance of FSWatcher for chaining.
+FSWatcher.prototype.stop = function(cb) {
+  if (!this._readyEmitted) {
+    this.on('ready', this.stop.bind(this, cb));
+  } else {
+    process.nextTick(function() {
+        this.close();
+        if (cb) cb();
+    }.bind(this));
+  }
+  return this;
+};
+
+
 // Public method: Expose list of watched paths
 
 // Returns object w/ dir paths as keys and arrays of contained paths as values.
