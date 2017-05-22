@@ -547,6 +547,11 @@ FSWatcher.prototype._remove = function(directory, item) {
     if (event === 'add') return;
   }
 
+  // Avoid conflicts if we later create another directory with the same name
+  if (isDirectory) {
+    this.unwatch(path);
+  }
+
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
   delete this._watched[path];
