@@ -161,7 +161,13 @@ inherits(FSWatcher, EventEmitter);
 // Returns the error if defined, otherwise the value of the
 // FSWatcher instance's `closed` flag
 FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
-  if (this.options.cwd) path = sysPath.relative(this.options.cwd, path);
+  
+  if (this.options.cwd) {
+    path = sysPath.relative(this.options.cwd, path);
+  } else {
+    path = sysPath.resolve(process.cwd(), path); //enforce the absolute path because of #390
+  }
+  
   var args = [event, path];
   if (val3 !== undefined) args.push(val1, val2, val3);
   else if (val2 !== undefined) args.push(val1, val2);
@@ -266,6 +272,10 @@ FSWatcher.prototype._handleError = function(error) {
 //
 // Returns throttle tracking object or false if action should be suppressed
 FSWatcher.prototype._throttle = function(action, path, timeout) {
+  
+  //always lookup with the absolute path because of #390
+  path = sysPath.resolve(process.cwd(), path);
+  
   if (!(action in this._throttled)) {
     this._throttled[action] = Object.create(null);
   }
