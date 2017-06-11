@@ -35,7 +35,7 @@
     "graceful-fs": "4.1.11",
     "istanbul": "^0.4.5",
     "mocha": "^3.4.2",
-    "rimraf": "^2.4.3",
+    "rimraf": "^2.6.1",
     "sinon": "^1.10.3",
     "sinon-chai": "^2.6.0"
   },
