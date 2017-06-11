@@ -49,7 +49,7 @@
     "inherits": "^2.0.3",
     "is-binary-path": "^1.0.0",
     "is-glob": "^2.0.0",
-    "path-is-absolute": "^1.0.0",
+    "path-is-absolute": "^1.0.1",
     "readdirp": "^2.0.0"
   }
 }
