@@ -30,7 +30,7 @@
     "lib/"
   ],
   "devDependencies": {
-    "chai": "^3.2.0",
+    "chai": "^4.0.2",
     "coveralls": "^2.11.2",
     "graceful-fs": "4.1.11",
     "istanbul": "^0.4.5",
