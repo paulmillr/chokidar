@@ -447,7 +447,7 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
       unmatchedGlob = !dirParts.some(function(parts) {
         return parts.every(function(part, i) {
           if (part === '**') globstar = true;
-          return globstar || !entryParts[i] || anymatch(part, entryParts[i]);
+          return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i]);
         });
       });
     }
