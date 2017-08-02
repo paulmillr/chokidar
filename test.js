@@ -786,8 +786,8 @@ function runTests(baseopts) {
         .on('ready', function() {
           spy.should.have.been.calledWith('add', deepFileA);
           spy.should.have.been.calledWith('add', deepFileB);
-          fs.writeFileSync(deepFileA, Date.now());
-          fs.writeFileSync(deepFileB, Date.now());
+          fs.appendFileSync(deepFileA, Date.now());
+          fs.appendFileSync(deepFileB, Date.now());
           waitFor([[spy, 4]], function() {
             spy.should.have.been.calledWith('change', deepFileA);
             spy.should.have.been.calledWith('change', deepFileB);
