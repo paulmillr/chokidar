@@ -1146,7 +1146,7 @@ function runTests(baseopts) {
     describe('ignored', function() {
       it('should check ignore after stating', function(done) {
         options.ignored = function(path, stats) {
-          if (path === testDir || !stats) return false;
+          if (upath.normalizeSafe(path) === upath.normalizeSafe(testDir) || !stats) return false;
           return stats.isDirectory();
         };
         var spy = sinon.spy();
