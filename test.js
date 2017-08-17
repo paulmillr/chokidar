@@ -8,6 +8,7 @@ var sinon = require('sinon');
 var rimraf = require('rimraf');
 var fs = require('graceful-fs');
 var sysPath = require('path');
+var upath = require("upath");
 var cp = require('child_process');
 chai.use(require('sinon-chai'));
 var os = process.platform;
@@ -767,6 +768,33 @@ function runTests(baseopts) {
           });
         });
     });
+    it('should correctly handle glob with braces', function(done) {
+      var spy = sinon.spy();
+      var watchPath = upath.normalizeSafe(getFixturePath('{subdir/*,subdir1/subsub1}/subsubsub/*.txt'));
+      var deepFileA = getFixturePath('subdir/subsub/subsubsub/a.txt');
+      var deepFileB = getFixturePath('subdir1/subsub1/subsubsub/a.txt');
+      fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir1'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir1/subsub1'), 0x1ed);
+      fs.mkdirSync(getFixturePath('subdir1/subsub1/subsubsub'), 0x1ed);
+      fs.writeFileSync(deepFileA, Date.now());
+      fs.writeFileSync(deepFileB, Date.now());
+      watcher = chokidar.watch(watchPath, options)
+        .on('all', spy)
+        .on('ready', function() {
+          spy.should.have.been.calledWith('add', deepFileA);
+          spy.should.have.been.calledWith('add', deepFileB);
+          fs.appendFileSync(deepFileA, Date.now());
+          fs.appendFileSync(deepFileB, Date.now());
+          waitFor([[spy, 4]], function() {
+            spy.should.have.been.calledWith('change', deepFileA);
+            spy.should.have.been.calledWith('change', deepFileB);
+            done();
+          });
+        });
+    });
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
@@ -1118,7 +1146,7 @@ function runTests(baseopts) {
     describe('ignored', function() {
       it('should check ignore after stating', function(done) {
         options.ignored = function(path, stats) {
-          if (path === testDir || !stats) return false;
+          if (upath.normalizeSafe(path) === upath.normalizeSafe(testDir) || !stats) return false;
           return stats.isDirectory();
         };
         var spy = sinon.spy();
