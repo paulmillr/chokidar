@@ -9,6 +9,7 @@ var isGlob = require('is-glob');
 var isAbsolute = require('path-is-absolute');
 var inherits = require('inherits');
 var braces = require('braces');
+var upath = require('upath');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
@@ -383,7 +384,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 var replacerRe = /^\.[\/\\]/;
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   path = path.replace(replacerRe, '');
-  var watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
+  var watchPath = depth || this.options.disableGlobbing || !isGlob(upath.normalizeSafe(path)) ? path : globParent(path);
   var fullWatchPath = sysPath.resolve(watchPath);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
