@@ -51,6 +51,7 @@
     "inherits": "^2.0.1",
     "is-binary-path": "^1.0.0",
     "is-glob": "^4.0.0",
+    "normalize-path": "^2.1.1",
     "path-is-absolute": "^1.0.0",
     "readdirp": "^2.0.0"
   }

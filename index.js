@@ -9,6 +9,7 @@ var isGlob = require('is-glob');
 var isAbsolute = require('path-is-absolute');
 var inherits = require('inherits');
 var braces = require('braces');
+var normalizePath = require('normalize-path')
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
@@ -586,6 +587,7 @@ FSWatcher.prototype._closePath = function(path) {
 
 // Returns an instance of FSWatcher for chaining.
 FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
+  var disableGlobbing = this.options.disableGlobbing;
   var cwd = this.options.cwd;
   this.closed = false;
   paths = flatten(arrify(paths));
@@ -595,12 +597,20 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   }
 
   if (cwd) paths = paths.map(function(path) {
+    var absPath;
     if (isAbsolute(path)) {
-      return path;
+      absPath = path;
     } else if (path[0] === '!') {
-      return '!' + sysPath.join(cwd, path.substring(1));
+      absPath = '!' + sysPath.join(cwd, path.substring(1));
     } else {
-      return sysPath.join(cwd, path);
+      absPath = sysPath.join(cwd, path);
+    }
+
+    // Check `path` instead of `absPath` because the cwd portion can't be a glob
+    if (disableGlobbing || !isGlob(path)) {
+      return absPath;
+    } else {
+      return normalizePath(absPath);
     }
   });
 
