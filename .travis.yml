@@ -12,4 +12,6 @@ os:
   - osx
 script:
   - npm run ci-test
+after_script:
+  - npm run coveralls
 sudo: false
