@@ -21,6 +21,14 @@ function getFixturePath (subPath) {
     subPath
   );
 }
+function getGlobPath (subPath) {
+  return upath.join(
+    __dirname,
+    'test-fixtures',
+    subdir && subdir.toString() || '',
+    subPath
+  );
+}
 
 var watcher,
     watcher2,
@@ -516,10 +524,10 @@ function runTests(baseopts) {
     before(closeWatchers);
     it('should correctly watch and emit based on glob input', function(done) {
       var spy = sinon.spy();
-      var testPath = getFixturePath('*a*.txt');
+      var watchPath = getGlobPath('*a*.txt');
       var addPath = getFixturePath('add.txt');
       var changePath = getFixturePath('change.txt');
-      watcher = chokidar.watch(testPath, options)
+      watcher = chokidar.watch(watchPath, options)
         .on('all', spy)
         .on('ready', function() {
           spy.should.have.been.calledWith('add', changePath);
@@ -538,10 +546,10 @@ function runTests(baseopts) {
     });
     it('should respect negated glob patterns', function(done) {
       var spy = sinon.spy();
-      var testPath = getFixturePath('*');
-      var negatedPath = '!' + getFixturePath('*a*.txt');
+      var watchPath = getGlobPath('*');
+      var negatedWatchPath = '!' + getGlobPath('*a*.txt');
       var unlinkPath = getFixturePath('unlink.txt');
-      watcher = chokidar.watch([testPath, negatedPath], options)
+      watcher = chokidar.watch([watchPath, negatedWatchPath], options)
         .on('all', spy)
         .on('ready', function() {
           spy.should.have.been.calledOnce;
@@ -556,7 +564,7 @@ function runTests(baseopts) {
     });
     it('should traverse subdirs to match globstar patterns', function(done) {
       var spy = sinon.spy();
-      var watchPath = getFixturePath('../../test-*/' + subdir + '/**/a*.txt');
+      var watchPath = getGlobPath('../../test-*/' + subdir + '/**/a*.txt');
       fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
       fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
@@ -587,12 +595,12 @@ function runTests(baseopts) {
     });
     it('should resolve relative paths with glob patterns', function(done) {
       var spy = sinon.spy();
-      var testPath = 'test-*/' + subdir + '/*a*.txt';
+      var watchPath = 'test-*/' + subdir + '/*a*.txt';
       // getFixturePath() returns absolute paths, so use sysPath.join() instead
       var addPath = sysPath.join('test-fixtures', subdir.toString(), 'add.txt');
       var changePath = sysPath.join('test-fixtures', subdir.toString(), 'change.txt');
       var unlinkPath = sysPath.join('test-fixtures', subdir.toString(), 'unlink.txt');
-      watcher = chokidar.watch(testPath, options)
+      watcher = chokidar.watch(watchPath, options)
         .on('all', spy)
         .on('ready', function() {
           spy.should.have.been.calledWith('add', changePath);
@@ -615,7 +623,7 @@ function runTests(baseopts) {
       var changePath = getFixturePath('change.txt');
       var unlinkPath = getFixturePath('unlink.txt');
       var addPath = getFixturePath('add.txt');
-      var watchPaths = [getFixturePath('change*'), getFixturePath('unlink*')];
+      var watchPaths = [getGlobPath('change*'), getGlobPath('unlink*')];
       watcher = chokidar.watch(watchPaths, options)
         .on('all', spy)
         .on('ready', function() {
@@ -639,7 +647,7 @@ function runTests(baseopts) {
     it('should correctly handle intersecting glob patterns', function(done) {
       var spy = sinon.spy();
       var changePath = getFixturePath('change.txt');
-      var watchPaths = [getFixturePath('cha*'), getFixturePath('*nge.*')];
+      var watchPaths = [getGlobPath('cha*'), getGlobPath('*nge.*')];
       watcher = chokidar.watch(watchPaths, options)
         .on('all', spy)
         .on('ready', function() {
@@ -674,10 +682,11 @@ function runTests(baseopts) {
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob]/a.txt');
       var watchPath = getFixturePath('nota[glob]');
+      var testDir = getFixturePath('nota[glob]');
       var matchingDir = getFixturePath('notag');
       var matchingFile = getFixturePath('notag/b.txt');
       var matchingFile2 = getFixturePath('notal');
-      fs.mkdirSync(watchPath, 0x1ed);
+      fs.mkdirSync(testDir, 0x1ed);
       fs.writeFileSync(filePath, 'b');
       fs.mkdirSync(matchingDir, 0x1ed);
       fs.writeFileSync(matchingFile, 'c');
@@ -700,6 +709,7 @@ function runTests(baseopts) {
       options.disableGlobbing = true;
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob]');
+      // This isn't using getGlobPath because it isn't treated as a glob
       var watchPath = getFixturePath('nota[glob]');
       var matchingDir = getFixturePath('notag');
       var matchingFile = getFixturePath('notag/a.txt');
@@ -725,7 +735,7 @@ function runTests(baseopts) {
     it('should not prematurely filter dirs against complex globstar patterns', function(done) {
       var spy = sinon.spy();
       var deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
-      var watchPath = getFixturePath('../../test-*/' + subdir + '/**/subsubsub/*.txt');
+      var watchPath = getGlobPath('../../test-*/' + subdir + '/**/subsubsub/*.txt');
       fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
       fs.mkdirSync(getFixturePath('subdir/subsub'), 0x1ed);
       fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), 0x1ed);
@@ -744,7 +754,7 @@ function runTests(baseopts) {
     it('should emit matching dir events', function(done) {
       var spy = sinon.spy();
       // test with and without globstar matches
-      var watchPaths = [getFixturePath('*'), getFixturePath('subdir/subsub/**/*')];
+      var watchPaths = [getGlobPath('*'), getGlobPath('subdir/subsub/**/*')];
       var deepDir = getFixturePath('subdir/subsub/subsubsub');
       var deepFile = sysPath.join(deepDir, 'a.txt');
       fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
@@ -770,7 +780,7 @@ function runTests(baseopts) {
     });
     it('should correctly handle glob with braces', function(done) {
       var spy = sinon.spy();
-      var watchPath = upath.normalizeSafe(getFixturePath('{subdir/*,subdir1/subsub1}/subsubsub/*.txt'));
+      var watchPath = upath.normalizeSafe(getGlobPath('{subdir/*,subdir1/subsub1}/subsubsub/*.txt'));
       var deepFileA = getFixturePath('subdir/subsub/subsubsub/a.txt');
       var deepFileB = getFixturePath('subdir1/subsub1/subsubsub/a.txt');
       fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
@@ -966,8 +976,8 @@ function runTests(baseopts) {
       var dirSpy = sinon.spy(function dirSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       // test with relative path to ensure proper resolution
-      var watchDir = sysPath.relative(process.cwd(), linkedDir);
-      watcher = chokidar.watch(sysPath.join(watchDir, '**/*'), options)
+      var watchDir = upath.relative(process.cwd(), linkedDir);
+      watcher = chokidar.watch(upath.join(watchDir, '**/*'), options)
         .on('addDir', dirSpy)
         .on('add', addSpy)
         .on('ready', function() {
@@ -1413,7 +1423,7 @@ function runTests(baseopts) {
         var options2 = {};
         Object.keys(options).forEach(function(key) { options2[key] = options[key] });
         options2.cwd = getFixturePath('subdir');
-        watcher = chokidar.watch(getFixturePath('**'), options)
+        watcher = chokidar.watch(getGlobPath('**'), options)
           .on('all', spy1)
           .on('ready', w(function() {
             watcher2 = chokidar.watch(fixturesPath, options2)
@@ -1754,8 +1764,8 @@ function runTests(baseopts) {
         .on('all', spy)
         .on('ready', w(function() {
           // test with both relative and absolute paths
-          var subdirRel = sysPath.relative(process.cwd(), getFixturePath('subdir'));
-          watcher.unwatch([subdirRel, getFixturePath('unl*')]);
+          var subdirRel = upath.relative(process.cwd(), getFixturePath('subdir'));
+          watcher.unwatch([subdirRel, getGlobPath('unl*')]);
           w(function() {
             fs.unlink(getFixturePath('unlink.txt'), simpleCb);
             fs.writeFile(getFixturePath('subdir/add.txt'), Date.now(), simpleCb);
