@@ -9,7 +9,8 @@ var isGlob = require('is-glob');
 var isAbsolute = require('path-is-absolute');
 var inherits = require('inherits');
 var braces = require('braces');
-var normalizePath = require('normalize-path')
+var normalizePath = require('normalize-path');
+var upath = require('upath');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
@@ -357,7 +358,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
     if (cwd && ignored) {
       ignored = ignored.map(function (path) {
         if (typeof path !== 'string') return path;
-        return isAbsolute(path) ? path : sysPath.join(cwd, path);
+        return upath.normalize(isAbsolute(path) ? path : sysPath.join(cwd, path));
       });
     }
     var paths = arrify(ignored)
