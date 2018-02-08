@@ -12,7 +12,7 @@ Node.js `fs.watch`:
 * Doesn't report events at all when using editors like Sublime on OS X.
 * Often reports events twice.
 * Emits most changes as `rename`.
-* Has [a lot of other issues](https://github.com/joyent/node/search?q=fs.watch&type=Issues)
+* Has [a lot of other issues](https://github.com/nodejs/node/search?q=fs.watch&type=Issues)
 * Does not provide an easy way to recursively watch file trees.
 
 Node.js `fs.watchFile`:
