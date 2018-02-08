@@ -1,3 +1,8 @@
+# Chokidar 2.0.1 (Feb 8, 2018)
+* Fix #668 glob issue on Windows when using `ignore` and `cwd`. Thanks @remy!
+* Fix #546 possible uncaught exception when using `awaitWriteFinish`.
+  Thanks @dsagal!
+
 # Chokidar 2.0.0 (Dec 29, 2017)
 * Breaking: Upgrade globbing dependencies which require globs to be more strict and always use POSIX-style slashes because Windows-style slashes are used as escape sequences
 * Update tests to work with upgraded globbing dependencies
