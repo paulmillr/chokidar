@@ -428,7 +428,7 @@ function runTests(baseopts) {
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
-      watcher = chokidar.watch(testPath, options)
+      watcher = chokidar.watch([testPath, testPath + '.does-not-exist'], options)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', function() {
