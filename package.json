@@ -46,7 +46,7 @@
   "dependencies": {
     "anymatch": "^2.0.0",
     "async-each": "^1.0.0",
-    "braces": "^2.3.0",
+    "braces": "^2.3.1",
     "glob-parent": "^3.1.0",
     "inherits": "^2.0.1",
     "is-binary-path": "^1.0.0",
