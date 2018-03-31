@@ -117,6 +117,7 @@ describe('chokidar', function() {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
+  describe('fs.watch (watchman)', runTests.bind(this, {usePolling: false, useFsEvents: false, useWatchman: true}));
 });
 
 function simpleCb(err) { if (err) throw err; }
@@ -808,6 +809,8 @@ function runTests(baseopts) {
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;
+    if (baseopts.useWatchman) return;
+
     before(closeWatchers);
     var linkedDir;
     beforeEach(function(done) {

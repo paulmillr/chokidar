@@ -14,6 +14,7 @@ var upath = require('upath');
 
 var NodeFsHandler = require('./lib/nodefs-handler');
 var FsEventsHandler = require('./lib/fsevents-handler');
+var WatchmanHandler = require('./lib/watchman-handler');
 
 var arrify = function(value) {
   if (value == null) return [];
@@ -94,7 +95,9 @@ function FSWatcher(_opts) {
     opts.usePolling = process.platform === 'darwin';
   }
 
-  // Global override (useful for end-developers that need to force polling for all
+  if (undef('useWatchman')) opts.useWatchman = false;
+
+  // Global override (useful for end-developers that need to force polling/watchman for all
   // instances of chokidar, regardless of usage/dependency depth)
   var envPoll = process.env.CHOKIDAR_USEPOLLING;
   if (envPoll !== undefined) {
@@ -111,6 +114,17 @@ function FSWatcher(_opts) {
   var envInterval = process.env.CHOKIDAR_INTERVAL;
   if (envInterval) {
     opts.interval = parseInt(envInterval);
+  }
+  var envWatchman = process.env.CHOKIDAR_USEWATCHMAN;
+  if (envWatchman !== undefined) {
+    var envWatchmanLower = envWatchman.toLowerCase();
+    if (envWatchmanLower === 'false' || envWatchmanLower === '0') {
+      opts.useWatchman = false;
+    } else if (envWatchmanLower === 'true' || envWatchmanLower === '1') {
+      opts.useWatchman = true;
+    } else {
+      opts.useWatchman = !!envWatchmanLower;
+    }
   }
 
   // Editor atomic write normalization enabled by default with fs.watch
@@ -632,7 +646,10 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
     }
   }, this);
 
-  if (this.options.useFsEvents && FsEventsHandler.canUse()) {
+  if (this.options.useWatchman) {
+    if (!this._readyCount) this._readyCount = paths.length;
+    paths.forEach(this._addToWatchman, this);
+  } else if (this.options.useFsEvents && FsEventsHandler.canUse()) {
     if (!this._readyCount) this._readyCount = paths.length;
     if (this.options.persistent) this._readyCount *= 2;
     paths.forEach(this._addToFsEvents, this);
@@ -723,6 +740,7 @@ function importHandler(handler) {
 }
 importHandler(NodeFsHandler);
 if (FsEventsHandler.canUse()) importHandler(FsEventsHandler);
+importHandler(WatchmanHandler);
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
