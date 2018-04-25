@@ -6,7 +6,6 @@ var asyncEach = require('async-each');
 var anymatch = require('anymatch');
 var globParent = require('glob-parent');
 var isGlob = require('is-glob');
-var isAbsolute = require('path-is-absolute');
 var inherits = require('inherits');
 var braces = require('braces');
 var normalizePath = require('normalize-path');
@@ -295,7 +294,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
   var timeoutHandler;
 
   var fullPath = path;
-  if (this.options.cwd && !isAbsolute(path)) {
+  if (this.options.cwd && !sysPath.isAbsolute(path)) {
     fullPath = sysPath.join(this.options.cwd, path);
   }
 
@@ -358,7 +357,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
     if (cwd && ignored) {
       ignored = ignored.map(function (path) {
         if (typeof path !== 'string') return path;
-        return upath.normalize(isAbsolute(path) ? path : sysPath.join(cwd, path));
+        return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
       });
     }
     var paths = arrify(ignored)
@@ -599,7 +598,7 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
 
   if (cwd) paths = paths.map(function(path) {
     var absPath;
-    if (isAbsolute(path)) {
+    if (sysPath.isAbsolute(path)) {
       absPath = path;
     } else if (path[0] === '!') {
       absPath = '!' + sysPath.join(cwd, path.substring(1));
@@ -666,7 +665,7 @@ FSWatcher.prototype.unwatch = function(paths) {
 
   paths.forEach(function(path) {
     // convert to absolute path unless relative path already matches
-    if (!isAbsolute(path) && !this._closers[path]) {
+    if (!sysPath.isAbsolute(path) && !this._closers[path]) {
       if (this.options.cwd) path = sysPath.join(this.options.cwd, path);
       path = sysPath.resolve(path);
     }
