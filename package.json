@@ -30,6 +30,9 @@
     "index.js",
     "lib/"
   ],
+  "engines": {
+    "node": ">=4"
+  },
   "devDependencies": {
     "chai": "^3.2.0",
     "coveralls": "^2.11.2",
