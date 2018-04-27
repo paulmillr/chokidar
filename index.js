@@ -129,10 +129,6 @@ class FSWatcher extends EventEmitter {
     }
     if (opts.ignored) opts.ignored = arrify(opts.ignored);
 
-    this._isntIgnored = function(path, stat) {
-      return !this._isIgnored(path, stat);
-    }.bind(this);
-
     var readyCalls = 0;
     this._emitReady = function() {
       if (++readyCalls >= this._readyCount) {
@@ -151,6 +147,10 @@ class FSWatcher extends EventEmitter {
 
   get _globIgnored() {
     return Object.keys(this._ignoredPaths);
+  }
+
+  _isntIgnored(path, stat) {
+    return !this._isIgnored(path, stat);
   }
 
   // Common helpers
