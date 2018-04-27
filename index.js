@@ -64,9 +64,6 @@ class FSWatcher extends EventEmitter {
     this._watched = Object.create(null);
     this._closers = Object.create(null);
     this._ignoredPaths = Object.create(null);
-    Object.defineProperty(this, '_globIgnored', {
-      get: function() { return Object.keys(this._ignoredPaths); }
-    });
     this.closed = false;
     this._throttled = Object.create(null);
     this._symlinkPaths = Object.create(null);
@@ -150,6 +147,10 @@ class FSWatcher extends EventEmitter {
 
     // You’re frozen when your heart’s not open.
     Object.freeze(opts);
+  }
+
+  get _globIgnored() {
+    return Object.keys(this._ignoredPaths);
   }
 
   // Common helpers
