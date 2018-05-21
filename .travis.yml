@@ -13,7 +13,7 @@ os:
   - linux
   - osx
 script:
-  - npm run ci-test
+  - npm run test
 after_script:
   - npm run coveralls
 sudo: false

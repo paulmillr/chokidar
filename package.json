@@ -23,7 +23,6 @@
   "license": "MIT",
   "scripts": {
     "test": "nyc mocha --exit",
-    "ci-test": "istanbul cover _mocha",
     "coveralls": "cat ./coverage/lcov.info | coveralls"
   },
   "files": [
