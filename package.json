@@ -23,7 +23,7 @@
   "license": "MIT",
   "scripts": {
     "test": "nyc mocha --exit",
-    "coveralls": "cat ./coverage/lcov.info | coveralls"
+    "coveralls": "nyc report --reporter=text-lcov | coveralls"
   },
   "files": [
     "index.js",
