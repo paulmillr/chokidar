@@ -22,7 +22,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "istanbul test node_modules/mocha/bin/_mocha",
+    "test": "nyc mocha --exit",
     "ci-test": "istanbul cover _mocha",
     "coveralls": "cat ./coverage/lcov.info | coveralls"
   },
@@ -34,8 +34,8 @@
     "chai": "^3.2.0",
     "coveralls": "^3.0.1",
     "graceful-fs": "4.1.4",
-    "istanbul": "^0.4.5",
     "mocha": "^5.2.0",
+    "nyc": "^11.8.0",
     "rimraf": "^2.4.3",
     "sinon": "^1.10.3",
     "sinon-chai": "^2.6.0"
