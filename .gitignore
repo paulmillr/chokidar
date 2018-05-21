@@ -3,3 +3,5 @@ test-fixtures
 coverage
 *.bak
 *.log
+.nyc_output
+package-lock.json
