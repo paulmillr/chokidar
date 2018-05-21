@@ -32,10 +32,10 @@
   ],
   "devDependencies": {
     "chai": "^3.2.0",
-    "coveralls": "^2.11.2",
+    "coveralls": "^3.0.1",
     "graceful-fs": "4.1.4",
-    "istanbul": "^0.3.20",
-    "mocha": "^3.0.0",
+    "istanbul": "^0.4.5",
+    "mocha": "^5.2.0",
     "rimraf": "^2.4.3",
     "sinon": "^1.10.3",
     "sinon-chai": "^2.6.0"
