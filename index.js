@@ -273,13 +273,18 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
     this._throttled[action] = Object.create(null);
   }
   var throttled = this._throttled[action];
-  if (path in throttled) return false;
+  if (path in throttled) {
+    throttled[path].count++;
+    return false;
+  }
   function clear() {
+    var count = throttled[path] ? throttled[path].count : 0;
     delete throttled[path];
     clearTimeout(timeoutObject);
+    return count;
   }
   var timeoutObject = setTimeout(clear, timeout);
-  throttled[path] = {timeoutObject: timeoutObject, clear: clear};
+  throttled[path] = {timeoutObject: timeoutObject, clear: clear, count: 0};
   return throttled[path];
 };
 
