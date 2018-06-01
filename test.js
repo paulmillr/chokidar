@@ -303,7 +303,7 @@ function runTests(baseopts) {
           fs.writeFile(test2Path, Date.now(), function() {
             fs.writeFile(test3Path, Date.now(), function() {
               fs.writeFile(test4Path, Date.now(), function() {
-                fs.writeFile(test5Path, Date.now(), function() {
+                fs.writeFile(test5Path, Date.now(), w(function() {
                   fs.writeFile(test6Path, Date.now(), function() {
                     fs.writeFile(test7Path, Date.now(), function() {
                       fs.writeFile(test8Path, Date.now(), function() {
@@ -321,14 +321,14 @@ function runTests(baseopts) {
                                               fs.writeFile(testc2Path, Date.now(), function() {
                                                 fs.writeFile(testc3Path, Date.now(), function() {
                                                   fs.writeFile(testc4Path, Date.now(), function() {
-                                                    fs.writeFile(testc5Path, Date.now(), function() {
+                                                    fs.writeFile(testc5Path, Date.now(), w(function() {
                                                       fs.writeFile(testc6Path, Date.now(), function() {
                                                         fs.writeFile(testc7Path, Date.now(), function() {
                                                           fs.writeFile(testc8Path, Date.now(), function() {
                                                             fs.writeFile(testc9Path, Date.now(), function() {
                                                               fs.writeFile(testd1Path, Date.now(), function() {
                                                                 fs.writeFile(teste1Path, Date.now(), function() {
-                                                                  fs.writeFile(testf1Path, Date.now(), function() {
+                                                                  fs.writeFile(testf1Path, Date.now(), w(function() {
                                                                     fs.writeFile(testg1Path, Date.now(), function() {
                                                                       fs.writeFile(testh1Path, Date.now(), function() {
                                                                         fs.writeFile(testi1Path, Date.now(), function() {
@@ -336,14 +336,14 @@ function runTests(baseopts) {
                                                                         });
                                                                       });
                                                                     });
-                                                                  });
+                                                                  }, 100));
                                                                 });
                                                               });
                                                             });
                                                           });
                                                         });
                                                       });
-                                                    });
+                                                    }, 150));
                                                   });
                                                 });
                                               });
@@ -352,7 +352,7 @@ function runTests(baseopts) {
                                         });
                                       });
                                     });
-                                  }, 100));
+                                  }, 200));
                                 });
                               });
                             });
@@ -361,12 +361,12 @@ function runTests(baseopts) {
                       });
                     });
                   });
-                });
+                }, 200));
               });
             });
           });
         });
-        waitFor([[spy, 27]], function() {
+        waitFor([[spy, 33]], function() {
           spy.should.have.been.calledWith(test1Path);
           spy.should.have.been.calledWith(test2Path);
           spy.should.have.been.calledWith(test3Path);
@@ -394,28 +394,12 @@ function runTests(baseopts) {
           spy.should.have.been.calledWith(testc7Path);
           spy.should.have.been.calledWith(testc8Path);
           spy.should.have.been.calledWith(testc9Path);
-          done();
-        });
-      }));
-    });
-    it('should emit multiple `add` events when files were added', function(done) {
-      var spy = sinon.spy();
-      var test1Path = getFixturePath('add1.txt');
-      var testDir2Path = getFixturePath('b');
-      var test2Path = getFixturePath('b/add2.txt');
-      var testDir3Path = getFixturePath('c');
-      var test3Path = getFixturePath('c/add3.txt');
-      watcher.on('add', spy).on('ready', w(function() {
-        fs.mkdirSync(testDir2Path, 0x1ed);
-        fs.mkdirSync(testDir3Path, 0x1ed);
-        fs.writeFile(test1Path, Date.now(), simpleCb);
-        fs.writeFile(test2Path, Date.now(), simpleCb);
-        fs.writeFile(test3Path, Date.now(), simpleCb);
-        waitFor([spy, 3], function() {
-          spy.should.have.been.calledThrice;
-          spy.should.have.been.calledWith(test1Path);
-          spy.should.have.been.calledWith(test2Path);
-          spy.should.have.been.calledWith(test3Path);
+          spy.should.have.been.calledWith(testd1Path);
+          spy.should.have.been.calledWith(teste1Path);
+          spy.should.have.been.calledWith(testf1Path);
+          spy.should.have.been.calledWith(testg1Path);
+          spy.should.have.been.calledWith(testh1Path);
+          spy.should.have.been.calledWith(testi1Path);
           done();
         });
       }));
