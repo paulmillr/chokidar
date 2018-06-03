@@ -228,7 +228,7 @@ function runTests(baseopts) {
           fs.writeFile(test2Path, Date.now(), function() {
             fs.writeFile(test3Path, Date.now(), function() {
               fs.writeFile(test4Path, Date.now(), function() {
-                fs.writeFile(test5Path, Date.now(), function() {
+                fs.writeFile(test5Path, Date.now(), w(function() {
                   fs.writeFile(test6Path, Date.now(), function() {
                     fs.writeFile(test7Path, Date.now(), function() {
                       fs.writeFile(test8Path, Date.now(), function() {
@@ -236,7 +236,7 @@ function runTests(baseopts) {
                       });
                     });
                   });
-                });
+                }, 200));
               });
             });
           });
