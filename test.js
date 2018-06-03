@@ -212,6 +212,198 @@ function runTests(baseopts) {
         });
       }));
     });
+    it('should emit nine `add` events when nine files were added in one directory', function(done) {
+      var spy = sinon.spy();
+      var test1Path = getFixturePath('add1.txt');
+      var test2Path = getFixturePath('add2.txt');
+      var test3Path = getFixturePath('add3.txt');
+      var test4Path = getFixturePath('add4.txt');
+      var test5Path = getFixturePath('add5.txt');
+      var test6Path = getFixturePath('add6.txt');
+      var test7Path = getFixturePath('add7.txt');
+      var test8Path = getFixturePath('add8.txt');
+      var test9Path = getFixturePath('add9.txt');
+      watcher.on('add', spy).on('ready', w(function() {
+        fs.writeFile(test1Path, Date.now(), function() {
+          fs.writeFile(test2Path, Date.now(), function() {
+            fs.writeFile(test3Path, Date.now(), function() {
+              fs.writeFile(test4Path, Date.now(), function() {
+                fs.writeFile(test5Path, Date.now(), function() {
+                  fs.writeFile(test6Path, Date.now(), function() {
+                    fs.writeFile(test7Path, Date.now(), function() {
+                      fs.writeFile(test8Path, Date.now(), function() {
+                        fs.writeFile(test9Path, Date.now(), simpleCb);
+                      });
+                    });
+                  });
+                });
+              });
+            });
+          });
+        });
+        waitFor([[spy, 9]], function() {
+          spy.should.have.been.calledWith(test1Path);
+          spy.should.have.been.calledWith(test2Path);
+          spy.should.have.been.calledWith(test3Path);
+          spy.should.have.been.calledWith(test4Path);
+          spy.should.have.been.calledWith(test5Path);
+          spy.should.have.been.calledWith(test6Path);
+          spy.should.have.been.calledWith(test7Path);
+          spy.should.have.been.calledWith(test8Path);
+          spy.should.have.been.calledWith(test9Path);
+          done();
+        });
+      }));
+    });
+    it('should emit thirtythree `add` events when thirtythree files were added in nine directories', function(done) {
+      var spy = sinon.spy();
+      var test1Path = getFixturePath('add1.txt');
+      var testb1Path = getFixturePath('b/add1.txt');
+      var testc1Path = getFixturePath('c/add1.txt');
+      var testd1Path = getFixturePath('d/add1.txt');
+      var teste1Path = getFixturePath('e/add1.txt');
+      var testf1Path = getFixturePath('f/add1.txt');
+      var testg1Path = getFixturePath('g/add1.txt');
+      var testh1Path = getFixturePath('h/add1.txt');
+      var testi1Path = getFixturePath('i/add1.txt');
+      var test2Path = getFixturePath('add2.txt');
+      var testb2Path = getFixturePath('b/add2.txt');
+      var testc2Path = getFixturePath('c/add2.txt');
+      var test3Path = getFixturePath('add3.txt');
+      var testb3Path = getFixturePath('b/add3.txt');
+      var testc3Path = getFixturePath('c/add3.txt');
+      var test4Path = getFixturePath('add4.txt');
+      var testb4Path = getFixturePath('b/add4.txt');
+      var testc4Path = getFixturePath('c/add4.txt');
+      var test5Path = getFixturePath('add5.txt');
+      var testb5Path = getFixturePath('b/add5.txt');
+      var testc5Path = getFixturePath('c/add5.txt');
+      var test6Path = getFixturePath('add6.txt');
+      var testb6Path = getFixturePath('b/add6.txt');
+      var testc6Path = getFixturePath('c/add6.txt');
+      var test7Path = getFixturePath('add7.txt');
+      var testb7Path = getFixturePath('b/add7.txt');
+      var testc7Path = getFixturePath('c/add7.txt');
+      var test8Path = getFixturePath('add8.txt');
+      var testb8Path = getFixturePath('b/add8.txt');
+      var testc8Path = getFixturePath('c/add8.txt');
+      var test9Path = getFixturePath('add9.txt');
+      var testb9Path = getFixturePath('b/add9.txt');
+      var testc9Path = getFixturePath('c/add9.txt');
+      fs.mkdirSync(getFixturePath('b'), 0x1ed);
+      fs.mkdirSync(getFixturePath('c'), 0x1ed);
+      fs.mkdirSync(getFixturePath('d'), 0x1ed);
+      fs.mkdirSync(getFixturePath('e'), 0x1ed);
+      fs.mkdirSync(getFixturePath('f'), 0x1ed);
+      fs.mkdirSync(getFixturePath('g'), 0x1ed);
+      fs.mkdirSync(getFixturePath('h'), 0x1ed);
+      fs.mkdirSync(getFixturePath('i'), 0x1ed);
+      watcher.on('add', spy).on('ready', w(function() {
+        fs.writeFile(test1Path, Date.now(), function() {
+          fs.writeFile(test2Path, Date.now(), function() {
+            fs.writeFile(test3Path, Date.now(), function() {
+              fs.writeFile(test4Path, Date.now(), function() {
+                fs.writeFile(test5Path, Date.now(), w(function() {
+                  fs.writeFile(test6Path, Date.now(), function() {
+                    fs.writeFile(test7Path, Date.now(), function() {
+                      fs.writeFile(test8Path, Date.now(), function() {
+                        fs.writeFile(test9Path, Date.now(), function() {
+                          fs.writeFile(testb1Path, Date.now(), function() {
+                            fs.writeFile(testb2Path, Date.now(), function() {
+                              fs.writeFile(testb3Path, Date.now(), function() {
+                                fs.writeFile(testb4Path, Date.now(), function() {
+                                  fs.writeFile(testb5Path, Date.now(), w(function() {
+                                    fs.writeFile(testb6Path, Date.now(), function() {
+                                      fs.writeFile(testb7Path, Date.now(), function() {
+                                        fs.writeFile(testb8Path, Date.now(), function() {
+                                          fs.writeFile(testb9Path, Date.now(), function() {
+                                            fs.writeFile(testc1Path, Date.now(), function() {
+                                              fs.writeFile(testc2Path, Date.now(), function() {
+                                                fs.writeFile(testc3Path, Date.now(), function() {
+                                                  fs.writeFile(testc4Path, Date.now(), function() {
+                                                    fs.writeFile(testc5Path, Date.now(), w(function() {
+                                                      fs.writeFile(testc6Path, Date.now(), function() {
+                                                        fs.writeFile(testc7Path, Date.now(), function() {
+                                                          fs.writeFile(testc8Path, Date.now(), function() {
+                                                            fs.writeFile(testc9Path, Date.now(), function() {
+                                                              fs.writeFile(testd1Path, Date.now(), function() {
+                                                                fs.writeFile(teste1Path, Date.now(), function() {
+                                                                  fs.writeFile(testf1Path, Date.now(), w(function() {
+                                                                    fs.writeFile(testg1Path, Date.now(), function() {
+                                                                      fs.writeFile(testh1Path, Date.now(), function() {
+                                                                        fs.writeFile(testi1Path, Date.now(), function() {
+                                                                          simpleCb();
+                                                                        });
+                                                                      });
+                                                                    });
+                                                                  }, 100));
+                                                                });
+                                                              });
+                                                            });
+                                                          });
+                                                        });
+                                                      });
+                                                    }, 150));
+                                                  });
+                                                });
+                                              });
+                                            });
+                                          });
+                                        });
+                                      });
+                                    });
+                                  }, 200));
+                                });
+                              });
+                            });
+                          });
+                        });
+                      });
+                    });
+                  });
+                }, 200));
+              });
+            });
+          });
+        });
+        waitFor([[spy, 33]], function() {
+          spy.should.have.been.calledWith(test1Path);
+          spy.should.have.been.calledWith(test2Path);
+          spy.should.have.been.calledWith(test3Path);
+          spy.should.have.been.calledWith(test4Path);
+          spy.should.have.been.calledWith(test5Path);
+          spy.should.have.been.calledWith(test6Path);
+          spy.should.have.been.calledWith(test7Path);
+          spy.should.have.been.calledWith(test8Path);
+          spy.should.have.been.calledWith(test9Path);
+          spy.should.have.been.calledWith(testb1Path);
+          spy.should.have.been.calledWith(testb2Path);
+          spy.should.have.been.calledWith(testb3Path);
+          spy.should.have.been.calledWith(testb4Path);
+          spy.should.have.been.calledWith(testb5Path);
+          spy.should.have.been.calledWith(testb6Path);
+          spy.should.have.been.calledWith(testb7Path);
+          spy.should.have.been.calledWith(testb8Path);
+          spy.should.have.been.calledWith(testb9Path);
+          spy.should.have.been.calledWith(testc1Path);
+          spy.should.have.been.calledWith(testc2Path);
+          spy.should.have.been.calledWith(testc3Path);
+          spy.should.have.been.calledWith(testc4Path);
+          spy.should.have.been.calledWith(testc5Path);
+          spy.should.have.been.calledWith(testc6Path);
+          spy.should.have.been.calledWith(testc7Path);
+          spy.should.have.been.calledWith(testc8Path);
+          spy.should.have.been.calledWith(testc9Path);
+          spy.should.have.been.calledWith(testd1Path);
+          spy.should.have.been.calledWith(teste1Path);
+          spy.should.have.been.calledWith(testf1Path);
+          spy.should.have.been.calledWith(testg1Path);
+          spy.should.have.been.calledWith(testh1Path);
+          spy.should.have.been.calledWith(testi1Path);
+          done();
+        });
+      }));
+    });
     it('should emit `addDir` event when directory was added', function(done) {
       var spy = sinon.spy();
       var testDir = getFixturePath('subdir');
