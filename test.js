@@ -7,6 +7,7 @@ var should = chai.should();
 var sinon = require('sinon');
 var rimraf = require('rimraf');
 var fs = require('graceful-fs');
+var fse = require('fs-extra');
 var sysPath = require('path');
 var upath = require("upath");
 var cp = require('child_process');
@@ -460,6 +461,26 @@ function runTests(baseopts) {
           expect(spy.args[0][1]).to.not.be.ok; // no stats
           rawSpy.should.have.been.called;
           if (!osXFsWatch010) spy.should.have.been.calledOnce;
+          done();
+        });
+      });
+    });
+    it('should emit two `unlinkDir` event when two nested directories were removed', function(done) {
+      var spy = sinon.spy();
+      var testDir = getFixturePath('subdir');
+      var testDir2 = getFixturePath('subdir/subdir2');
+      var testDir3 = getFixturePath('subdir/subdir2/subdir3');
+      fs.mkdirSync(testDir, 0x1ed);
+      fs.mkdirSync(testDir2, 0x1ed);
+      fs.mkdirSync(testDir3, 0x1ed);
+      watcher.on('unlinkDir', spy).on('ready', function() {
+        w(fse.remove.bind(fse, testDir2, simpleCb))(); // test removing in one
+        waitFor([spy], function() {
+          spy.should.have.been.calledWith(testDir2);
+          spy.should.have.been.calledWith(testDir3);
+          expect(spy.args[0][1]).to.not.be.ok; // no stats
+          rawSpy.should.have.been.called;
+          if (!osXFsWatch010) spy.should.have.been.calledTwice;
           done();
         });
       });
