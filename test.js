@@ -7,7 +7,7 @@ var should = chai.should();
 var sinon = require('sinon');
 var rimraf = require('rimraf');
 var fs = require('graceful-fs');
-var fse = require('fs-extra');
+var rimraf = require('rimraf');
 var sysPath = require('path');
 var upath = require("upath");
 var cp = require('child_process');
@@ -474,7 +474,7 @@ function runTests(baseopts) {
       fs.mkdirSync(testDir2, 0x1ed);
       fs.mkdirSync(testDir3, 0x1ed);
       watcher.on('unlinkDir', spy).on('ready', function() {
-        w(fse.remove.bind(fse, testDir2, simpleCb))(); // test removing in one
+        rimraf(testDir2, simpleCb); // test removing in one
         waitFor([spy], function() {
           spy.should.have.been.calledWith(testDir2);
           spy.should.have.been.calledWith(testDir3);
