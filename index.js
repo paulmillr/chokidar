@@ -574,13 +574,15 @@ FSWatcher.prototype._remove = function(directory, item) {
 
   // Avoid conflicts if we later create another file with the same name
   if (!this.options.useFsEvents) {
-    this._closePath(path);
+    this._closePath(path, true);
   }
 };
 
-FSWatcher.prototype._closePath = function(path) {
+// * afterRemove - optional boolean, to avoid closing fs.FSWatcher if it would crash
+
+FSWatcher.prototype._closePath = function(path, afterRemove) {
   if (!this._closers[path]) return;
-  this._closers[path]();
+  this._closers[path](afterRemove);
   delete this._closers[path];
   this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
 }
