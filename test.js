@@ -661,9 +661,9 @@ function runTests(baseopts) {
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
-      var siblingPath = getFixturePath('sibling.txt');
-      fs.writeFileSync(siblingPath, 'sibling');
-      watcher = chokidar.watch([testPath, siblingPath], options)
+      var otherPath = getFixturePath('other.txt');
+      fs.writeFileSync(otherPath, 'other');
+      watcher = chokidar.watch([testPath, otherPath], options)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', function() {
@@ -678,14 +678,38 @@ function runTests(baseopts) {
           }));
         });
     });
-    it('should detect unlink and re-add unfazed by watching a second file that does not exist', function(done) {
+    it('should detect unlink and re-add unfazed by in other directory watching a second file that does not exist', function(done) {
       options.ignoreInitial = true;
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
-      var siblingPath = getFixturePath('sibling.txt');
-      // intentionally for this test don't write fs.writeFileSync(siblingPath, 'sibling');
-      watcher = chokidar.watch([testPath, siblingPath], options)
+      var otherDirPath = getFixturePath('other-dir');
+      var otherPath = getFixturePath('other-dir/other.txt');
+      fs.mkdirSync(otherDirPath, 0x1ed);
+      // intentionally for this test don't write fs.writeFileSync(otherPath, 'other');
+      watcher = chokidar.watch([testPath, otherPath], options)
+        .on('unlink', unlinkSpy)
+        .on('add', addSpy)
+        .on('ready', function() {
+          w(fs.unlink.bind(fs, testPath, simpleCb))();
+          waitFor([unlinkSpy], w(function() {
+            unlinkSpy.should.have.been.calledWith(testPath);
+            w(fs.writeFile.bind(fs, testPath, 're-added', simpleCb))();
+            waitFor([addSpy], function() {
+              addSpy.should.have.been.calledWith(testPath);
+              done();
+            });
+          }));
+        });
+    });
+    it('should detect unlink and re-add unfazed by in same directory watching a second file that does not exist', function(done) {
+      options.ignoreInitial = true;
+      var unlinkSpy = sinon.spy(function unlinkSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
+      var testPath = getFixturePath('unlink.txt');
+      var otherPath = getFixturePath('other.txt');
+      // intentionally for this test don't write fs.writeFileSync(otherPath, 'other');
+      watcher = chokidar.watch([testPath, otherPath], options)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', function() {
