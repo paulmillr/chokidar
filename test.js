@@ -637,7 +637,6 @@ function runTests(baseopts) {
         });
     });
     it('should detect unlink and re-add', function(done) {
-      options.ignoreInitial = true;
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
@@ -657,7 +656,6 @@ function runTests(baseopts) {
         });
     });
     it('should detect unlink and re-add unfazed by watching a second file', function(done) {
-      options.ignoreInitial = true;
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
@@ -679,7 +677,6 @@ function runTests(baseopts) {
         });
     });
     it('should detect unlink and re-add unfazed by in other directory watching a second file that does not exist', function(done) {
-      options.ignoreInitial = true;
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
@@ -703,7 +700,6 @@ function runTests(baseopts) {
         });
     });
     it('should detect unlink and re-add unfazed by in same directory watching a second file that does not exist', function(done) {
-      options.ignoreInitial = true;
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
