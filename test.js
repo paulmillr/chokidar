@@ -641,7 +641,51 @@ function runTests(baseopts) {
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
       var addSpy = sinon.spy(function addSpy(){});
       var testPath = getFixturePath('unlink.txt');
-      watcher = chokidar.watch([testPath, testPath + '.does-not-exist'], options)
+      watcher = chokidar.watch([testPath], options)
+        .on('unlink', unlinkSpy)
+        .on('add', addSpy)
+        .on('ready', function() {
+          w(fs.unlink.bind(fs, testPath, simpleCb))();
+          waitFor([unlinkSpy], w(function() {
+            unlinkSpy.should.have.been.calledWith(testPath);
+            w(fs.writeFile.bind(fs, testPath, 're-added', simpleCb))();
+            waitFor([addSpy], function() {
+              addSpy.should.have.been.calledWith(testPath);
+              done();
+            });
+          }));
+        });
+    });
+    it('should detect unlink and re-add unfazed by watching a second file', function(done) {
+      options.ignoreInitial = true;
+      var unlinkSpy = sinon.spy(function unlinkSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
+      var testPath = getFixturePath('unlink.txt');
+      var siblingPath = getFixturePath('sibling.txt');
+      fs.writeFileSync(siblingPath, 'sibling');
+      watcher = chokidar.watch([testPath, siblingPath], options)
+        .on('unlink', unlinkSpy)
+        .on('add', addSpy)
+        .on('ready', function() {
+          w(fs.unlink.bind(fs, testPath, simpleCb))();
+          waitFor([unlinkSpy], w(function() {
+            unlinkSpy.should.have.been.calledWith(testPath);
+            w(fs.writeFile.bind(fs, testPath, 're-added', simpleCb))();
+            waitFor([addSpy], function() {
+              addSpy.should.have.been.calledWith(testPath);
+              done();
+            });
+          }));
+        });
+    });
+    it('should detect unlink and re-add unfazed by watching a second file that does not exist', function(done) {
+      options.ignoreInitial = true;
+      var unlinkSpy = sinon.spy(function unlinkSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
+      var testPath = getFixturePath('unlink.txt');
+      var siblingPath = getFixturePath('sibling.txt');
+      // intentionally for this test don't write fs.writeFileSync(siblingPath, 'sibling');
+      watcher = chokidar.watch([testPath, siblingPath], options)
         .on('unlink', unlinkSpy)
         .on('add', addSpy)
         .on('ready', function() {
