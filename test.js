@@ -741,6 +741,30 @@ function runTests(baseopts) {
           }));
         });
     });
+    it('should detect two unlinks and one re-add', function(done) {
+      options.ignoreInitial = true;
+      var unlinkSpy = sinon.spy(function unlinkSpy(){});
+      var addSpy = sinon.spy(function addSpy(){});
+      var testPath = getFixturePath('unlink.txt');
+      var otherPath = getFixturePath('other.txt');
+      fs.writeFileSync(otherPath, 'other');
+      watcher = chokidar.watch([testPath, otherPath], options)
+        .on('unlink', unlinkSpy)
+        .on('add', addSpy)
+        .on('ready', function() {
+          w(fs.unlink.bind(fs, otherPath, simpleCb))();
+          w(fs.unlink.bind(fs, testPath, simpleCb))();
+          waitFor([[unlinkSpy, 2]], w(function() {
+            unlinkSpy.should.have.been.calledWith(otherPath);
+            unlinkSpy.should.have.been.calledWith(testPath);
+            w(fs.writeFile.bind(fs, testPath, 're-added', simpleCb))();
+            waitFor([addSpy], function() {
+              addSpy.should.have.been.calledWith(testPath);
+              done();
+            });
+          }));
+        });
+    });
     it('should detect unlink and re-add while watching a second file and a non-existent third file', function(done) {
       options.ignoreInitial = true;
       var unlinkSpy = sinon.spy(function unlinkSpy(){});
