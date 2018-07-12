@@ -1151,6 +1151,23 @@ function runTests(baseopts) {
           });
         });
     });
+    it('should correctly watch glob patterns which initially do not match any files on fs', (done) => {
+      var spy = sinon.spy();
+      var watchPath = upath.normalizeSafe(getGlobPath('subdir/**'));
+      var dir = getFixturePath('subdir');
+      var file = getFixturePath('subdir/a.txt');
+      watcher = chokidar.watch(watchPath, options)
+        .on('all', spy)
+        .on('ready', function() {
+          fs.mkdirSync(getFixturePath('subdir'), 0x1ed);
+          fs.writeFileSync(file, Date.now());
+          waitFor([spy.withArgs('add')], function() {
+            spy.should.have.been.calledWith('addDir', dir);
+            spy.should.have.been.calledWith('add', file);
+          });
+          done();
+        });
+    });
   });
   describe('watch symlinks', function() {
     if (os === 'win32') return;

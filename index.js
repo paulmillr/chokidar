@@ -390,7 +390,8 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 var replacerRe = /^\.[\/\\]/;
 FSWatcher.prototype._getWatchHelpers = function(path, depth) {
   path = path.replace(replacerRe, '');
-  var watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
+  var getExistingPath = function(path) { return fs.existsSync(path) ? path : getExistingPath(sysPath.dirname(path)); };
+  var watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : getExistingPath(globParent(path));
   var fullWatchPath = sysPath.resolve(watchPath);
   var hasGlob = watchPath !== path;
   var globFilter = hasGlob ? anymatch(path) : false;
