@@ -292,7 +292,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 //
 // * path    - string, path being acted upon
 // * threshold - int, time in milliseconds a file size must be fixed before
-//                    acknowledgeing write operation is finished
+//                    acknowledging write operation is finished
 // * awfEmit - function, to be called when ready for event to be emitted
 // Polls a newly created file for size variations. When files size does not
 // change for 'threshold' milliseconds calls callback.
