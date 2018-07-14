@@ -1007,6 +1007,27 @@ function runTests(baseopts) {
           });
         });
     });
+    it('should correctly handle intersecting of glob patterns with non-glob parts of other glob patterns', (done) => {
+      var spy = sinon.spy();
+      var watchPaths = [getGlobPath('some-*/*/*.ext1'), getGlobPath('some-dir/*/*.ext2')];
+      var dir = getFixturePath('some-dir');
+      var subdir = getFixturePath('some-dir/subdir');
+      const file1 = getFixturePath('some-dir/subdir/file1.ext1');
+      const file2 = getFixturePath('some-dir/subdir/file2.ext1');
+      fs.mkdirSync(dir, 0x1ed);
+      fs.mkdirSync(subdir, 0x1ed);
+      fs.writeFileSync(file1);
+      fs.writeFileSync(file2);
+      watcher = chokidar.watch(watchPaths, options)
+        .on('all', spy)
+        .on('ready', function() {
+          waitFor([spy, 2], function() {
+            spy.should.have.been.calledWith('add', file1);
+            spy.should.have.been.calledWith('add', file2);
+            done();
+          });
+        });
+    });
     it('should not confuse glob-like filenames with globs', function(done) {
       var spy = sinon.spy();
       var filePath = getFixturePath('nota[glob].txt');
