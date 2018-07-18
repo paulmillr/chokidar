@@ -1212,6 +1212,35 @@ function runTests(baseopts) {
           });
         });
     });
+    it('should follow symlinked directories with dot in the symlinked dirname', function(done) {
+      var spy = sinon.spy();
+
+      // Create target directory
+      fs.mkdirSync(getFixturePath('targetdir'))
+      var changePath = getFixturePath('targetdir/change.txt');
+
+      // Create linked directory
+      fs.mkdirSync(getFixturePath('subdir/@some-scope'))
+      var linkedDirWithDot = getFixturePath('subdir/@some-scope/contains.dot')
+
+      // setup dir symlink
+      fs.symlinkSync(sysPath.dirname(changePath), linkedDirWithDot, 'dir')
+
+      const linkPath = sysPath.join(linkedDirWithDot, sysPath.basename(changePath))
+
+      fs.writeFile(changePath, Date.now(), simpleCb); // do the initial write so the file is ready
+      watcher = chokidar.watch(linkedDirWithDot, options)
+        .on('all', spy)
+        .on('ready', function() {
+          fs.writeFile(changePath, Date.now(), simpleCb); // change the file to trigger change event
+          waitFor([spy.withArgs('change', linkPath)], function() {
+            spy.should.have.been.calledWith('addDir', linkedDirWithDot);
+            spy.should.have.been.calledWith('add', linkPath);
+            spy.should.have.been.calledWith('change', linkPath);
+            done();
+          });
+        });
+    });
     it('should watch paths with a symlinked parent', function(done) {
       var spy = sinon.spy();
       var testDir = sysPath.join(linkedDir, 'subdir');
