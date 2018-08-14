@@ -699,7 +699,7 @@ FSWatcher.prototype.close = function() {
 
   this.closed = true;
   Object.keys(this._closers).forEach(function(watchPath) {
-    this._closers[watchPath]();
+    this._closers[watchPath](true);
     delete this._closers[watchPath];
   }, this);
   this._watched = Object.create(null);
