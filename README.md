@@ -2,7 +2,7 @@
 
 > A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.
 
-[![NPM](https://nodei.co/npm/chokidar.png)](https://nodei.co/npm/chokidar/)
+[![NPM](https://nodei.co/npm/chokidar.png)](https://www.npmjs.com/package/chokidar)
 
 ## Why?
 Node.js `fs.watch`:
