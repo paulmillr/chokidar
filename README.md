@@ -2,8 +2,9 @@
 
 > A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.
 
-[![NPM](https://nodei.co/npm-dl/chokidar.png)](https://nodei.co/npm/chokidar/)
-[![NPM](https://nodei.co/npm/chokidar.png?downloads=true&downloadRank=true&stars=true)](https://nodei.co/npm/chokidar/)
+[![Weekly downloads](https://img.shields.io/npm/dw/chokidar.svg)](https://github.com/paulmillr/chokidar)
+[![Yearly downloads](https://img.shields.io/npm/dy/chokidar.svg)](https://github.com/paulmillr/chokidar)
+[![NPM](https://nodei.co/npm/chokidar.png)](https://nodei.co/npm/chokidar/)
 
 ## Why?
 Node.js `fs.watch`:
@@ -183,7 +184,7 @@ non-standard situations. Setting to `true` explicitly on OS X overrides the
 `useFsEvents` default. You may also set the CHOKIDAR_USEPOLLING env variable
 to true (1) or false (0) in order to override this option.
 * _Polling-specific settings_ (effective when `usePolling: true`)
-  * `interval` (default: `100`). Interval of file system polling. You may also 
+  * `interval` (default: `100`). Interval of file system polling. You may also
     set the CHOKIDAR_INTERVAL env variable to override this option.
   * `binaryInterval` (default: `300`). Interval of file system
   polling for binary files.
