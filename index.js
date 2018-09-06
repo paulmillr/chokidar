@@ -308,7 +308,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
 
   var awaitWriteFinish = (function (prevStat) {
     fs.stat(fullPath, function(err, curStat) {
-      if (err || !(path in this._pendingWrites)) {
+      if (err) {
         if (err && err.code !== 'ENOENT') awfEmit(err);
         return;
       }
