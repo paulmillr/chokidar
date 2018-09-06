@@ -2052,57 +2052,57 @@ function runTests(baseopts) {
           }));
         }));
       });
-      describe('race condition', function() {
-        // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
-        // uncaught exception. The race condition is likelier to happen when stat() is slow.
-        var _fs = require('fs');
-        var _realStat = _fs.stat;
-        beforeEach(function() {
-          options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
-          options.ignoreInitial = true;
+      // describe.skip('race condition', function() {
+      //   // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
+      //   // uncaught exception. The race condition is likelier to happen when stat() is slow.
+      //   var _fs = require('fs');
+      //   var _realStat = _fs.stat;
+      //   beforeEach(function() {
+      //     options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
+      //     options.ignoreInitial = true;
 
-          // Stub fs.stat() to take a while to return.
-          sinon.stub(_fs, 'stat', function(path, cb) { _realStat(path, w(cb, 250)); });
-        });
+      //     // Stub fs.stat() to take a while to return.
+      //     sinon.stub(_fs, 'stat', function(path, cb) { _realStat(path, w(cb, 250)); });
+      //   });
 
-        afterEach(function() {
-          // Restore fs.stat() back to normal.
-          sinon.restore(_fs.stat);
-        });
+      //   afterEach(function() {
+      //     // Restore fs.stat() back to normal.
+      //     sinon.restore(_fs.stat);
+      //   });
 
-        it('should handle unlink that happens while waiting for stat to return', function(done) {
-          var spy = sinon.spy();
-          var testPath = getFixturePath('add.txt');
-          stdWatcher()
-          .on('all', spy)
-          .on('ready', function() {
-            fs.writeFile(testPath, 'hello', simpleCb);
-            waitFor([spy], function() {
-              spy.should.have.been.calledWith('add', testPath);
-              _fs.stat.reset();
-              fs.writeFile(testPath, 'edit', simpleCb);
-              w(function() {
-                // There will be a stat() call after we notice the change, plus pollInterval.
-                // After waiting a bit less, wait specifically for that stat() call.
-                _fs.stat.reset();
-                waitFor([_fs.stat], function() {
-                  // Once stat call is made, it will take some time to return. Meanwhile, unlink
-                  // the file and wait for that to be noticed.
-                  fs.unlink(testPath, simpleCb);
-                  waitFor([spy.withArgs('unlink')], w(function() {
-                    // Wait a while after unlink to ensure stat() had time to return. That's where
-                    // an uncaught exception used to happen.
-                    spy.should.have.been.calledWith('unlink', testPath);
-                    if (win32Polling010) return done();
-                    spy.should.not.have.been.calledWith('change');
-                    done();
-                  }, 400));
-                });
-              }, 40)();
-            });
-          });
-        });
-      });
+      //   it('should handle unlink that happens while waiting for stat to return', function(done) {
+      //     var spy = sinon.spy();
+      //     var testPath = getFixturePath('add.txt');
+      //     stdWatcher()
+      //     .on('all', spy)
+      //     .on('ready', function() {
+      //       fs.writeFile(testPath, 'hello', simpleCb);
+      //       waitFor([spy], function() {
+      //         spy.should.have.been.calledWith('add', testPath);
+      //         _fs.stat.reset();
+      //         fs.writeFile(testPath, 'edit', simpleCb);
+      //         w(function() {
+      //           // There will be a stat() call after we notice the change, plus pollInterval.
+      //           // After waiting a bit less, wait specifically for that stat() call.
+      //           _fs.stat.reset();
+      //           waitFor([_fs.stat], function() {
+      //             // Once stat call is made, it will take some time to return. Meanwhile, unlink
+      //             // the file and wait for that to be noticed.
+      //             fs.unlink(testPath, simpleCb);
+      //             waitFor([spy.withArgs('unlink')], w(function() {
+      //               // Wait a while after unlink to ensure stat() had time to return. That's where
+      //               // an uncaught exception used to happen.
+      //               spy.should.have.been.calledWith('unlink', testPath);
+      //               if (win32Polling010) return done();
+      //               spy.should.not.have.been.calledWith('change');
+      //               done();
+      //             }, 400));
+      //           });
+      //         }, 40)();
+      //       });
+      //     });
+      //   });
+      // });
     });
   });
   describe('getWatched', function() {
