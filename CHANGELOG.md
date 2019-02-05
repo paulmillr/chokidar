@@ -1,3 +1,13 @@
+# Chokidar 2.1.0 (Feb 5, 2019)
+* Ignore accessTime updates caused by read operations (#762).
+* Updated dependencies. Removed `lodash.debounce`.
+
+# Chokidar 2.0.4 (Jun 18, 2018)
+
+# Chokidar 2.0.3 (Mar 22, 2018)
+* Fixes an issue that using fd = 0 is not closed in case
+Windows is used and a `EPERM` error is triggered.
+
 # Chokidar 2.0.2 (Feb 14, 2018)
 * Allow semver range updates for upath dependency
 
