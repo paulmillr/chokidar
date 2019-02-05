@@ -3,6 +3,7 @@
 * Updated dependencies. Removed `lodash.debounce`.
 
 # Chokidar 2.0.4 (Jun 18, 2018)
+* Prevent watcher.close() from crashing (#730).
 
 # Chokidar 2.0.3 (Mar 22, 2018)
 * Fixes an issue that using fd = 0 is not closed in case
