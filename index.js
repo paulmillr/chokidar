@@ -600,12 +600,15 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
 
   if (this.options.atomic) {
     paths = paths.map(function(path) {
+      // If `path` is already a glob, we do not have to do anything.
       if (isGlob(path)) {
         return path;
       }
       else {
         var splits = path.split(sysPath.sep);
         if (splits.length && splits[splits.length - 1]) {
+          // We make the last segment of the path a glob pattern.
+          // This type of a glob pattern is equivalent to the original name.
           splits[splits.length - 1] = '@(' + splits[splits.length - 1] + ')';
         }
         return splits.join(sysPath.sep);
