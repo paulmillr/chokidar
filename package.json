@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "keywords": [
     "fs",
     "watch",
@@ -12,13 +12,13 @@
     "fsevents"
   ],
   "homepage": "https://github.com/paulmillr/chokidar",
-  "author": "Paul Miller (http://paulmillr.com), Elan Shanker",
+  "author": "Paul Miller (https://paulmillr.com), Elan Shanker",
   "repository": {
     "type": "git",
     "url": "https://github.com/paulmillr/chokidar.git"
   },
   "bugs": {
-    "url": "http://github.com/paulmillr/chokidar/issues"
+    "url": "https://github.com/paulmillr/chokidar/issues"
   },
   "license": "MIT",
   "scripts": {

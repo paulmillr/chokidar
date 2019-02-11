@@ -271,7 +271,7 @@ execute a command on each change, or get a stdio stream of change events.
 
 The MIT License (MIT)
 
-Copyright (c) 2016 Paul Miller (http://paulmillr.com) & Elan Shanker
+Copyright (c) 2016 Paul Miller (https://paulmillr.com) & Elan Shanker
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the “Software”), to deal
