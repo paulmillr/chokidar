@@ -29,19 +29,6 @@
     "index.js",
     "lib/"
   ],
-  "devDependencies": {
-    "chai": "^3.2.0",
-    "coveralls": "^3.0.1",
-    "graceful-fs": "4.1.4",
-    "mocha": "^5.2.0",
-    "nyc": "^11.8.0",
-    "rimraf": "^2.4.3",
-    "sinon": "^1.10.3",
-    "sinon-chai": "^2.6.0"
-  },
-  "optionalDependencies": {
-    "fsevents": "^1.2.7"
-  },
   "dependencies": {
     "anymatch": "^2.0.0",
     "async-each": "^1.0.1",
@@ -54,5 +41,18 @@
     "path-is-absolute": "^1.0.0",
     "readdirp": "^2.2.1",
     "upath": "^1.1.0"
+  },
+  "optionalDependencies": {
+    "fsevents": "^1.2.7"
+  },
+  "devDependencies": {
+    "chai": "^3.2.0",
+    "coveralls": "^3.0.1",
+    "graceful-fs": "4.1.4",
+    "mocha": "^5.2.0",
+    "nyc": "^11.8.0",
+    "rimraf": "^2.4.3",
+    "sinon": "^1.10.3",
+    "sinon-chai": "^2.6.0"
   }
 }
