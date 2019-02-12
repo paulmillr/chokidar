@@ -89,7 +89,7 @@ function FSWatcher(_opts) {
   if (!FsEventsHandler.canUse()) opts.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
-  // Other platforms use non-polling fs.watch.
+  // Other platforms use non-polling fs_watch.
   if (undef('usePolling') && !opts.useFsEvents) {
     opts.usePolling = process.platform === 'darwin';
   }
@@ -113,7 +113,7 @@ function FSWatcher(_opts) {
     opts.interval = parseInt(envInterval);
   }
 
-  // Editor atomic write normalization enabled by default with fs.watch
+  // Editor atomic write normalization enabled by default with fs_watch
   if (undef('atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
   if (opts.atomic) this._pendingUnlinks = Object.create(null);
 
@@ -231,7 +231,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   ) {
     var fullPath = this.options.cwd ? sysPath.join(this.options.cwd, path) : path;
     fs.stat(fullPath, function(error, stats) {
-      // Suppress event when fs.stat fails, to avoid sending undefined 'stat'
+      // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
       if (error || !stats) return;
 
       args.push(stats);
@@ -350,7 +350,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
 // Private method: Determines whether user has asked to ignore this path
 //
 // * path  - string, path to file or directory
-// * stats - object, result of fs.stat
+// * stats - object, result of fs_stat
 //
 // Returns boolean
 var dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
@@ -510,7 +510,7 @@ FSWatcher.prototype._getWatchedDir = function(directory) {
 // Private method: Check for read permissions
 // Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
 //
-// * stats - object, result of fs.stat
+// * stats - object, result of fs_stat
 //
 // Returns boolean
 FSWatcher.prototype._hasReadPermissions = function(stats) {
