@@ -2087,7 +2087,7 @@ describe('chokidar', function() {
   if (os === 'darwin') {
     describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
   }
-  if (os !== 'darwin' || !node010) {
+  if (os !== 'darwin') {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
