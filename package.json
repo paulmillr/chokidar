@@ -11,6 +11,7 @@
     "file",
     "fsevents"
   ],
+  "types": "./types/index.d.ts",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com), Elan Shanker",
   "repository": {
@@ -28,7 +29,8 @@
   },
   "files": [
     "index.js",
-    "lib/"
+    "lib/",
+    "types/index.d.ts"
   ],
   "dependencies": {
     "anymatch": "^2.0.0",
