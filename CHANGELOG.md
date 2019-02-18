@@ -1,3 +1,10 @@
+# Chokidar 2.1.2 (Feb 18, 2019)
+* Add TypeScript type definitions
+* More fixes for accessTime behavior (#800)
+
+# Chokidar 2.1.1 (Feb 8, 2019)
+* Handle simultaneous change of LastAccessTime and ModifiedTime (#793)
+
 # Chokidar 2.1.0 (Feb 5, 2019)
 * Ignore accessTime updates caused by read operations (#762).
 * Updated dependencies. Removed `lodash.debounce`.
