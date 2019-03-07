@@ -113,9 +113,8 @@ function FSWatcher(_opts) {
     opts.interval = parseInt(envInterval);
   }
 
-  // Editor atomic write normalization enabled by default with fs.watch
+  // Editor atomic write handling enabled by default with fs.watch
   if (undef('atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
-  if (opts.atomic) this._pendingUnlinks = Object.create(null);
 
   if (undef('followSymlinks')) opts.followSymlinks = true;
 
@@ -174,25 +173,6 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   if (awf && this._pendingWrites[path]) {
     this._pendingWrites[path].lastChange = new Date();
     return this;
-  }
-
-  if (this.options.atomic) {
-    if (event === 'unlink') {
-      this._pendingUnlinks[path] = args;
-      setTimeout(function() {
-        Object.keys(this._pendingUnlinks).forEach(function(path) {
-          this.emit.apply(this, this._pendingUnlinks[path]);
-          this.emit.apply(this, ['all'].concat(this._pendingUnlinks[path]));
-          delete this._pendingUnlinks[path];
-        }.bind(this));
-      }.bind(this), typeof this.options.atomic === "number"
-        ? this.options.atomic
-        : 100);
-      return this;
-    } else if (event === 'add' && this._pendingUnlinks[path]) {
-      event = args[0] = 'change';
-      delete this._pendingUnlinks[path];
-    }
   }
 
   var emitEvent = function() {
@@ -355,8 +335,6 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
 // Returns boolean
 var dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 FSWatcher.prototype._isIgnored = function(path, stats) {
-  if (this.options.atomic && dotRe.test(path)) return true;
-
   if (!this._userIgnored) {
     var cwd = this.options.cwd;
     var ignored = this.options.ignored;
@@ -619,6 +597,24 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
       return normalizePath(absPath);
     }
   });
+
+  if (this.options.atomic) {
+    paths = paths.map(function(path) {
+      // If `path` is already a glob, we do not have to do anything.
+      if (isGlob(path)) {
+        return path;
+      }
+      else {
+        var splits = path.split(sysPath.sep);
+        if (splits.length && splits[splits.length - 1]) {
+          // We make the last segment of the path a glob pattern.
+          // This type of a glob pattern is equivalent to the original name.
+          splits[splits.length - 1] = '@(' + splits[splits.length - 1] + ')';
+        }
+        return splits.join(sysPath.sep);
+      }
+    });
+  }
 
   // set aside negated glob strings
   paths = paths.filter(function(path) {
