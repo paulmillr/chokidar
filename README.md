@@ -134,7 +134,7 @@ chokidar.watch('file', {
   },
 
   ignorePermissionErrors: false,
-  atomic: true
+  atomic: true // or a custom 'atomicity delay', in milliseconds (default 100)
 });
 
 ```
@@ -223,8 +223,12 @@ Use with caution.
 that don't have read permissions if possible. If watching fails due to `EPERM`
 or `EACCES` with this set to `true`, the errors will be suppressed silently.
 * `atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
-Uses a workaround to handle file changes by editors that use
-"atomic writes" instead of writing directly to the source file.
+Automatically filters out artifacts that occur when using editors that use
+"atomic writes" instead of writing directly to the source file. If a file is
+re-added within 100 ms of being deleted, Chokidar emits a `change` event
+rather than `unlink` then `add`. If the default of 100 ms does not work well
+for you, you can override it by setting `atomic` to a custom value, in
+milliseconds.
 
 ### Methods & Events
 
