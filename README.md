@@ -67,6 +67,8 @@ chokidar.watch('.', {ignored: /(^|[\/\\])\../}).on('all', (event, path) => {
 });
 ```
 
+## API
+
 ```javascript
 // Example of a more typical implementation structure:
 
@@ -138,8 +140,6 @@ chokidar.watch('file', {
 });
 
 ```
-
-## API
 
 `chokidar.watch(paths, [options])`
 
