@@ -6,7 +6,6 @@ const asyncEach = require('async-each');
 const anymatch = require('anymatch');
 const globParent = require('glob-parent');
 const isGlob = require('is-glob');
-const inherits = require('inherits');
 const braces = require('braces');
 const normalizePath = require('normalize-path');
 const upath = require('upath');
@@ -14,14 +13,10 @@ const upath = require('upath');
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
 
-const arrify = function(value) {
-  if (value == null) return [];
-  return Array.isArray(value) ? value : [value];
-};
+const arrify = (value = []) => Array.isArray(value) ? value : [value];
 
-const flatten = function(list, result) {
-  if (result == null) result = [];
-  list.forEach(function(item) {
+const flatten = (list, result = []) => {
+  list.forEach(item => {
     if (Array.isArray(item)) {
       flatten(item, result);
     } else {
@@ -31,10 +26,8 @@ const flatten = function(list, result) {
   return result;
 };
 
-// Little isString util for use in Array#every.
-const isString = function(thing) {
-  return typeof thing === 'string';
-};
+const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
+const replacerRe = /^\.[\/\\]/;
 
 // Public: Main class.
 // Watches files & directories for changes.
@@ -53,8 +46,10 @@ const isString = function(thing) {
 //    .on('unlink', path => console.log('File', path, 'was removed'))
 //    .on('all', (event, path) => console.log(path, ' emitted ', event))
 //
-function FSWatcher(_opts) {
-  EventEmitter.call(this);
+class FSWatcher extends EventEmitter {
+// Not indenting methods for history sake; for now.
+constructor(_opts) {
+  super();
   const opts = {};
   // in case _opts that is passed in is a frozen object
   if (_opts) for (const opt in _opts) opts[opt] = _opts[opt];
@@ -148,7 +143,6 @@ function FSWatcher(_opts) {
   Object.freeze(opts);
 }
 
-inherits(FSWatcher, EventEmitter);
 
 // Common helpers
 // --------------
@@ -161,7 +155,7 @@ inherits(FSWatcher, EventEmitter);
 //
 // Returns the error if defined, otherwise the value of the
 // FSWatcher instance's `closed` flag
-FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
+_emit(event, path, val1, val2, val3) {
   if (this.options.cwd) path = sysPath.relative(this.options.cwd, path);
   const args = [event, path];
   if (val3 !== undefined) args.push(val1, val2, val3);
@@ -221,7 +215,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
   }
 
   return this;
-};
+}
 
 // Private method: Common handler for errors
 //
@@ -229,7 +223,7 @@ FSWatcher.prototype._emit = function(event, path, val1, val2, val3) {
 //
 // Returns the error if defined, otherwise the value of the
 // FSWatcher instance's `closed` flag
-FSWatcher.prototype._handleError = function(error) {
+_handleError(error) {
   const code = error && error.code;
   const ipe = this.options.ignorePermissionErrors;
   if (error &&
@@ -238,7 +232,7 @@ FSWatcher.prototype._handleError = function(error) {
     (!ipe || (code !== 'EPERM' && code !== 'EACCES'))
   ) this.emit('error', error);
   return error || this.closed;
-};
+}
 
 // Private method: Helper utility for throttling
 //
@@ -247,7 +241,7 @@ FSWatcher.prototype._handleError = function(error) {
 // * timeout - int, duration of time to suppress duplicate actions
 //
 // Returns throttle tracking object or false if action should be suppressed
-FSWatcher.prototype._throttle = function(action, path, timeout) {
+_throttle(action, path, timeout) {
   if (!(action in this._throttled)) {
     this._throttled[action] = Object.create(null);
   }
@@ -265,7 +259,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
   const timeoutObject = setTimeout(clear, timeout);
   throttled[path] = {timeoutObject: timeoutObject, clear: clear, count: 0};
   return throttled[path];
-};
+}
 
 // Private method: Awaits write operation to finish
 //
@@ -275,7 +269,7 @@ FSWatcher.prototype._throttle = function(action, path, timeout) {
 // * awfEmit - function, to be called when ready for event to be emitted
 // Polls a newly created file for size variations. When files size does not
 // change for 'threshold' milliseconds calls callback.
-FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit) {
+_awaitWriteFinish(path, threshold, event, awfEmit) {
   let timeoutHandler;
 
   let fullPath = path;
@@ -324,7 +318,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
       this.options.awaitWriteFinish.pollInterval
     );
   }
-};
+}
 
 // Private method: Determines whether user has asked to ignore this path
 //
@@ -332,8 +326,7 @@ FSWatcher.prototype._awaitWriteFinish = function(path, threshold, event, awfEmit
 // * stats - object, result of fs_stat
 //
 // Returns boolean
-const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
-FSWatcher.prototype._isIgnored = function(path, stats) {
+_isIgnored(path, stats) {
   if (!this._userIgnored) {
     const cwd = this.options.cwd;
     let ignored = this.options.ignored;
@@ -355,7 +348,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
   }
 
   return this._userIgnored([path, stats]);
-};
+}
 
 // Private method: Provides a set of common helpers and properties relating to
 // symlink and glob handling
@@ -364,8 +357,7 @@ FSWatcher.prototype._isIgnored = function(path, stats) {
 // * depth - int, at any depth > 0, this isn't a glob
 //
 // Returns object containing helpers for this path
-const replacerRe = /^\.[\/\\]/;
-FSWatcher.prototype._getWatchHelpers = function(path, depth) {
+_getWatchHelpers(path, depth) {
   path = path.replace(replacerRe, '');
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const fullWatchPath = sysPath.resolve(watchPath);
@@ -449,7 +441,7 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
     filterPath: filterPath,
     filterDir: filterDir
   };
-};
+}
 
 // Directory helpers
 // -----------------
@@ -459,7 +451,7 @@ FSWatcher.prototype._getWatchHelpers = function(path, depth) {
 // * directory - string, path of the directory
 //
 // Returns the directory's tracking object
-FSWatcher.prototype._getWatchedDir = function(directory) {
+_getWatchedDir(directory) {
   const dir = sysPath.resolve(directory);
   const watcherRemove = this._remove.bind(this);
   if (!(dir in this._watched)) this._watched[dir] = {
@@ -479,7 +471,7 @@ FSWatcher.prototype._getWatchedDir = function(directory) {
     children: function() {return Object.keys(this._items);}
   };
   return this._watched[dir];
-};
+}
 
 // File helpers
 // ------------
@@ -490,9 +482,9 @@ FSWatcher.prototype._getWatchedDir = function(directory) {
 // * stats - object, result of fs_stat
 //
 // Returns boolean
-FSWatcher.prototype._hasReadPermissions = function(stats) {
+_hasReadPermissions(stats) {
   return Boolean(4 & parseInt(((stats && stats.mode) & 0x1ff).toString(8)[0], 10));
-};
+}
 
 // Private method: Handles emitting unlink events for
 // files and directories, and via recursion, for
@@ -502,7 +494,7 @@ FSWatcher.prototype._hasReadPermissions = function(stats) {
 // * item      - string, base path of item/directory
 //
 // Returns nothing
-FSWatcher.prototype._remove = function(directory, item) {
+_remove(directory, item) {
   // if what is being deleted is a directory, get that directory's paths
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
@@ -553,14 +545,14 @@ FSWatcher.prototype._remove = function(directory, item) {
   if (!this.options.useFsEvents) {
     this._closePath(path);
   }
-};
+}
 
-FSWatcher.prototype._closePath = function(path) {
+_closePath(path) {
   if (!this._closers[path]) return;
   this._closers[path]();
   delete this._closers[path];
   this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
-};
+}
 
 // Public method: Adds paths to be watched on an existing FSWatcher instance
 
@@ -569,13 +561,13 @@ FSWatcher.prototype._closePath = function(path) {
 // * _internal - private boolean, indicates a non-user add
 
 // Returns an instance of FSWatcher for chaining.
-FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
+add(paths, _origAdd, _internal) {
   const disableGlobbing = this.options.disableGlobbing;
   const cwd = this.options.cwd;
   this.closed = false;
   paths = flatten(arrify(paths));
 
-  if (!paths.every(isString)) {
+  if (!paths.every(p => typeof p === 'string')) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
 
@@ -653,14 +645,14 @@ FSWatcher.prototype.add = function(paths, _origAdd, _internal) {
   }
 
   return this;
-};
+}
 
 // Public method: Close watchers or start ignoring events from specified paths.
 
 // * paths     - string or array of strings, file/directory paths and/or globs
 
 // Returns instance of FSWatcher for chaining.
-FSWatcher.prototype.unwatch = function(paths) {
+unwatch(paths) {
   if (this.closed) return this;
   paths = flatten(arrify(paths));
 
@@ -684,12 +676,12 @@ FSWatcher.prototype.unwatch = function(paths) {
   }, this);
 
   return this;
-};
+}
 
 // Public method: Close watchers and remove all listeners from watched paths.
 
 // Returns instance of FSWatcher for chaining.
-FSWatcher.prototype.close = function() {
+close() {
   if (this.closed) return this;
 
   this.closed = true;
@@ -701,28 +693,25 @@ FSWatcher.prototype.close = function() {
 
   this.removeAllListeners();
   return this;
-};
+}
 
 // Public method: Expose list of watched paths
 
 // Returns object w/ dir paths as keys and arrays of contained paths as values.
-FSWatcher.prototype.getWatched = function() {
+getWatched() {
   const watchList = {};
   Object.keys(this._watched).forEach(function(dir) {
     const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
     watchList[key || '.'] = Object.keys(this._watched[dir]._items).sort();
   }.bind(this));
   return watchList;
-};
+}
+
+}
 
 // Attach watch handler prototype methods
-function importHandler(handler) {
-  Object.keys(handler.prototype).forEach(function(method) {
-    FSWatcher.prototype[method] = handler.prototype[method];
-  });
-}
-importHandler(NodeFsHandler);
-if (FsEventsHandler.canUse()) importHandler(FsEventsHandler);
+Object.assign(FSWatcher.prototype, NodeFsHandler);
+if (FsEventsHandler.canUse()) Object.assign(FSWatcher.prototype, FsEventsHandler);
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
@@ -733,6 +722,6 @@ exports.FSWatcher = FSWatcher;
 // * options   - object, chokidar options
 
 // Returns an instance of FSWatcher for chaining.
-exports.watch = function(paths, options) {
+exports.watch = (paths, options) => {
   return new FSWatcher(options).add(paths);
 };
