@@ -1,3 +1,6 @@
+# Chokidar 2.1.3 (Mar 22, 2019)
+* Improve atomic writes handling
+
 # Chokidar 2.1.2 (Feb 18, 2019)
 * Add TypeScript type definitions
 * More fixes for accessTime behavior (#800)
