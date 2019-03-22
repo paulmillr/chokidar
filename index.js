@@ -647,11 +647,11 @@ add(paths, _origAdd, _internal) {
   return this;
 }
 
-// Public method: Close watchers or start ignoring events from specified paths.
-
-// * paths     - string or array of strings, file/directory paths and/or globs
-
-// Returns instance of FSWatcher for chaining.
+/**
+ * Close watchers or start ignoring events from specified paths.
+ * @param {Array<String>} paths - string or array of strings, file/directory paths and/or globs
+ * @return {FSWatcher} for chaining
+*/
 unwatch(paths) {
   if (this.closed) return this;
   paths = flatten(arrify(paths));
@@ -678,9 +678,10 @@ unwatch(paths) {
   return this;
 }
 
-// Public method: Close watchers and remove all listeners from watched paths.
-
-// Returns instance of FSWatcher for chaining.
+/**
+ * Close watchers and remove all listeners from watched paths.
+ * @return {FSWatcher} for chaining
+*/
 close() {
   if (this.closed) return this;
 
@@ -695,9 +696,10 @@ close() {
   return this;
 }
 
-// Public method: Expose list of watched paths
-
-// Returns object w/ dir paths as keys and arrays of contained paths as values.
+/**
+ * Expose list of watched paths
+ * @return {{String: Array<String>}} for chaining
+*/
 getWatched() {
   const watchList = {};
   Object.keys(this._watched).forEach(function(dir) {

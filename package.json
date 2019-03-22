@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
-  "version": "2.1.4",
+  "version": "3.0.0-pre",
   "keywords": [
     "fs",
     "watch",
@@ -44,7 +44,7 @@
     "upath": "^1.1.1"
   },
   "optionalDependencies": {
-    "fsevents": "^1.2.7"
+    "fsevents": "napi"
   },
   "devDependencies": {
     "@types/node": "^11.9.4",
