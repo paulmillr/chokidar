@@ -1,3 +1,6 @@
+# Chokidar 2.1.5 (Mar 22, 2019)
+* Revert 2.1.3 atomic writing changes.
+
 # Chokidar 2.1.4 (Mar 22, 2019)
 * Improve TypeScript type definitions for `on` method.
 
