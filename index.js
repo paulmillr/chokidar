@@ -56,9 +56,6 @@ constructor(_opts) {
   this._watched = Object.create(null);
   this._closers = Object.create(null);
   this._ignoredPaths = Object.create(null);
-  Object.defineProperty(this, '_globIgnored', {
-    get: function() { return Object.keys(this._ignoredPaths); }
-  });
   this.closed = false;
   this._throttled = Object.create(null);
   this._symlinkPaths = Object.create(null);
@@ -143,18 +140,22 @@ constructor(_opts) {
   Object.freeze(opts);
 }
 
+_globIgnored() {
+  return Object.keys(this._ignoredPaths);
+}
 
 // Common helpers
 // --------------
 
-// Private method: Normalize and emit events
-//
-// * event     - string, type of event
-// * path      - string, file or directory path
-// * val[1..3] - arguments to be passed with event
-//
-// Returns the error if defined, otherwise the value of the
-// FSWatcher instance's `closed` flag
+/**
+ * Normalize and emit events.
+ * @param {String} event Type of event
+ * @param {String} path File or directory path
+ * @param {*} val1 arguments to be passed with event
+ * @param {*} val2
+ * @param {*} val3
+ * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag 
+ */
 _emit(event, path, val1, val2, val3) {
   if (this.options.cwd) path = sysPath.relative(this.options.cwd, path);
   const args = [event, path];
@@ -217,12 +218,11 @@ _emit(event, path, val1, val2, val3) {
   return this;
 }
 
-// Private method: Common handler for errors
-//
-// * error  - object, Error instance
-//
-// Returns the error if defined, otherwise the value of the
-// FSWatcher instance's `closed` flag
+/**
+ * Common handler for errors
+ * @param {Error} error 
+ * @returns The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+ */
 _handleError(error) {
   const code = error && error.code;
   const ipe = this.options.ignorePermissionErrors;
@@ -234,13 +234,13 @@ _handleError(error) {
   return error || this.closed;
 }
 
-// Private method: Helper utility for throttling
-//
-// * action  - string, type of action being throttled
-// * path    - string, path being acted upon
-// * timeout - int, duration of time to suppress duplicate actions
-//
-// Returns throttle tracking object or false if action should be suppressed
+/**
+ * Helper utility for throttling
+ * @param {String} action type being throttled
+ * @param {String} path being acted upon
+ * @param {Number} timeout duration of time to suppress duplicate actions
+ * @returns {Object|false} tracking object or false if action should be suppressed
+ */
 _throttle(action, path, timeout) {
   if (!(action in this._throttled)) {
     this._throttled[action] = Object.create(null);
@@ -261,14 +261,14 @@ _throttle(action, path, timeout) {
   return throttled[path];
 }
 
-// Private method: Awaits write operation to finish
-//
-// * path    - string, path being acted upon
-// * threshold - int, time in milliseconds a file size must be fixed before
-//                    acknowledging write operation is finished
-// * awfEmit - function, to be called when ready for event to be emitted
-// Polls a newly created file for size variations. When files size does not
-// change for 'threshold' milliseconds calls callback.
+/**
+ * Awaits write operation to finish.
+ * Polls a newly created file for size variations. When files size does not change for 'threshold' milliseconds calls callback.
+ * @param {String} path being acted upon
+ * @param {Number} threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
+ * @param {String} event
+ * @param {Function} awfEmit Callback to be called when ready for event to be emitted.
+ */
 _awaitWriteFinish(path, threshold, event, awfEmit) {
   let timeoutHandler;
 
@@ -320,12 +320,12 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
   }
 }
 
-// Private method: Determines whether user has asked to ignore this path
-//
-// * path  - string, path to file or directory
-// * stats - object, result of fs_stat
-//
-// Returns boolean
+/**
+ * Determines whether user has asked to ignore this path.
+ * @param {String} path filepath or dir
+ * @param {fs.Stats} stats result of fs.stat
+ * @returns {Boolean}
+ */
 _isIgnored(path, stats) {
   if (!this._userIgnored) {
     const cwd = this.options.cwd;
@@ -343,20 +343,19 @@ _isIgnored(path, stats) {
         return path + '/**';
       });
     this._userIgnored = anymatch(
-      this._globIgnored.concat(ignored).concat(paths)
+      this._globIgnored().concat(ignored).concat(paths)
     );
   }
 
   return this._userIgnored([path, stats]);
 }
 
-// Private method: Provides a set of common helpers and properties relating to
-// symlink and glob handling
-//
-// * path - string, file, directory, or glob pattern being watched
-// * depth - int, at any depth > 0, this isn't a glob
-//
-// Returns object containing helpers for this path
+/**
+ * Provides a set of common helpers and properties relating to symlink and glob handling.
+ * @param {String} path file, directory, or glob pattern being watched
+ * @param {Number} depth at any depth > 0, this isn't a glob
+ * @returns object containing helpers for this path
+ */
 _getWatchHelpers(path, depth) {
   path = path.replace(replacerRe, '');
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
@@ -446,11 +445,11 @@ _getWatchHelpers(path, depth) {
 // Directory helpers
 // -----------------
 
-// Private method: Provides directory tracking objects
-//
-// * directory - string, path of the directory
-//
-// Returns the directory's tracking object
+/**
+ * Provides directory tracking objects
+ * @param {String} directory path of the directory
+ * @returns {Object} the directory's tracking object
+ */
 _getWatchedDir(directory) {
   const dir = sysPath.resolve(directory);
   const watcherRemove = this._remove.bind(this);
@@ -476,24 +475,26 @@ _getWatchedDir(directory) {
 // File helpers
 // ------------
 
-// Private method: Check for read permissions
-// Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
-//
-// * stats - object, result of fs_stat
-//
-// Returns boolean
+/**
+ * Check for read permissions.
+ * Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
+ * @param {fs.Stats} stats - object, result of fs_stat
+ * @returns {Boolean} indicates whether the file can be read
+*/
 _hasReadPermissions(stats) {
-  return Boolean(4 & parseInt(((stats && stats.mode) & 0x1ff).toString(8)[0], 10));
+  const st = (stats && stats.mode) & 0o777;
+  const it = parseInt(st.toString(8)[0], 10);
+  return Boolean(4 & it);
 }
 
-// Private method: Handles emitting unlink events for
-// files and directories, and via recursion, for
-// files and directories within directories that are unlinked
-//
-// * directory - string, directory within which the following item is located
-// * item      - string, base path of item/directory
-//
-// Returns nothing
+/**
+ * Handles emitting unlink events for
+ * files and directories, and via recursion, for
+ * files and directories within directories that are unlinked
+ * @param {String} directory within which the following item is located
+ * @param {String} item      base path of item/directory
+ * @returns {void}
+*/
 _remove(directory, item) {
   // if what is being deleted is a directory, get that directory's paths
   // for recursive deleting and cleaning of watched object
@@ -547,6 +548,10 @@ _remove(directory, item) {
   }
 }
 
+/**
+ * 
+ * @param {String} path
+ */
 _closePath(path) {
   if (!this._closers[path]) return;
   this._closers[path]();
@@ -554,13 +559,13 @@ _closePath(path) {
   this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
 }
 
-// Public method: Adds paths to be watched on an existing FSWatcher instance
-
-// * paths     - string or array of strings, file/directory paths and/or globs
-// * _origAdd  - private boolean, for handling non-existent paths to be watched
-// * _internal - private boolean, indicates a non-user add
-
-// Returns an instance of FSWatcher for chaining.
+/**
+ * Adds paths to be watched on an existing FSWatcher instance
+ * @param {String|Array<String>} paths 
+ * @param {Boolean} _origAdd private; for handling non-existent paths to be watched
+ * @param {Boolean} _internal private; indicates a non-user add
+ * @returns {FSWatcher} for chaining
+ */
 add(paths, _origAdd, _internal) {
   const disableGlobbing = this.options.disableGlobbing;
   const cwd = this.options.cwd;
@@ -650,7 +655,7 @@ add(paths, _origAdd, _internal) {
 /**
  * Close watchers or start ignoring events from specified paths.
  * @param {Array<String>} paths - string or array of strings, file/directory paths and/or globs
- * @return {FSWatcher} for chaining
+ * @returns {FSWatcher} for chaining
 */
 unwatch(paths) {
   if (this.closed) return this;
@@ -680,7 +685,7 @@ unwatch(paths) {
 
 /**
  * Close watchers and remove all listeners from watched paths.
- * @return {FSWatcher} for chaining
+ * @returns {FSWatcher} for chaining
 */
 close() {
   if (this.closed) return this;
@@ -698,7 +703,7 @@ close() {
 
 /**
  * Expose list of watched paths
- * @return {{String: Array<String>}} for chaining
+ * @returns {{String: Array<String>}} for chaining
 */
 getWatched() {
   const watchList = {};
@@ -718,12 +723,13 @@ if (FsEventsHandler.canUse()) Object.assign(FSWatcher.prototype, FsEventsHandler
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
 
-// Public function: Instantiates watcher with paths to be tracked.
-
-// * paths     - string or array of strings, file/directory paths and/or globs
-// * options   - object, chokidar options
-
-// Returns an instance of FSWatcher for chaining.
-exports.watch = (paths, options) => {
+/**
+ * Instantiates watcher with paths to be tracked.
+ * @param {String|Array<String>} paths file/directory paths and/or globs
+ * @param {Object} options chokidar opts
+ * @returns an instance of FSWatcher for chaining.
+ */
+const watch = (paths, options) => {
   return new FSWatcher(options).add(paths);
 };
+exports.watch = watch;

@@ -46,13 +46,11 @@ let watcher,
     options,
     node010 = process.version.slice(0, 5) === 'v0.10',
     osXFsWatch,
-    osXFsWatch010,
     win32Polling,
-    win32Polling010,
     slowerDelay,
     testCount = 1,
     mochaIt = it,
-    PERM_ARR = 0x1ed; // rwe, r+e, r+e; 755
+    PERM_ARR = 0o755; // rwe, r+e, r+e; 755
 
 const delay = async (time) => {
   return new Promise((resolve) => {
@@ -135,17 +133,8 @@ const runTests = function(baseopts) {
   before(function() {
     // flags for bypassing special-case test failures on CI
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
-    osXFsWatch010 = osXFsWatch && node010;
     win32Polling = os === 'win32' && baseopts.usePolling;
-    win32Polling010 = win32Polling && node010;
-
-    if (win32Polling010) {
-      slowerDelay = 900;
-    } else if (node010 || osXFsWatch) {
-      slowerDelay = 900;
-    } else {
-      slowerDelay = undefined;
-    }
+    slowerDelay = osXFsWatch ? 900 : undefined;
   });
 
   after(closeWatchers);
@@ -409,7 +398,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(testPath);
       expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
-      if (!osXFsWatch010) spy.should.have.been.calledOnce;
+      spy.should.have.been.calledOnce;
     });
     it('should emit `unlink` event when file was removed', async () => {
       const testPath = getFixturePath('unlink.txt');
@@ -420,7 +409,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(testPath);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
       rawSpy.should.have.been.called;
-      if (!osXFsWatch010) spy.should.have.been.calledOnce;
+      spy.should.have.been.calledOnce;
     });
     it('should emit `unlinkDir` event when a directory was removed', async () => {
       const testDir = getFixturePath('subdir');
@@ -433,7 +422,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(testDir);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
       rawSpy.should.have.been.called;
-      if (!osXFsWatch010) spy.should.have.been.calledOnce;
+      spy.should.have.been.calledOnce;
     });
     it('should emit two `unlinkDir` event when two nested directories were removed', async () => {
       const testDir = getFixturePath('subdir');
@@ -449,7 +438,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(testDir3);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
       rawSpy.should.have.been.called;
-      if (!osXFsWatch010) spy.should.have.been.calledTwice;
+      spy.should.have.been.calledTwice;
     });
     it('should emit `unlink` and `add` events when a file is renamed', async () => {
       const unlinkSpy = sinon.spy(function unlink(){});
@@ -473,7 +462,6 @@ const runTests = function(baseopts) {
       if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
     });
     it('should emit `add`, not `change`, when previously deleted file is re-added', async () => {
-      if (win32Polling010) return true;
       const unlinkSpy = sinon.spy(function unlink(){});
       const addSpy = sinon.spy(function add(){});
       const changeSpy = sinon.spy(function change(){});
@@ -531,7 +519,6 @@ const runTests = function(baseopts) {
       rawSpy.should.have.been.called;
     });
     it('should watch removed and re-added directories', async () => {
-      if (win32Polling010) return;
       const unlinkSpy = sinon.spy(function unlinkSpy(){});
       const addSpy = sinon.spy(function addSpy(){});
       const parentPath = getFixturePath('subdir2');
@@ -789,10 +776,10 @@ const runTests = function(baseopts) {
       const spy = await aspy(watcher, 'all');
       spy.should.not.have.been.called;
 
-      await delay(win32Polling010 ? 900 : undefined);
+      await delay();
       await fs_mkdir(testDir, PERM_ARR);
 
-      await delay(win32Polling010 ? 900 : undefined);
+      await delay();
       await write(testPath, 'hello');
       await waitFor([spy.withArgs('add')]);
       spy.should.have.been.calledWith('addDir', testDir);
@@ -831,7 +818,7 @@ const runTests = function(baseopts) {
       await delay();
       await fs_unlink(unlinkPath);
       await waitFor([[spy, 2], spy.withArgs('unlink')]);
-      if (!osXFsWatch010) spy.should.have.been.calledTwice;
+      spy.should.have.been.calledTwice;
       spy.should.have.been.calledWith('unlink', unlinkPath);
     });
     it('should traverse subdirs to match globstar patterns', async () => {
@@ -842,7 +829,7 @@ const runTests = function(baseopts) {
       fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
       fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
 
-      await delay(win32Polling010 ? 300 : undefined);
+      await delay();
       watcher = chokidar.watch(watchPath, options);
       const spy = await aspy(watcher, 'all');
       setTimeout(() => {
@@ -901,7 +888,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('change', changePath);
       spy.should.have.been.calledWith('unlink', unlinkPath);
       spy.should.not.have.been.calledWith('add', addPath);
-      if (!osXFsWatch010) spy.callCount.should.equal(4);
+      spy.callCount.should.equal(4);
     });
     it('should correctly handle intersecting glob patterns', async () => {
       const changePath = getFixturePath('change.txt');
@@ -909,13 +896,13 @@ const runTests = function(baseopts) {
       watcher = chokidar.watch(watchPaths, options);
       const spy = await aspy(watcher, 'all');
       spy.should.have.been.calledWith('add', changePath);
-      if (!osXFsWatch010) spy.should.have.been.calledOnce;
+      spy.should.have.been.calledOnce;
 
       await delay();
       await write(changePath, Date.now());
       await waitFor([[spy, 2]]);
       spy.should.have.been.calledWith('change', changePath);
-      if (!osXFsWatch010) spy.should.have.been.calledTwice;
+      spy.should.have.been.calledTwice;
     });
     it('should not confuse glob-like filenames with globs', async () => {
       const filePath = getFixturePath('nota[glob].txt');
@@ -1305,12 +1292,12 @@ const runTests = function(baseopts) {
           const testPath = getFixturePath('add.txt');
           await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
 
-          await delay(win32Polling010 ? 1000 : 200);
+          await delay(200);
           const spy = await aspy(stdWatcher(), 'all');
           await write(testPath, Date.now());
           await waitFor([spy]);
 
-          await delay(win32Polling010 ? 1000 : 200);
+          await delay(200);
           spy.should.have.been.calledWith('add', testPath);
           spy.should.not.have.been.calledWith('addDir');
         });
@@ -1438,7 +1425,7 @@ const runTests = function(baseopts) {
         spy.should.have.been.calledWith('addDir', linkPath);
         spy.should.have.been.calledWith('addDir', dirPath);
         spy.should.have.been.calledWith('add', getFixturePath('link/add.txt'));
-        if (!osXFsWatch010) spy.should.have.been.calledThrice;
+        spy.should.have.been.calledThrice;
       });
       it('should correctly handle dir events when depth is 0', async () => {
         options.depth = 0;
@@ -1451,7 +1438,6 @@ const runTests = function(baseopts) {
         await fs_mkdir(subdir2, PERM_ARR);
         await waitFor([[addSpy, 3]]);
         addSpy.should.have.been.calledThrice;
-        if (win32Polling010) return true;
 
         await fs_rmdir(subdir2);
         await waitFor([unlinkSpy]);
@@ -1565,7 +1551,7 @@ const runTests = function(baseopts) {
         fs.writeFileSync(getFixturePath('ignored-option.txt'), Date.now());
         await fs_unlink(getFixturePath('ignored.txt'));
         await fs_unlink(getFixturePath('ignored-option.txt'));
-        await delay(win32Polling010 ? 1000 : undefined);
+        await delay();
         await write(getFixturePath('change.txt'), 'change');
         await waitFor([spy.withArgs('change', 'change.txt')]);
         spy.should.have.been.calledWith('add', 'change.txt');
@@ -1706,7 +1692,7 @@ const runTests = function(baseopts) {
         options.cwd = sysPath.dirname(testPath);
         await fs_mkdir(options.cwd);
 
-        await delay(win32Polling010 ? 900 : 200);
+        await delay(200);
         const spy = await aspy(stdWatcher(), 'all');
 
         await delay(400);
@@ -1735,7 +1721,6 @@ const runTests = function(baseopts) {
         await fs_unlink(testPath);
         await waitFor([spy.withArgs('unlink')]);
         spy.should.have.been.calledWith('unlink', filename);
-        if (win32Polling010) return true;
         spy.should.not.have.been.calledWith('change', filename);
       });
       // describe('race2 condition', function() {
@@ -1782,7 +1767,6 @@ const runTests = function(baseopts) {
       //     // Wait a while after unlink to ensure stat() had time to return. That's where
       //     // an uncaught exception used to happen.
       //     spy.should.have.been.calledWith('unlink', testPath);
-      //     if (win32Polling010) return true;
       //     spy.should.not.have.been.calledWith('change');
       //   });
       // });
@@ -1848,7 +1832,6 @@ const runTests = function(baseopts) {
                     // Wait a while after unlink to ensure stat() had time to return. That's where
                     // an uncaught exception used to happen.
                     spy.should.have.been.calledWith('unlink', testPath);
-                    if (win32Polling010) return done();
                     spy.should.not.have.been.calledWith('change');
                     done();
                   }, 400));
