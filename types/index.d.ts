@@ -43,6 +43,29 @@ export class FSWatcher extends EventEmitter implements fs.FSWatcher {
    * Removes all listeners from watched files.
    */
   close(): void;
+
+  on(event: 'add'|'addDir'|'change', listener: (path: string, stats?: fs.Stats) => void): this;
+
+  on(event: 'all', listener: (eventName: 'add'|'addDir'|'change'|'unlink'|'unlinkDir', path: string, stats?: fs.Stats) => void): this;
+
+  /**
+   * Error occured
+   */
+  on(event: 'error', listener: (error: Error) => void): this;
+
+  /**
+   * Exposes the native Node `fs.FSWatcher events`
+   */
+  on(event: 'raw', listener: (eventName: string, path: string, details: any) => void): this;
+
+  /**
+   * Fires when the initial scan is complete
+   */
+  on(event: 'ready', listener: () => void): this;
+
+  on(event: 'unlink'|'unlinkDir', listener: (path: string) => void): this;
+
+  on(event: string, listener: (...args: any[]) => void): this;
 }
 
 export interface WatchOptions {
