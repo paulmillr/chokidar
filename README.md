@@ -59,7 +59,7 @@ npm install chokidar
 Then `require` and use it in your code:
 
 ```javascript
-var chokidar = require('chokidar');
+const chokidar = require('chokidar');
 
 // One-liner for current directory, ignores .dotfiles
 chokidar.watch('.', {ignored: /(^|[\/\\])\../}).on('all', (event, path) => {
@@ -73,13 +73,13 @@ chokidar.watch('.', {ignored: /(^|[\/\\])\../}).on('all', (event, path) => {
 // Example of a more typical implementation structure:
 
 // Initialize watcher.
-var watcher = chokidar.watch('file, dir, glob, or array', {
+const watcher = chokidar.watch('file, dir, glob, or array', {
   ignored: /(^|[\/\\])\../,
   persistent: true
 });
 
 // Something to use when events are received.
-var log = console.log.bind(console);
+const log = console.log.bind(console);
 // Add event listeners.
 watcher
   .on('add', path => log(`File ${path} has been added`))
