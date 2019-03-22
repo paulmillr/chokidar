@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
-  "version": "2.1.1",
+  "version": "2.1.4",
   "keywords": [
     "fs",
     "watch",
@@ -11,6 +11,7 @@
     "file",
     "fsevents"
   ],
+  "types": "./types/index.d.ts",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com), Elan Shanker",
   "repository": {
@@ -23,11 +24,13 @@
   "license": "MIT",
   "scripts": {
     "test": "nyc mocha --exit",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls"
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "dtslint": "dtslint types"
   },
   "files": [
     "index.js",
-    "lib/"
+    "lib/",
+    "types/index.d.ts"
   ],
   "dependencies": {
     "anymatch": "^2.0.0",
@@ -39,14 +42,16 @@
     "is-glob": "^4.0.0",
     "normalize-path": "^3.0.0",
     "readdirp": "^2.2.1",
-    "upath": "^1.1.0"
+    "upath": "^1.1.1"
   },
   "optionalDependencies": {
     "fsevents": "^1.2.7"
   },
   "devDependencies": {
+    "@types/node": "^11.9.4",
     "chai": "^3.2.0",
     "coveralls": "^3.0.1",
+    "dtslint": "0.4.1",
     "graceful-fs": "4.1.4",
     "jshint": "^2.10.1",
     "mocha": "^5.2.0",
