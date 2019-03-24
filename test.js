@@ -1187,7 +1187,7 @@ const runTests = function(baseopts) {
       addSpy.should.have.been.calledThrice; // also unlink.txt & subdir/add.txt
       addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'change.txt'));
       dirSpy.should.have.been.calledWith(sysPath.join(watchDir, 'subdir'));
-      await write(sysPath.join(watchDir, 'add.txt'));
+      await write(sysPath.join(watchDir, 'add.txt'), '');
       await waitFor([[addSpy, 4]]);
       addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'add.txt'));
     });
@@ -1658,7 +1658,7 @@ const runTests = function(baseopts) {
       it('should wait for an existing file to be fully updated before emitting the change event', async () => {
         const testPath = getFixturePath('change.txt');
         const spy = await aspy(stdWatcher(), 'all');
-        fs.writeFile(testPath, 'hello');
+        fs.writeFile(testPath, 'hello', () => {});
 
         await delay(300);
         spy.should.not.have.been.called;
@@ -2004,7 +2004,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `true` when CHOKIDAR_USEPOLLING is set to true', async () => {
         options.usePolling = false;
-        process.env.CHOKIDAR_USEPOLLING = true;
+        process.env.CHOKIDAR_USEPOLLING = 'true';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -2022,7 +2022,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `false` when CHOKIDAR_USEPOLLING is set to false', async () => {
         options.usePolling = true;
-        process.env.CHOKIDAR_USEPOLLING = false;
+        process.env.CHOKIDAR_USEPOLLING = 'false';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -2031,7 +2031,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `false` when CHOKIDAR_USEPOLLING is set to 0', async () => {
         options.usePolling = true;
-        process.env.CHOKIDAR_USEPOLLING = false;
+        process.env.CHOKIDAR_USEPOLLING = 'false';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -2054,7 +2054,7 @@ const runTests = function(baseopts) {
 
       it('should make options.interval = CHOKIDAR_INTERVAL when it is set', async () => {
         options.interval = 100;
-        process.env.CHOKIDAR_INTERVAL = 1500;
+        process.env.CHOKIDAR_INTERVAL = '1500';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
