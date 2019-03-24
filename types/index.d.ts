@@ -14,6 +14,8 @@ export interface WatchedPaths {
 }
 
 export class FSWatcher extends EventEmitter implements fs.FSWatcher {
+  options: WatchOptions;
+
   /**
    * Constructs a new FSWatcher instance with optional WatchOptions parameter.
    */

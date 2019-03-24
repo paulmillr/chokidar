@@ -83,6 +83,9 @@ class DirEntry {
 //    .on('unlink', path => console.log('File', path, 'was removed'))
 //    .on('all', (event, path) => console.log(path, ' emitted ', event))
 //
+/**
+ * @mixes {NodeFsHandler,FsEventsHandler}
+ */
 class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
 constructor(_opts) {
@@ -414,13 +417,10 @@ _isIgnored(path, stats) {
       });
     }
     const paths = arrify(ignored)
-      .filter(function(path) {
-        return typeof path === 'string' && !isGlob(path);
-      }).map(function(path) {
-        return path + '/**';
-      });
+      .filter((path) => typeof path === 'string' && !isGlob(path))
+      .map((path) => path + '/**');
     this._userIgnored = anymatch(
-      this._getGlobIgnored().concat(ignored, paths)
+      this._getGlobIgnored().concat(ignored).concat(paths)
     );
   }
 
@@ -476,7 +476,7 @@ _getWatchHelpers(path, depth) {
   }.bind(this);
 
   const getDirParts = function(path) {
-    if (!hasGlob) return false;
+    if (!hasGlob) return [];
     const parts = [];
     const expandedPath = braces.expand(path);
     expandedPath.forEach(function(path) {
@@ -486,11 +486,9 @@ _getWatchHelpers(path, depth) {
   };
 
   const dirParts = getDirParts(path);
-  if (dirParts) {
-    dirParts.forEach(function(parts) {
-      if (parts.length > 1) parts.pop();
-    });
-  }
+  dirParts.forEach(function(parts) {
+    if (parts.length > 1) parts.pop();
+  });
   let unmatchedGlob;
 
   const filterDir = function(entry) {
