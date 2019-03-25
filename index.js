@@ -28,17 +28,17 @@ const flatten = (list, result = []) => {
 
 const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const replacerRe = /^\.[\/\\]/;
+const emptyFn = () => {};
 
 class DirEntry {
   /**
-   * 
    * @param {String} dir 
    * @param {Function} removeWatcher 
    */
   constructor(dir, removeWatcher) {
     this.path = dir;
     this._removeWatcher = removeWatcher;
-    /** @type {Set<String} */
+    /** @type {Set<String>} */
     this._items = new Set();
   }
   add(item) {
@@ -84,7 +84,9 @@ class DirEntry {
 //    .on('all', (event, path) => console.log(path, ' emitted ', event))
 //
 /**
- * @mixes {NodeFsHandler,FsEventsHandler}
+ * @mixes {NodeFsHandler}
+ * @implements {NodeFsHandler2}
+ * @implements {FsEventsHandler}
  */
 class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
@@ -167,19 +169,22 @@ constructor(_opts) {
   }
   if (opts.ignored) opts.ignored = arrify(opts.ignored);
 
-  this._isntIgnored = function(path, stat) {
+  this._isntIgnored = (path, stat) => {
     return !this._isIgnored(path, stat);
-  }.bind(this);
+  };
 
   let readyCalls = 0;
-  this._emitReady = function() {
-    if (++readyCalls >= this._readyCount) {
-      this._emitReady = Function.prototype;
+  this._emitReady = () => {
+    readyCalls++;
+    if (readyCalls >= this._readyCount) {
+      this._emitReady = emptyFn;
       this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
       process.nextTick(this.emit.bind(this, 'ready'));
     }
-  }.bind(this);
+  };
+  this._emitRaw = this.emit.bind(this, 'raw');
+  this._boundHandleError = this._handleError.bind(this);
 
   this._boundRemove = this._remove.bind(this);
   this._readyEmitted = false;
@@ -238,13 +243,13 @@ _emit(event, path, val1, val2, val3) {
     }
   }
 
-  const emitEvent = function() {
+  const emitEvent = () => {
     this.emit.apply(this, args);
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
-  }.bind(this);
+  };
 
   if (awf && (event === 'add' || event === 'change') && this._readyEmitted) {
-    const awfEmit = function(err, stats) {
+    const awfEmit = (err, stats) => {
       if (err) {
         event = args[0] = 'error';
         args[1] = err;
@@ -273,7 +278,7 @@ _emit(event, path, val1, val2, val3) {
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
     const fullPath = this.options.cwd ? sysPath.join(this.options.cwd, path) : path;
-    fs.stat(fullPath, function(error, stats) {
+    fs.stat(fullPath, (error, stats) => {
       // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
       if (error || !stats) return;
 
@@ -324,14 +329,14 @@ _throttle(action, path, timeout) {
     return false;
   }
   let timeoutObject;
-  function clear() {
+  const clear = () => {
     const item = throttled.get(path);
     const count = item ? item.count : 0;
     throttled.delete(path);
     clearTimeout(timeoutObject);
     if (item) clearTimeout(item.timeoutObject);
     return count;
-  }
+  };
   timeoutObject = setTimeout(clear, timeout);
   const thr = {timeoutObject: timeoutObject, clear: clear, count: 0};
   throttled.set(path, thr);
@@ -356,8 +361,8 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
   const now = new Date();
 
-  const awaitWriteFinish = (function (prevStat) {
-    fs.stat(fullPath, function(err, curStat) {
+  const awaitWriteFinish = (prevStat) => {
+    fs.stat(fullPath, (err, curStat) => {
       if (err || !this._pendingWrites.has(path)) {
         if (err && err.code !== 'ENOENT') awfEmit(err);
         return;
@@ -380,8 +385,8 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
           this.options.awaitWriteFinish.pollInterval
         );
       }
-    }.bind(this));
-  }.bind(this));
+    });
+  };
 
   if (!this._pendingWrites.has(path)) {
     this._pendingWrites.set(path, {
@@ -411,7 +416,7 @@ _isIgnored(path, stats) {
     const cwd = this.options.cwd;
     let ignored = this.options.ignored;
     if (cwd && ignored) {
-      ignored = ignored.map(function (path) {
+      ignored = ignored.map((path) => {
         if (typeof path !== 'string') return path;
         return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
       });
@@ -443,7 +448,7 @@ _getWatchHelpers(path, depth) {
   /** @type {any} */
   let globSymlink = hasGlob && follow ? null : false;
 
-  const checkGlobSymlink = function(entry) {
+  const checkGlobSymlink = (entry) => {
     // only need to resolve once
     // first entry should always have entry.parentDir === ''
     if (globSymlink == null) {
@@ -460,38 +465,38 @@ _getWatchHelpers(path, depth) {
     return entry.fullPath;
   };
 
-  const entryPath = function(entry) {
+  const entryPath = (entry) => {
     return sysPath.join(watchPath,
       sysPath.relative(watchPath, checkGlobSymlink(entry))
     );
   };
 
-  const filterPath = function(entry) {
+  const filterPath = (entry) => {
     if (entry.stat && entry.stat.isSymbolicLink()) return filterDir(entry);
     const resolvedPath = entryPath(entry);
-    return (!hasGlob || globFilter(resolvedPath)) &&
+    if (!hasGlob) return true;
+    return (globFilter(resolvedPath) &&
       this._isntIgnored(resolvedPath, entry.stat) &&
-      (this.options.ignorePermissionErrors ||
-        this._hasReadPermissions(entry.stat));
-  }.bind(this);
+      (this.options.ignorePermissionErrors || this._hasReadPermissions(entry.stat)));
+  };
 
-  const getDirParts = function(path) {
+  const getDirParts = (path) => {
     if (!hasGlob) return [];
     const parts = [];
     const expandedPath = braces.expand(path);
-    expandedPath.forEach(function(path) {
+    expandedPath.forEach((path) => {
       parts.push(sysPath.relative(watchPath, path).split(/[\/\\]/));
     });
     return parts;
   };
 
   const dirParts = getDirParts(path);
-  dirParts.forEach(function(parts) {
-    if (parts.length > 1) parts.pop();
+  dirParts.forEach((parts) => {
+    if (parts.length > 1) parts.pop()
   });
   let unmatchedGlob;
 
-  const filterDir = function(entry) {
+  const filterDir = (entry) => {
     if (hasGlob) {
       const entryParts = getDirParts(checkGlobSymlink(entry));
       let globstar = false;
@@ -503,7 +508,7 @@ _getWatchHelpers(path, depth) {
       });
     }
     return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stat);
-  }.bind(this);
+  };
 
   return {
     followSymlinks: follow,
@@ -579,9 +584,7 @@ _remove(directory, item) {
   const nestedDirectoryChildren = wp.getChildren();
 
   // Recursively remove children directories / files.
-  nestedDirectoryChildren.forEach(function(nestedItem) {
-    this._remove(path, nestedItem);
-  }, this);
+  nestedDirectoryChildren.forEach(nested => this._remove(path, nested));
 
   // Check if item was on the watched list and remove it
   const parent = this._getWatchedDir(directory);
@@ -638,7 +641,7 @@ add(paths_, _origAdd, _internal) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
 
-  if (cwd) paths = paths.map(function(path) {
+  if (cwd) paths = paths.map((path) => {
     let absPath;
     if (sysPath.isAbsolute(path)) {
       absPath = path;
@@ -657,9 +660,10 @@ add(paths_, _origAdd, _internal) {
   });
 
   // set aside negated glob strings
-  paths = paths.filter(function(path) {
+  paths = paths.filter((path) => {
     if (path[0] === '!') {
       this._ignoredPaths.add(path.substring(1));
+      return false;
     } else {
       // if a path is being added that was previously ignored, stop ignoring it
       this._ignoredPaths.delete(path);
@@ -671,7 +675,7 @@ add(paths_, _origAdd, _internal) {
 
       return true;
     }
-  }, this);
+  });
 
   if (this.options.useFsEvents && FsEventsHandler.canUse()) {
     if (!this._readyCount) this._readyCount = paths.length;
@@ -680,17 +684,17 @@ add(paths_, _origAdd, _internal) {
   } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
-    asyncEach(paths, function(path, next) {
-      this._addToNodeFs(path, !_internal, 0, 0, _origAdd, function(err, res) {
+    asyncEach(paths, (path, next) => {
+      this._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
         if (res) this._emitReady();
         next(err, res);
-      }.bind(this));
-    }.bind(this), function(error, results) {
-      results.forEach(function(item) {
+      });
+    }, (error, results) => {
+      results.forEach((item) => {
         if (!item || this.closed) return;
         this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
-      }, this);
-    }.bind(this));
+      });
+    });
   }
 
   return this;
@@ -705,7 +709,7 @@ unwatch(paths) {
   if (this.closed) return this;
   paths = flatten(arrify(paths));
 
-  paths.forEach(function(path) {
+  paths.forEach((path) => {
     // convert to absolute path unless relative path already matches
     if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
       if (this.options.cwd) path = sysPath.join(this.options.cwd, path);
@@ -722,7 +726,7 @@ unwatch(paths) {
     // reset the cached userIgnored anymatch fn
     // to make ignoredPaths changes effective
     this._userIgnored = null;
-  }, this);
+  });
 
   return this;
 }
