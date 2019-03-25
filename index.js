@@ -10,9 +10,28 @@ const braces = require('braces');
 const normalizePath = require('normalize-path');
 const upath = require('upath');
 
-const NodeFsHandler = require('./lib/nodefs-handler');
-const FsEventsHandler = require('./lib/fsevents-handler');
+/**
+ * @typedef {String} Path
+ * @typedef {'all'|'add'|'addDir'|'change'|'unlink'|'unlinkDir'|'raw'|'error'|'ready'} EventName
+ */
 
+/**
+ * 
+ * @typedef {Object} WatchHelpers
+ * @property {Boolean} followSymlinks
+ * @property {'stat'|'lstat'} statMethod
+ * @property {Path} path
+ * @property {Path} watchPath
+ * @property {Function} entryPath
+ * @property {Boolean} hasGlob
+ * @property {Object} globFilter
+ * @property {Function} filterPath
+ * @property {Function} filterDir
+ */
+
+/**
+ * @param {String|Array<String>} value 
+ */
 const arrify = (value = []) => Array.isArray(value) ? value : [value];
 
 const flatten = (list, result = []) => {
@@ -32,7 +51,7 @@ const emptyFn = () => {};
 
 class DirEntry {
   /**
-   * @param {String} dir 
+   * @param {Path} dir 
    * @param {Function} removeWatcher 
    */
   constructor(dir, removeWatcher) {
@@ -83,15 +102,15 @@ class DirEntry {
 //    .on('unlink', path => console.log('File', path, 'was removed'))
 //    .on('all', (event, path) => console.log(path, ' emitted ', event))
 //
-/**
- * @mixes {NodeFsHandler}
- * @implements {NodeFsHandler2}
- * @implements {FsEventsHandler}
- */
 class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
 constructor(_opts) {
   super();
+
+  const NodeFsHandler = require('./lib/nodefs-handler');
+  const FsEventsHandler = require('./lib/fsevents-handler');
+  this.FsEventsHandler = FsEventsHandler;
+
   const opts = {};
   // in case _opts that is passed in is a frozen object
   if (_opts) Object.assign(opts, _opts);
@@ -106,7 +125,7 @@ constructor(_opts) {
   /** @type {Map<String, Object>} */
   this._throttled = new Map();
 
-  /** @type {Map<String, String>} */
+  /** @type {Map<String, String|Boolean}>} */
   this._symlinkPaths = new Map();
   this.closed = false;
 
@@ -125,7 +144,7 @@ constructor(_opts) {
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  if (!FsEventsHandler.canUse()) opts.useFsEvents = false;
+  if (!this.FsEventsHandler.canUse()) opts.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
@@ -183,8 +202,7 @@ constructor(_opts) {
       process.nextTick(this.emit.bind(this, 'ready'));
     }
   };
-  this._emitRaw = this.emit.bind(this, 'raw');
-  this._boundHandleError = this._handleError.bind(this);
+  this._emitRaw = (...args) => this.emit('raw', ...args);
 
   this._boundRemove = this._remove.bind(this);
   this._readyEmitted = false;
@@ -193,6 +211,10 @@ constructor(_opts) {
 
   // You’re frozen when your heart’s not open.
   Object.freeze(opts);
+
+  // Attach watch handler prototype methods
+  this._nodeFsHandler = new NodeFsHandler(this);
+  if (FsEventsHandler.canUse()) this._fsEventsHandler = new FsEventsHandler(this);  
 }
 
 _getGlobIgnored() {
@@ -204,8 +226,8 @@ _getGlobIgnored() {
 
 /**
  * Normalize and emit events.
- * @param {String} event Type of event
- * @param {String} path File or directory path
+ * @param {EventName} event Type of event
+ * @param {Path} path File or directory path
  * @param {*=} val1 arguments to be passed with event
  * @param {*=} val2
  * @param {*=} val3
@@ -289,9 +311,6 @@ _emit(event, path, val1, val2, val3) {
     emitEvent();
   }
 
-  //console.log(new Error().stack);
-  //console.log('emit', ...args);
-
   return this;
 }
 
@@ -343,12 +362,16 @@ _throttle(action, path, timeout) {
   return thr;
 }
 
+_incrReadyCount() {
+  return this._readyCount++;
+}
+
 /**
  * Awaits write operation to finish.
  * Polls a newly created file for size variations. When files size does not change for 'threshold' milliseconds calls callback.
- * @param {String} path being acted upon
+ * @param {Path} path being acted upon
  * @param {Number} threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
- * @param {String} event
+ * @param {EventName} event
  * @param {Function} awfEmit Callback to be called when ready for event to be emitted.
  */
 _awaitWriteFinish(path, threshold, event, awfEmit) {
@@ -406,7 +429,7 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
 /**
  * Determines whether user has asked to ignore this path.
- * @param {String} path filepath or dir
+ * @param {Path} path filepath or dir
  * @param {fs.Stats=} stats result of fs.stat
  * @returns {Boolean}
  */
@@ -434,9 +457,9 @@ _isIgnored(path, stats) {
 
 /**
  * Provides a set of common helpers and properties relating to symlink and glob handling.
- * @param {String} path file, directory, or glob pattern being watched
- * @param {Number} depth at any depth > 0, this isn't a glob
- * @returns object containing helpers for this path
+ * @param {Path} path file, directory, or glob pattern being watched
+ * @param {Number=} depth at any depth > 0, this isn't a glob
+ * @returns {WatchHelpers} object containing helpers for this path
  */
 _getWatchHelpers(path, depth) {
   path = path.replace(replacerRe, '');
@@ -492,7 +515,7 @@ _getWatchHelpers(path, depth) {
 
   const dirParts = getDirParts(path);
   dirParts.forEach((parts) => {
-    if (parts.length > 1) parts.pop()
+    if (parts.length > 1) parts.pop();
   });
   let unmatchedGlob;
 
@@ -580,7 +603,6 @@ _remove(directory, item) {
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
   const wp = this._getWatchedDir(path);
-  // console.log(wp);
   const nestedDirectoryChildren = wp.getChildren();
 
   // Recursively remove children directories / files.
@@ -624,6 +646,8 @@ _closePath(path) {
   this._getWatchedDir(dir).remove(sysPath.basename(path));
 }
 
+
+
 /**
  * Adds paths to be watched on an existing FSWatcher instance
  * @param {String|Array<String>} paths_
@@ -635,6 +659,10 @@ add(paths_, _origAdd, _internal) {
   const disableGlobbing = this.options.disableGlobbing;
   const cwd = this.options.cwd;
   this.closed = false;
+
+  /**
+   * @type {Array<String>}
+   */
   let paths = flatten(arrify(paths_));
 
   if (!paths.every(p => typeof p === 'string')) {
@@ -677,15 +705,15 @@ add(paths_, _origAdd, _internal) {
     }
   });
 
-  if (this.options.useFsEvents && FsEventsHandler.canUse()) {
+  if (this.options.useFsEvents && this.FsEventsHandler.canUse()) {
     if (!this._readyCount) this._readyCount = paths.length;
     if (this.options.persistent) this._readyCount *= 2;
-    paths.forEach(this._addToFsEvents, this);
+    paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
   } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
     asyncEach(paths, (path, next) => {
-      this._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
+      this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
         if (res) this._emitReady();
         next(err, res);
       });
@@ -763,10 +791,6 @@ getWatched() {
 }
 
 }
-
-// Attach watch handler prototype methods
-Object.assign(FSWatcher.prototype, NodeFsHandler);
-if (FsEventsHandler.canUse()) Object.assign(FSWatcher.prototype, FsEventsHandler);
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
