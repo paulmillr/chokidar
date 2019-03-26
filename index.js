@@ -10,6 +10,9 @@ const braces = require('braces');
 const normalizePath = require('normalize-path');
 const upath = require('upath');
 
+const NodeFsHandler = require('./lib/nodefs-handler');
+const FsEventsHandler = require('./lib/fsevents-handler');
+
 /**
  * @typedef {String} Path
  * @typedef {'all'|'add'|'addDir'|'change'|'unlink'|'unlinkDir'|'raw'|'error'|'ready'} EventName
@@ -46,6 +49,11 @@ const flatten = (list, result = []) => {
   return result;
 };
 
+const normalizeIgnored = (cwd) => (path) => {
+  if (typeof path !== 'string') return path;
+  return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+};
+
 const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const replacerRe = /^\.[\/\\]/;
 const emptyFn = () => {};
@@ -59,15 +67,15 @@ class DirEntry {
     this.path = dir;
     this._removeWatcher = removeWatcher;
     /** @type {Set<String>} */
-    this._items = new Set();
+    this.items = new Set();
   }
   add(item) {
-    if (item !== '.' && item !== '..') this._items.add(item);
+    if (item !== '.' && item !== '..') this.items.add(item);
   }
   remove(item) {
-    this._items.delete(item);
+    this.items.delete(item);
 
-    if (!this._items.size) {
+    if (!this.items.size) {
       const dir = this.path;
       fs.readdir(dir, err => {
         if (err) this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
@@ -75,14 +83,14 @@ class DirEntry {
     }
   }
   has(item) {
-    return this._items.has(item);
+    return this.items.has(item);
   }
 
   /**
    * @returns {Array<String>}
    */
   getChildren() {
-    return Array.from(this._items.values());
+    return Array.from(this.items.values());
   }
 }
 
@@ -107,10 +115,6 @@ class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
 constructor(_opts) {
   super();
-
-  const NodeFsHandler = require('./lib/nodefs-handler');
-  const FsEventsHandler = require('./lib/fsevents-handler');
-  this.FsEventsHandler = FsEventsHandler;
 
   const opts = {};
   // in case _opts that is passed in is a frozen object
@@ -145,7 +149,7 @@ constructor(_opts) {
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  if (!this.FsEventsHandler.canUse()) opts.useFsEvents = false;
+  if (!this.canUseFsevents()) opts.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
@@ -184,14 +188,9 @@ constructor(_opts) {
   if (awf) {
     if (!awf.stabilityThreshold) awf.stabilityThreshold = 2000;
     if (!awf.pollInterval) awf.pollInterval = 100;
-
     this._pendingWrites = new Map();
   }
   if (opts.ignored) opts.ignored = arrify(opts.ignored);
-
-  this._isntIgnored = (path, stat) => {
-    return !this._isIgnored(path, stat);
-  };
 
   let readyCalls = 0;
   this._emitReady = () => {
@@ -205,7 +204,6 @@ constructor(_opts) {
   };
   this._emitRaw = (...args) => this.emit('raw', ...args);
 
-  this._boundRemove = this._remove.bind(this);
   this._readyEmitted = false;
 
   this.options = opts;
@@ -214,8 +212,11 @@ constructor(_opts) {
   Object.freeze(opts);
 
   // Attach watch handler prototype methods
-  this._nodeFsHandler = new NodeFsHandler(this);
-  if (FsEventsHandler.canUse()) this._fsEventsHandler = new FsEventsHandler(this);
+  if (opts.useFsEvents && this.canUseFsevents()) {
+    this._fsEventsHandler = new FsEventsHandler(this);
+  } else {
+    this._nodeFsHandler = new NodeFsHandler(this);
+  }
 }
 
 _getGlobIgnored() {
@@ -439,13 +440,10 @@ _isIgnored(path, stats) {
   if (this.options.atomic && dotRe.test(path)) return true;
   if (!this._userIgnored) {
     const cwd = this.options.cwd;
-    let ignored = this.options.ignored;
-    if (cwd && ignored) {
-      ignored = ignored.map((path) => {
-        if (typeof path !== 'string') return path;
-        return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
-      });
-    }
+    const ign = this.options.ignored;
+
+    let ignored = ign;
+    if (cwd && ign) ignored = ign.map(normalizeIgnored(cwd));
     const paths = arrify(ignored)
       .filter((path) => typeof path === 'string' && !isGlob(path))
       .map((path) => path + '/**');
@@ -455,6 +453,10 @@ _isIgnored(path, stats) {
   }
 
   return this._userIgnored([path, stats]);
+}
+
+_isntIgnored(path, stat) {
+  return !this._isIgnored(path, stat);
 }
 
 /**
@@ -557,6 +559,7 @@ _getWatchHelpers(path, depth) {
  * @returns {DirEntry} the directory's tracking object
  */
 _getWatchedDir(directory) {
+  if (!this._boundRemove) this._boundRemove = this._remove.bind(this);
   const dir = sysPath.resolve(directory);
   if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
   return this._watched.get(dir);
@@ -707,7 +710,7 @@ add(paths_, _origAdd, _internal) {
     }
   });
 
-  if (this.options.useFsEvents && this.FsEventsHandler.canUse()) {
+  if (this.options.useFsEvents && this.canUseFsevents()) {
     if (!this._readyCount) this._readyCount = paths.length;
     if (this.options.persistent) this._readyCount *= 2;
     paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
@@ -790,6 +793,10 @@ getWatched() {
     watchList[key || '.'] = entry.getChildren().sort();
   });
   return watchList;
+}
+
+canUseFsevents() {
+  return FsEventsHandler.canUse();
 }
 
 }

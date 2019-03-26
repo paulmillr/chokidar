@@ -209,7 +209,6 @@ const runTests = function(baseopts) {
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
-      console.log(spy.args[0])
       // TODO: FSE
       // expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
