@@ -48,7 +48,6 @@ let watcher,
     osXFsWatch,
     win32Polling,
     slowerDelay,
-    testCount = 1,
     mochaIt = it,
     PERM_ARR = 0o755; // rwe, r+e, r+e; 755
 
@@ -69,44 +68,6 @@ const getGlobPath = (subPath) => {
 };
 fixturesPath = getFixturePath('');
 
-if (!fs.readFileSync(__filename).toString().match(/\sit\.only\(/)) {
-  it = function() {
-    testCount++;
-    mochaIt.apply(this, arguments);
-  };
-  it.skip = function() {
-    testCount--;
-    mochaIt.skip.apply(this, arguments);
-  };
-}
-
-before(async () => {
-  var writtenCount = 0;
-  await rimraf(sysPath.join(__dirname, 'test-fixtures'));
-  await fs_mkdir(fixturesPath, PERM_ARR);
-  while (subdir < testCount) {
-    subdir++;
-    fixturesPath = getFixturePath('');
-    await fs_mkdir(fixturesPath, PERM_ARR);
-    await write(sysPath.join(fixturesPath, 'change.txt'), 'b');
-    if (++writtenCount === testCount * 2) {
-      subdir = 0;
-      return;
-    } else {
-      await write(sysPath.join(fixturesPath, 'unlink.txt'), 'b');
-      if (++writtenCount === testCount * 2) {
-        subdir = 0;
-        return;
-      }
-    }
-  }
-});
-
-beforeEach(function() {
-  subdir++;
-  fixturesPath = getFixturePath('');
-});
-
 const closeWatchers = async () => {
   let u;
   while (u = usedWatchers.pop()) u.close();
@@ -118,14 +79,6 @@ const closeWatchers = async () => {
   }
 };
 
-function disposeWatcher(watcher) {
-  if (!watcher || !watcher.close) return;
-  os === 'darwin' ? usedWatchers.push(watcher) : watcher.close();
-}
-afterEach(function() {
-  disposeWatcher(watcher);
-  disposeWatcher(watcher2);
-});
 
 const runTests = function(baseopts) {
   baseopts.persistent = true;
@@ -2066,6 +2019,37 @@ const runTests = function(baseopts) {
 
 describe('chokidar', function() {
   this.timeout(6000);
+  before(async () => {
+    let created = 0;
+    await rimraf(sysPath.join(__dirname, 'test-fixtures'));
+    const _content = fs.readFileSync(__filename, 'utf-8');
+    const _only = _content.match(/\sit\.only\(/g);
+    const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
+    const testCount = itCount * 3;
+    fs.mkdirSync(fixturesPath, PERM_ARR);
+    while (subdir < testCount) {
+      subdir++;
+      fixturesPath = getFixturePath('');
+      fs.mkdirSync(fixturesPath, PERM_ARR);
+      fs.writeFileSync(sysPath.join(fixturesPath, 'change.txt'), 'b');
+      fs.writeFileSync(sysPath.join(fixturesPath, 'unlink.txt'), 'b');
+    }
+    subdir = 0;
+  });
+  beforeEach(function() {
+    subdir++;
+    fixturesPath = getFixturePath('');
+  });
+
+  function disposeWatcher(watcher) {
+    if (!watcher || !watcher.close) return;
+    os === 'darwin' ? usedWatchers.push(watcher) : watcher.close();
+  }
+  afterEach(function() {
+    disposeWatcher(watcher);
+    disposeWatcher(watcher2);
+  });
+
   it('should expose public API methods', function() {
     chokidar.FSWatcher.should.be.a('function');
     chokidar.watch.should.be.a('function');
