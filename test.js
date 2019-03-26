@@ -42,15 +42,14 @@ const aspy = async (watcher, eventName, spy) => {
 let watcher;
 /** @type {chokidar.FSWatcher=} */
 let watcher2;
-let usedWatchers = [],
-    fixturesPath,
-    subdir = 0,
-    options,
-    osXFsWatch,
-    win32Polling,
-    slowerDelay,
-    mochaIt = it,
-    PERM_ARR = 0o755; // rwe, r+e, r+e
+let usedWatchers = [];
+let fixturesPath;
+let subdir = 0;
+let options;
+let osXFsWatch;
+let win32Polling;
+let slowerDelay;
+const PERM_ARR = 0o755; // rwe, r+e, r+e
 
 const _content = fs.readFileSync(__filename, 'utf-8');
 const _only = _content.match(/\sit\.only\(/g);
@@ -166,8 +165,7 @@ const runTests = function(baseopts) {
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
-      // TODO: FSE
-      // expect(spy.args[0][1]).to.be.ok; // stats
+      expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
     });
     it('should emit nine `add` events when nine files were added in one directory', async () => {
@@ -345,8 +343,7 @@ const runTests = function(baseopts) {
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testDir);
-      // TODO: FSE
-      // expect(spy.args[0][1]).to.be.ok; // stats
+      expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
     });
     it('should emit `change` event when file was changed', async () => {
@@ -356,8 +353,7 @@ const runTests = function(baseopts) {
       await write(testPath, Date.now());
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
-      // TODO: FSE
-      // expect(spy.args[0][1]).to.be.ok; // stats
+      expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
       spy.should.have.been.calledOnce;
     });
@@ -418,8 +414,7 @@ const runTests = function(baseopts) {
       expect(unlinkSpy.args[0][1]).to.not.be.ok; // no stats
       addSpy.should.have.been.calledOnce;
       addSpy.should.have.been.calledWith(newPath);
-      // TODO: FSE
-      // expect(addSpy.args[0][1]).to.be.ok; // stats
+      expect(addSpy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
       if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
     });
@@ -477,8 +472,7 @@ const runTests = function(baseopts) {
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
-      // TODO: FSE
-      // expect(spy.args[0][1]).to.be.ok; // stats
+      expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
     });
     it('should watch removed and re-added directories', async () => {
@@ -1349,7 +1343,6 @@ const runTests = function(baseopts) {
         const ignoredPath = getFixturePath('subdir/subsub/ab.txt');
         stdWatcher();
         const spy = await aspy(watcher, 'all');
-        watcher.on('all', (e, p) => console.log(e, p))
         await delay();
         await write(getFixturePath('change.txt'), Date.now());
         await write(addPath, Date.now());
