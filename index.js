@@ -234,21 +234,22 @@ _getGlobIgnored() {
  * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag 
  */
 _emit(event, path, val1, val2, val3) {
-  if (this.options.cwd) path = sysPath.relative(this.options.cwd, path);
+  const opts = this.options;
+  if (opts.cwd) path = sysPath.relative(opts.cwd, path);
   /** @type Array<any> */
   const args = [event, path];
   if (val3 !== undefined) args.push(val1, val2, val3);
   else if (val2 !== undefined) args.push(val1, val2);
   else if (val1 !== undefined) args.push(val1);
 
-  const awf = this.options.awaitWriteFinish;
+  const awf = opts.awaitWriteFinish;
   let pw;
   if (awf && (pw = this._pendingWrites.get(path))) {
     pw.lastChange = new Date();
     return this;
   }
 
-  if (this.options.atomic) {
+  if (opts.atomic) {
     if (event === 'unlink') {
       this._pendingUnlinks.set(path, args);
       setTimeout(() => {
@@ -257,7 +258,7 @@ _emit(event, path, val1, val2, val3) {
           this.emit.apply(this, ['all'].concat(entry));
           this._pendingUnlinks.delete(path);
         });
-      }, typeof this.options.atomic === "number" ? this.options.atomic : 100);
+      }, typeof opts.atomic === "number" ? opts.atomic : 100);
       return this;
     } else if (event === 'add' && this._pendingUnlinks.has(path)) {
       event = args[0] = 'change';
@@ -296,10 +297,10 @@ _emit(event, path, val1, val2, val3) {
   }
 
   if (
-    this.options.alwaysStat && val1 === undefined &&
+    opts.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
-    const fullPath = this.options.cwd ? sysPath.join(this.options.cwd, path) : path;
+    const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
     fs.stat(fullPath, (error, stats) => {
       // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
       if (error || !stats) return;

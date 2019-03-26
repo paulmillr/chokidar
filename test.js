@@ -38,19 +38,20 @@ const aspy = async (watcher, eventName, spy) => {
   });
 };
 
-let watcher,
-    watcher2,
-    usedWatchers = [],
+/** @type {chokidar.FSWatcher=} */
+let watcher;
+/** @type {chokidar.FSWatcher=} */
+let watcher2;
+let usedWatchers = [],
     fixturesPath,
     subdir = 0,
     options,
-    node010 = process.version.slice(0, 5) === 'v0.10',
     osXFsWatch,
     win32Polling,
     slowerDelay,
     testCount = 1,
     mochaIt = it,
-    PERM_ARR = 0o755; // rwe, r+e, r+e; 755
+    PERM_ARR = 0o755; // rwe, r+e, r+e
 
 const delay = async (time) => {
   return new Promise((resolve) => {
@@ -848,10 +849,8 @@ const runTests = function(baseopts) {
       spy.withArgs('add').should.have.been.calledThrice;
       spy.should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
       spy.should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
-      if (!node010) {
-        spy.withArgs('unlink').should.have.been.calledOnce;
-        spy.withArgs('change').should.have.been.calledOnce;
-      }
+      spy.withArgs('unlink').should.have.been.calledOnce;
+      spy.withArgs('change').should.have.been.calledOnce;
     });
     it('should resolve relative paths with glob patterns', async () => {
       const watchPath = 'test-*/' + subdir + '/*a*.txt';
