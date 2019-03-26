@@ -13,10 +13,11 @@ const upath = require('upath');
 /**
  * @typedef {String} Path
  * @typedef {'all'|'add'|'addDir'|'change'|'unlink'|'unlinkDir'|'raw'|'error'|'ready'} EventName
+ * @typedef {'readdir'|'watch'|'add'|'remove'|'change'} ThrottleType
  */
 
 /**
- * 
+ *
  * @typedef {Object} WatchHelpers
  * @property {Boolean} followSymlinks
  * @property {'stat'|'lstat'} statMethod
@@ -30,7 +31,7 @@ const upath = require('upath');
  */
 
 /**
- * @param {String|Array<String>} value 
+ * @param {String|Array<String>} value
  */
 const arrify = (value = []) => Array.isArray(value) ? value : [value];
 
@@ -51,8 +52,8 @@ const emptyFn = () => {};
 
 class DirEntry {
   /**
-   * @param {Path} dir 
-   * @param {Function} removeWatcher 
+   * @param {Path} dir
+   * @param {Function} removeWatcher
    */
   constructor(dir, removeWatcher) {
     this.path = dir;
@@ -65,7 +66,7 @@ class DirEntry {
   }
   remove(item) {
     this._items.delete(item);
-    
+
     if (!this._items.size) {
       const dir = this.path;
       fs.readdir(dir, err => {
@@ -76,7 +77,7 @@ class DirEntry {
   has(item) {
     return this._items.has(item);
   }
-  
+
   /**
    * @returns {Array<String>}
    */
@@ -122,10 +123,10 @@ constructor(_opts) {
   /** @type {Set<String>} */
   this._ignoredPaths = new Set();
 
-  /** @type {Map<String, Object>} */
+  /** @type {Map<ThrottleType, Object>} */
   this._throttled = new Map();
 
-  /** @type {Map<String, String|Boolean}>} */
+  /** @type {Map<Path, String|Boolean>} */
   this._symlinkPaths = new Map();
   this.closed = false;
 
@@ -214,7 +215,7 @@ constructor(_opts) {
 
   // Attach watch handler prototype methods
   this._nodeFsHandler = new NodeFsHandler(this);
-  if (FsEventsHandler.canUse()) this._fsEventsHandler = new FsEventsHandler(this);  
+  if (FsEventsHandler.canUse()) this._fsEventsHandler = new FsEventsHandler(this);
 }
 
 _getGlobIgnored() {
@@ -231,7 +232,7 @@ _getGlobIgnored() {
  * @param {*=} val1 arguments to be passed with event
  * @param {*=} val2
  * @param {*=} val3
- * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag 
+ * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 _emit(event, path, val1, val2, val3) {
   const opts = this.options;
@@ -317,8 +318,8 @@ _emit(event, path, val1, val2, val3) {
 
 /**
  * Common handler for errors
- * @param {Error} error 
- * @returns The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+ * @param {Error} error
+ * @returns {Error|Boolean} The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 _handleError(error) {
   const code = error && error.code;
@@ -333,8 +334,8 @@ _handleError(error) {
 
 /**
  * Helper utility for throttling
- * @param {String} action type being throttled
- * @param {String} path being acted upon
+ * @param {ThrottleType} action type being throttled
+ * @param {Path} path being acted upon
  * @param {Number} timeout duration of time to suppress duplicate actions
  * @returns {Object|false} tracking object or false if action should be suppressed
  */
@@ -636,8 +637,8 @@ _remove(directory, item) {
 }
 
 /**
- * 
- * @param {String} path
+ *
+ * @param {Path} path
  */
 _closePath(path) {
   if (!this._closers.has(path)) return;
@@ -651,7 +652,7 @@ _closePath(path) {
 
 /**
  * Adds paths to be watched on an existing FSWatcher instance
- * @param {String|Array<String>} paths_
+ * @param {Path|Array<Path>} paths_
  * @param {String=} _origAdd private; for handling non-existent paths to be watched
  * @param {Boolean=} _internal private; indicates a non-user add
  * @returns {FSWatcher} for chaining
@@ -731,7 +732,7 @@ add(paths_, _origAdd, _internal) {
 
 /**
  * Close watchers or start ignoring events from specified paths.
- * @param {Array<String>} paths - string or array of strings, file/directory paths and/or globs
+ * @param {Path|Array<Path>} paths - string or array of strings, file/directory paths and/or globs
  * @returns {FSWatcher} for chaining
 */
 unwatch(paths) {
@@ -799,7 +800,7 @@ exports.FSWatcher = FSWatcher;
 /**
  * Instantiates watcher with paths to be tracked.
  * @param {String|Array<String>} paths file/directory paths and/or globs
- * @param {Object?} options chokidar opts
+ * @param {Object=} options chokidar opts
  * @returns an instance of FSWatcher for chaining.
  */
 const watch = (paths, options) => new FSWatcher(options).add(paths);
