@@ -24,6 +24,8 @@
   "license": "MIT",
   "scripts": {
     "test": "nyc mocha --exit",
+    "mocha": "mocha",
+    "lint": "jshint index.js lib",
     "coveralls": "nyc report --reporter=text-lcov | coveralls",
     "dtslint": "dtslint types"
   },
