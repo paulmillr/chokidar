@@ -117,8 +117,7 @@ constructor(_opts) {
   super();
 
   const opts = {};
-  // in case _opts that is passed in is a frozen object
-  if (_opts) Object.assign(opts, _opts);
+  if (_opts) Object.assign(opts, _opts); // for frozen objects
 
   /** @type {Map<String, DirEntry>} */
   this._watched = new Map();
@@ -501,10 +500,10 @@ _getWatchHelpers(path, depth) {
   const filterPath = (entry) => {
     if (entry.stat && entry.stat.isSymbolicLink()) return filterDir(entry);
     const resolvedPath = entryPath(entry);
-    if (!hasGlob) return true;
-    return (globFilter(resolvedPath) &&
+    const matchesGlob = !hasGlob || globFilter(resolvedPath);
+    return matchesGlob &&
       this._isntIgnored(resolvedPath, entry.stat) &&
-      (this.options.ignorePermissionErrors || this._hasReadPermissions(entry.stat)));
+      this._hasReadPermissions(entry.stat);
   };
 
   const getDirParts = (path) => {
@@ -575,6 +574,8 @@ _getWatchedDir(directory) {
  * @returns {Boolean} indicates whether the file can be read
 */
 _hasReadPermissions(stats) {
+  if (this.options.ignorePermissionErrors) return true;
+
   const st = (stats && stats.mode) & 0o777;
   const it = parseInt(st.toString(8)[0], 10);
   return Boolean(4 & it);
