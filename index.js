@@ -106,10 +106,10 @@ class DirEntry {
 //
 //  const watcher = new FSWatcher()
 //    .add(directories)
-//    .on('add', path => console.log('File', path, 'was added'))
-//    .on('change', path => console.log('File', path, 'was changed'))
-//    .on('unlink', path => console.log('File', path, 'was removed'))
-//    .on('all', (event, path) => console.log(path, ' emitted ', event))
+//    .on('add', path => log('File', path, 'was added'))
+//    .on('change', path => log('File', path, 'was changed'))
+//    .on('unlink', path => log('File', path, 'was removed'))
+//    .on('all', (event, path) => log(path, ' emitted ', event))
 //
 class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
@@ -126,7 +126,7 @@ constructor(_opts) {
   /** @type {Set<String>} */
   this._ignoredPaths = new Set();
 
-  /** @type {Map<ThrottleType, Object>} */
+  /** @type {Map<ThrottleType, Map>} */
   this._throttled = new Map();
 
   /** @type {Map<Path, String|Boolean>} */
@@ -235,6 +235,9 @@ _getGlobIgnored() {
  * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 _emit(event, path, val1, val2, val3) {
+  // console.log('_emit', event, path, typeof val1);
+  // console.log(new Error().stack);
+
   const opts = this.options;
   if (opts.cwd) path = sysPath.relative(opts.cwd, path);
   /** @type Array<any> */
@@ -268,6 +271,7 @@ _emit(event, path, val1, val2, val3) {
   }
 
   const emitEvent = () => {
+    // console.log('emitevent', event);
     this.emit.apply(this, args);
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   };
@@ -294,7 +298,10 @@ _emit(event, path, val1, val2, val3) {
   }
 
   if (event === 'change') {
-    if (!this._throttle('change', path, 50)) return this;
+    const thr = !this._throttle('change', path, 50);
+    // console.log('throttle', thr);
+
+    if (thr) return this;
   }
 
   if (
@@ -334,33 +341,38 @@ _handleError(error) {
 
 /**
  * Helper utility for throttling
- * @param {ThrottleType} action type being throttled
+ * @param {ThrottleType} actionType type being throttled
  * @param {Path} path being acted upon
  * @param {Number} timeout duration of time to suppress duplicate actions
  * @returns {Object|false} tracking object or false if action should be suppressed
  */
-_throttle(action, path, timeout) {
-  if (!this._throttled.has(action)) {
-    this._throttled.set(action, new Map());
+_throttle(actionType, path, timeout) {
+  if (!this._throttled.has(actionType)) {
+    this._throttled.set(actionType, new Map());
   }
-  const throttled = this._throttled.get(action);
 
-  if (path in throttled) {
-    throttled[path].count++;
+  /** @type {Map<Path, Object>} */
+  const action = this._throttled.get(actionType);
+  /** @type {Object} */
+  const actionPath = action.get(path);
+
+  if (actionPath) {
+    actionPath.count++;
     return false;
   }
+
   let timeoutObject;
   const clear = () => {
-    const item = throttled.get(path);
+    const item = action.get(path);
     const count = item ? item.count : 0;
-    throttled.delete(path);
+    action.delete(path);
     clearTimeout(timeoutObject);
     if (item) clearTimeout(item.timeoutObject);
     return count;
   };
   timeoutObject = setTimeout(clear, timeout);
   const thr = {timeoutObject: timeoutObject, clear: clear, count: 0};
-  throttled.set(path, thr);
+  action.set(path, thr);
   return thr;
 }
 

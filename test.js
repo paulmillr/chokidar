@@ -51,11 +51,6 @@ let win32Polling;
 let slowerDelay;
 const PERM_ARR = 0o755; // rwe, r+e, r+e
 
-const _content = fs.readFileSync(__filename, 'utf-8');
-const _only = _content.match(/\sit\.only\(/g);
-const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
-const testCount = itCount * 3;
-
 const delay = async (time) => {
   return new Promise((resolve) => {
     const timer = time || slowerDelay || 50;
@@ -856,6 +851,8 @@ const runTests = function(baseopts) {
       await delay();
       await write(changePath, Date.now());
       await waitFor([[spy, 2]]);
+      // console.log('checking spy');
+
       spy.should.have.been.calledWith('change', changePath);
       spy.should.have.been.calledTwice;
     });
@@ -2028,6 +2025,10 @@ describe('chokidar', function() {
   before(async () => {
     let created = 0;
     await rimraf(sysPath.join(__dirname, 'test-fixtures'));
+    const _content = fs.readFileSync(__filename, 'utf-8');
+    const _only = _content.match(/\sit\.only\(/g);
+    const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
+    const testCount = itCount * 3;
     fs.mkdirSync(fixturesPath, PERM_ARR);
     while (subdir < testCount) {
       subdir++;
