@@ -1,9 +1,0 @@
-{
-  "node": true,
-  "curly": false,
-  "bitwise": false,
-  "mocha": true,
-  "expr": true,
-  "esversion": 8,
-  "predef": ["toString"]
-}

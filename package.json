@@ -60,5 +60,14 @@
     "rimraf": "^2.4.3",
     "sinon": "^1.10.3",
     "sinon-chai": "^2.6.0"
+  },
+  "jshintConfig": {
+    "node": true,
+    "curly": false,
+    "bitwise": false,
+    "mocha": true,
+    "expr": true,
+    "esversion": 8,
+    "predef": ["toString"]
   }
 }
