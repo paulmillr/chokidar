@@ -32,7 +32,8 @@
   "files": [
     "index.js",
     "lib/",
-    "types/index.d.ts"
+    "types/index.d.ts",
+    "LICENSE"
   ],
   "dependencies": {
     "anymatch": "^2.0.0",
