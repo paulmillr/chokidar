@@ -2037,7 +2037,6 @@ describe('chokidar', function() {
     }
     subdir = 0;
   });
-
   beforeEach(function() {
     subdir++;
     fixturesPath = getFixturePath('');
@@ -2063,8 +2062,7 @@ describe('chokidar', function() {
 
   if (os === 'darwin') {
     describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
-  }
-  if (os !== 'darwin') {
+  } else {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
