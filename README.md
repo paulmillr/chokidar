@@ -268,3 +268,8 @@ execute a command on each change, or get a stdio stream of change events.
 
 * `gyp ERR! stack Error: not found: make`
   * On Mac, install the XCode command-line tools
+
+
+## License
+
+MIT (c) Paul Miller (https://paulmillr.com), see LICENSE file.
