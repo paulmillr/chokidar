@@ -851,8 +851,6 @@ const runTests = function(baseopts) {
       await delay();
       await write(changePath, Date.now());
       await waitFor([[spy, 2]]);
-      // console.log('checking spy');
-
       spy.should.have.been.calledWith('change', changePath);
       spy.should.have.been.calledTwice;
     });

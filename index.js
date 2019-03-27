@@ -227,6 +227,7 @@ _getGlobIgnored() {
 
 /**
  * Normalize and emit events.
+ * Calling _emit DOES NOT MEAN emit() would be called!
  * @param {EventName} event Type of event
  * @param {Path} path File or directory path
  * @param {*=} val1 arguments to be passed with event
@@ -235,9 +236,6 @@ _getGlobIgnored() {
  * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 _emit(event, path, val1, val2, val3) {
-  // console.log('_emit', event, path, typeof val1);
-  // console.log(new Error().stack);
-
   const opts = this.options;
   if (opts.cwd) path = sysPath.relative(opts.cwd, path);
   /** @type Array<any> */
@@ -271,7 +269,6 @@ _emit(event, path, val1, val2, val3) {
   }
 
   const emitEvent = () => {
-    // console.log('emitevent', event);
     this.emit.apply(this, args);
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
   };
@@ -298,10 +295,8 @@ _emit(event, path, val1, val2, val3) {
   }
 
   if (event === 'change') {
-    const thr = !this._throttle('change', path, 50);
-    // console.log('throttle', thr);
-
-    if (thr) return this;
+    const isThrottled = !this._throttle('change', path, 50);
+    if (isThrottled) return this;
   }
 
   if (
