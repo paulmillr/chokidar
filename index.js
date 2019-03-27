@@ -13,6 +13,29 @@ const upath = require('upath');
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
 
+/**
+ * @typedef {String} Path
+ * @typedef {'all'|'add'|'addDir'|'change'|'unlink'|'unlinkDir'|'raw'|'error'|'ready'} EventName
+ * @typedef {'readdir'|'watch'|'add'|'remove'|'change'} ThrottleType
+ */
+
+/**
+ *
+ * @typedef {Object} WatchHelpers
+ * @property {Boolean} followSymlinks
+ * @property {'stat'|'lstat'} statMethod
+ * @property {Path} path
+ * @property {Path} watchPath
+ * @property {Function} entryPath
+ * @property {Boolean} hasGlob
+ * @property {Object} globFilter
+ * @property {Function} filterPath
+ * @property {Function} filterDir
+ */
+
+/**
+ * @param {String|Array<String>} value
+ */
 const arrify = (value = []) => Array.isArray(value) ? value : [value];
 
 const flatten = (list, result = []) => {
@@ -26,8 +49,50 @@ const flatten = (list, result = []) => {
   return result;
 };
 
+const normalizeIgnored = (cwd) => (path) => {
+  if (typeof path !== 'string') return path;
+  return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+};
+
 const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const replacerRe = /^\.[\/\\]/;
+const emptyFn = () => {};
+
+class DirEntry {
+  /**
+   * @param {Path} dir
+   * @param {Function} removeWatcher
+   */
+  constructor(dir, removeWatcher) {
+    this.path = dir;
+    this._removeWatcher = removeWatcher;
+    /** @type {Set<String>} */
+    this.items = new Set();
+  }
+  add(item) {
+    if (item !== '.' && item !== '..') this.items.add(item);
+  }
+  remove(item) {
+    this.items.delete(item);
+
+    if (!this.items.size) {
+      const dir = this.path;
+      fs.readdir(dir, err => {
+        if (err) this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
+      });
+    }
+  }
+  has(item) {
+    return this.items.has(item);
+  }
+
+  /**
+   * @returns {Array<String>}
+   */
+  getChildren() {
+    return Array.from(this.items.values());
+  }
+}
 
 // Public: Main class.
 // Watches files & directories for changes.
@@ -41,28 +106,34 @@ const replacerRe = /^\.[\/\\]/;
 //
 //  const watcher = new FSWatcher()
 //    .add(directories)
-//    .on('add', path => console.log('File', path, 'was added'))
-//    .on('change', path => console.log('File', path, 'was changed'))
-//    .on('unlink', path => console.log('File', path, 'was removed'))
-//    .on('all', (event, path) => console.log(path, ' emitted ', event))
+//    .on('add', path => log('File', path, 'was added'))
+//    .on('change', path => log('File', path, 'was changed'))
+//    .on('unlink', path => log('File', path, 'was removed'))
+//    .on('all', (event, path) => log(path, ' emitted ', event))
 //
 class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
 constructor(_opts) {
   super();
-  const opts = {};
-  // in case _opts that is passed in is a frozen object
-  if (_opts) for (const opt in _opts) opts[opt] = _opts[opt];
-  this._watched = Object.create(null);
-  this._closers = Object.create(null);
-  this._ignoredPaths = Object.create(null);
-  this.closed = false;
-  this._throttled = Object.create(null);
-  this._symlinkPaths = Object.create(null);
 
-  function undef(key) {
-    return opts[key] === undefined;
-  }
+  const opts = {};
+  if (_opts) Object.assign(opts, _opts); // for frozen objects
+
+  /** @type {Map<String, DirEntry>} */
+  this._watched = new Map();
+  /** @type {Map<String, Function>} */
+  this._closers = new Map();
+  /** @type {Set<String>} */
+  this._ignoredPaths = new Set();
+
+  /** @type {Map<ThrottleType, Map>} */
+  this._throttled = new Map();
+
+  /** @type {Map<Path, String|Boolean>} */
+  this._symlinkPaths = new Map();
+  this.closed = false;
+
+  const undef = (key) => opts[key] === undefined;
 
   // Set up default options.
   if (undef('persistent')) opts.persistent = true;
@@ -77,7 +148,7 @@ constructor(_opts) {
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  if (!FsEventsHandler.canUse()) opts.useFsEvents = false;
+  if (!this.canUseFsevents()) opts.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
@@ -106,7 +177,7 @@ constructor(_opts) {
 
   // Editor atomic write normalization enabled by default with fs.watch
   if (undef('atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
-  if (opts.atomic) this._pendingUnlinks = Object.create(null);
+  if (opts.atomic) this._pendingUnlinks = new Map();
 
   if (undef('followSymlinks')) opts.followSymlinks = true;
 
@@ -116,33 +187,39 @@ constructor(_opts) {
   if (awf) {
     if (!awf.stabilityThreshold) awf.stabilityThreshold = 2000;
     if (!awf.pollInterval) awf.pollInterval = 100;
-
-    this._pendingWrites = Object.create(null);
+    this._pendingWrites = new Map();
   }
   if (opts.ignored) opts.ignored = arrify(opts.ignored);
 
-  this._isntIgnored = function(path, stat) {
-    return !this._isIgnored(path, stat);
-  }.bind(this);
-
   let readyCalls = 0;
-  this._emitReady = function() {
-    if (++readyCalls >= this._readyCount) {
-      this._emitReady = Function.prototype;
+  this._emitReady = () => {
+    readyCalls++;
+    if (readyCalls >= this._readyCount) {
+      this._emitReady = emptyFn;
       this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
       process.nextTick(this.emit.bind(this, 'ready'));
     }
-  }.bind(this);
+  };
+  this._emitRaw = (...args) => this.emit('raw', ...args);
+
+  this._readyEmitted = false;
 
   this.options = opts;
 
   // You’re frozen when your heart’s not open.
   Object.freeze(opts);
+
+  // Attach watch handler prototype methods
+  if (opts.useFsEvents && this.canUseFsevents()) {
+    this._fsEventsHandler = new FsEventsHandler(this);
+  } else {
+    this._nodeFsHandler = new NodeFsHandler(this);
+  }
 }
 
-_globIgnored() {
-  return Object.keys(this._ignoredPaths);
+_getGlobIgnored() {
+  return Array.from(this._ignoredPaths.values());
 }
 
 // Common helpers
@@ -150,52 +227,54 @@ _globIgnored() {
 
 /**
  * Normalize and emit events.
- * @param {String} event Type of event
- * @param {String} path File or directory path
- * @param {*} val1 arguments to be passed with event
- * @param {*} val2
- * @param {*} val3
- * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag 
+ * Calling _emit DOES NOT MEAN emit() would be called!
+ * @param {EventName} event Type of event
+ * @param {Path} path File or directory path
+ * @param {*=} val1 arguments to be passed with event
+ * @param {*=} val2
+ * @param {*=} val3
+ * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 _emit(event, path, val1, val2, val3) {
-  if (this.options.cwd) path = sysPath.relative(this.options.cwd, path);
+  const opts = this.options;
+  if (opts.cwd) path = sysPath.relative(opts.cwd, path);
+  /** @type Array<any> */
   const args = [event, path];
   if (val3 !== undefined) args.push(val1, val2, val3);
   else if (val2 !== undefined) args.push(val1, val2);
   else if (val1 !== undefined) args.push(val1);
 
-  const awf = this.options.awaitWriteFinish;
-  if (awf && this._pendingWrites[path]) {
-    this._pendingWrites[path].lastChange = new Date();
+  const awf = opts.awaitWriteFinish;
+  let pw;
+  if (awf && (pw = this._pendingWrites.get(path))) {
+    pw.lastChange = new Date();
     return this;
   }
 
-  if (this.options.atomic) {
+  if (opts.atomic) {
     if (event === 'unlink') {
-      this._pendingUnlinks[path] = args;
-      setTimeout(function() {
-        Object.keys(this._pendingUnlinks).forEach(function(path) {
-          this.emit.apply(this, this._pendingUnlinks[path]);
-          this.emit.apply(this, ['all'].concat(this._pendingUnlinks[path]));
-          delete this._pendingUnlinks[path];
-        }.bind(this));
-      }.bind(this), typeof this.options.atomic === "number"
-        ? this.options.atomic
-        : 100);
+      this._pendingUnlinks.set(path, args);
+      setTimeout(() => {
+        this._pendingUnlinks.forEach((entry, path) => {
+          this.emit.apply(this, entry);
+          this.emit.apply(this, ['all'].concat(entry));
+          this._pendingUnlinks.delete(path);
+        });
+      }, typeof opts.atomic === "number" ? opts.atomic : 100);
       return this;
-    } else if (event === 'add' && this._pendingUnlinks[path]) {
+    } else if (event === 'add' && this._pendingUnlinks.has(path)) {
       event = args[0] = 'change';
-      delete this._pendingUnlinks[path];
+      this._pendingUnlinks.delete(path);
     }
   }
 
-  const emitEvent = function() {
+  const emitEvent = () => {
     this.emit.apply(this, args);
     if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
-  }.bind(this);
+  };
 
   if (awf && (event === 'add' || event === 'change') && this._readyEmitted) {
-    const awfEmit = function(err, stats) {
+    const awfEmit = (err, stats) => {
       if (err) {
         event = args[0] = 'error';
         args[1] = err;
@@ -216,15 +295,16 @@ _emit(event, path, val1, val2, val3) {
   }
 
   if (event === 'change') {
-    if (!this._throttle('change', path, 50)) return this;
+    const isThrottled = !this._throttle('change', path, 50);
+    if (isThrottled) return this;
   }
 
   if (
-    this.options.alwaysStat && val1 === undefined &&
+    opts.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
-    const fullPath = this.options.cwd ? sysPath.join(this.options.cwd, path) : path;
-    fs.stat(fullPath, function(error, stats) {
+    const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
+    fs.stat(fullPath, (error, stats) => {
       // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
       if (error || !stats) return;
 
@@ -240,8 +320,8 @@ _emit(event, path, val1, val2, val3) {
 
 /**
  * Common handler for errors
- * @param {Error} error 
- * @returns The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+ * @param {Error} error
+ * @returns {Error|Boolean} The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 _handleError(error) {
   const code = error && error.code;
@@ -256,37 +336,51 @@ _handleError(error) {
 
 /**
  * Helper utility for throttling
- * @param {String} action type being throttled
- * @param {String} path being acted upon
+ * @param {ThrottleType} actionType type being throttled
+ * @param {Path} path being acted upon
  * @param {Number} timeout duration of time to suppress duplicate actions
  * @returns {Object|false} tracking object or false if action should be suppressed
  */
-_throttle(action, path, timeout) {
-  if (!(action in this._throttled)) {
-    this._throttled[action] = Object.create(null);
+_throttle(actionType, path, timeout) {
+  if (!this._throttled.has(actionType)) {
+    this._throttled.set(actionType, new Map());
   }
-  const throttled = this._throttled[action];
-  if (path in throttled) {
-    throttled[path].count++;
+
+  /** @type {Map<Path, Object>} */
+  const action = this._throttled.get(actionType);
+  /** @type {Object} */
+  const actionPath = action.get(path);
+
+  if (actionPath) {
+    actionPath.count++;
     return false;
   }
-  function clear() {
-    const count = throttled[path] ? throttled[path].count : 0;
-    delete throttled[path];
+
+  let timeoutObject;
+  const clear = () => {
+    const item = action.get(path);
+    const count = item ? item.count : 0;
+    action.delete(path);
     clearTimeout(timeoutObject);
+    if (item) clearTimeout(item.timeoutObject);
     return count;
-  }
-  const timeoutObject = setTimeout(clear, timeout);
-  throttled[path] = {timeoutObject: timeoutObject, clear: clear, count: 0};
-  return throttled[path];
+  };
+  timeoutObject = setTimeout(clear, timeout);
+  const thr = {timeoutObject: timeoutObject, clear: clear, count: 0};
+  action.set(path, thr);
+  return thr;
+}
+
+_incrReadyCount() {
+  return this._readyCount++;
 }
 
 /**
  * Awaits write operation to finish.
  * Polls a newly created file for size variations. When files size does not change for 'threshold' milliseconds calls callback.
- * @param {String} path being acted upon
+ * @param {Path} path being acted upon
  * @param {Number} threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
- * @param {String} event
+ * @param {EventName} event
  * @param {Function} awfEmit Callback to be called when ready for event to be emitted.
  */
 _awaitWriteFinish(path, threshold, event, awfEmit) {
@@ -299,21 +393,23 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
   const now = new Date();
 
-  const awaitWriteFinish = (function (prevStat) {
-    fs.stat(fullPath, function(err, curStat) {
-      if (err || !(path in this._pendingWrites)) {
+  const awaitWriteFinish = (prevStat) => {
+    fs.stat(fullPath, (err, curStat) => {
+      if (err || !this._pendingWrites.has(path)) {
         if (err && err.code !== 'ENOENT') awfEmit(err);
         return;
       }
 
-      const now = new Date();
+      const now = Number(new Date());
 
       if (prevStat && curStat.size != prevStat.size) {
-        this._pendingWrites[path].lastChange = now;
+        this._pendingWrites.get(path).lastChange = now;
       }
+      const pw = this._pendingWrites.get(path);
+      const df = now - pw.lastChange;
 
-      if (now - this._pendingWrites[path].lastChange >= threshold) {
-        delete this._pendingWrites[path];
+      if (df >= threshold) {
+        this._pendingWrites.delete(path);
         awfEmit(null, curStat);
       } else {
         timeoutHandler = setTimeout(
@@ -321,18 +417,18 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
           this.options.awaitWriteFinish.pollInterval
         );
       }
-    }.bind(this));
-  }.bind(this));
+    });
+  };
 
-  if (!(path in this._pendingWrites)) {
-    this._pendingWrites[path] = {
+  if (!this._pendingWrites.has(path)) {
+    this._pendingWrites.set(path, {
       lastChange: now,
-      cancelWait: function() {
-        delete this._pendingWrites[path];
+      cancelWait: () => {
+        this._pendingWrites.delete(path);
         clearTimeout(timeoutHandler);
         return event;
-      }.bind(this)
-    };
+      }
+    });
     timeoutHandler = setTimeout(
       awaitWriteFinish.bind(this),
       this.options.awaitWriteFinish.pollInterval
@@ -342,40 +438,38 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
 /**
  * Determines whether user has asked to ignore this path.
- * @param {String} path filepath or dir
- * @param {fs.Stats} stats result of fs.stat
+ * @param {Path} path filepath or dir
+ * @param {fs.Stats=} stats result of fs.stat
  * @returns {Boolean}
  */
 _isIgnored(path, stats) {
   if (this.options.atomic && dotRe.test(path)) return true;
   if (!this._userIgnored) {
     const cwd = this.options.cwd;
-    let ignored = this.options.ignored;
-    if (cwd && ignored) {
-      ignored = ignored.map(function (path) {
-        if (typeof path !== 'string') return path;
-        return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
-      });
-    }
+    const ign = this.options.ignored;
+
+    let ignored = ign;
+    if (cwd && ign) ignored = ign.map(normalizeIgnored(cwd));
     const paths = arrify(ignored)
-      .filter(function(path) {
-        return typeof path === 'string' && !isGlob(path);
-      }).map(function(path) {
-        return path + '/**';
-      });
+      .filter((path) => typeof path === 'string' && !isGlob(path))
+      .map((path) => path + '/**');
     this._userIgnored = anymatch(
-      this._globIgnored().concat(ignored).concat(paths)
+      this._getGlobIgnored().concat(ignored).concat(paths)
     );
   }
 
   return this._userIgnored([path, stats]);
 }
 
+_isntIgnored(path, stat) {
+  return !this._isIgnored(path, stat);
+}
+
 /**
  * Provides a set of common helpers and properties relating to symlink and glob handling.
- * @param {String} path file, directory, or glob pattern being watched
- * @param {Number} depth at any depth > 0, this isn't a glob
- * @returns object containing helpers for this path
+ * @param {Path} path file, directory, or glob pattern being watched
+ * @param {Number=} depth at any depth > 0, this isn't a glob
+ * @returns {WatchHelpers} object containing helpers for this path
  */
 _getWatchHelpers(path, depth) {
   path = path.replace(replacerRe, '');
@@ -384,9 +478,10 @@ _getWatchHelpers(path, depth) {
   const hasGlob = watchPath !== path;
   const globFilter = hasGlob ? anymatch(path) : false;
   const follow = this.options.followSymlinks;
+  /** @type {any} */
   let globSymlink = hasGlob && follow ? null : false;
 
-  const checkGlobSymlink = function(entry) {
+  const checkGlobSymlink = (entry) => {
     // only need to resolve once
     // first entry should always have entry.parentDir === ''
     if (globSymlink == null) {
@@ -403,52 +498,50 @@ _getWatchHelpers(path, depth) {
     return entry.fullPath;
   };
 
-  const entryPath = function(entry) {
+  const entryPath = (entry) => {
     return sysPath.join(watchPath,
       sysPath.relative(watchPath, checkGlobSymlink(entry))
     );
   };
 
-  const filterPath = function(entry) {
+  const filterPath = (entry) => {
     if (entry.stat && entry.stat.isSymbolicLink()) return filterDir(entry);
     const resolvedPath = entryPath(entry);
-    return (!hasGlob || globFilter(resolvedPath)) &&
+    const matchesGlob = !hasGlob || globFilter(resolvedPath);
+    return matchesGlob &&
       this._isntIgnored(resolvedPath, entry.stat) &&
-      (this.options.ignorePermissionErrors ||
-        this._hasReadPermissions(entry.stat));
-  }.bind(this);
+      this._hasReadPermissions(entry.stat);
+  };
 
-  const getDirParts = function(path) {
-    if (!hasGlob) return false;
+  const getDirParts = (path) => {
+    if (!hasGlob) return [];
     const parts = [];
     const expandedPath = braces.expand(path);
-    expandedPath.forEach(function(path) {
+    expandedPath.forEach((path) => {
       parts.push(sysPath.relative(watchPath, path).split(/[\/\\]/));
     });
     return parts;
   };
 
   const dirParts = getDirParts(path);
-  if (dirParts) {
-    dirParts.forEach(function(parts) {
-      if (parts.length > 1) parts.pop();
-    });
-  }
+  dirParts.forEach((parts) => {
+    if (parts.length > 1) parts.pop();
+  });
   let unmatchedGlob;
 
-  const filterDir = function(entry) {
+  const filterDir = (entry) => {
     if (hasGlob) {
       const entryParts = getDirParts(checkGlobSymlink(entry));
       let globstar = false;
-      unmatchedGlob = !dirParts.some(function(parts) {
-        return parts.every(function(part, i) {
+      unmatchedGlob = !dirParts.some((parts) => {
+        return parts.every((part, i) => {
           if (part === '**') globstar = true;
           return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i]);
         });
       });
     }
     return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stat);
-  }.bind(this);
+  };
 
   return {
     followSymlinks: follow,
@@ -469,28 +562,13 @@ _getWatchHelpers(path, depth) {
 /**
  * Provides directory tracking objects
  * @param {String} directory path of the directory
- * @returns {Object} the directory's tracking object
+ * @returns {DirEntry} the directory's tracking object
  */
 _getWatchedDir(directory) {
+  if (!this._boundRemove) this._boundRemove = this._remove.bind(this);
   const dir = sysPath.resolve(directory);
-  const watcherRemove = this._remove.bind(this);
-  if (!(dir in this._watched)) this._watched[dir] = {
-    _items: Object.create(null),
-    add: function(item) {
-      if (item !== '.' && item !== '..') this._items[item] = true;
-    },
-    remove: function(item) {
-      delete this._items[item];
-      if (!this.children().length) {
-        fs.readdir(dir, function(err) {
-          if (err) watcherRemove(sysPath.dirname(dir), sysPath.basename(dir));
-        });
-      }
-    },
-    has: function(item) {return item in this._items;},
-    children: function() {return Object.keys(this._items);}
-  };
-  return this._watched[dir];
+  if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
+  return this._watched.get(dir);
 }
 
 // File helpers
@@ -503,6 +581,8 @@ _getWatchedDir(directory) {
  * @returns {Boolean} indicates whether the file can be read
 */
 _hasReadPermissions(stats) {
+  if (this.options.ignorePermissionErrors) return true;
+
   const st = (stats && stats.mode) & 0o777;
   const it = parseInt(st.toString(8)[0], 10);
   return Boolean(4 & it);
@@ -522,26 +602,24 @@ _remove(directory, item) {
   // if it is not a directory, nestedDirectoryChildren will be empty array
   const path = sysPath.join(directory, item);
   const fullPath = sysPath.resolve(path);
-  const isDirectory = this._watched[path] || this._watched[fullPath];
+  const isDirectory = this._watched.has(path) || this._watched.has(fullPath);
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
   if (!this._throttle('remove', path, 100)) return;
 
   // if the only watched file is removed, watch for its return
-  const watchedDirs = Object.keys(this._watched);
-  if (!isDirectory && !this.options.useFsEvents && watchedDirs.length === 1) {
+  if (!isDirectory && !this.options.useFsEvents && this._watched.size === 1) {
     this.add(directory, item, true);
   }
 
   // This will create a new entry in the watched object in either case
   // so we got to do the directory check beforehand
-  const nestedDirectoryChildren = this._getWatchedDir(path).children();
+  const wp = this._getWatchedDir(path);
+  const nestedDirectoryChildren = wp.getChildren();
 
   // Recursively remove children directories / files.
-  nestedDirectoryChildren.forEach(function(nestedItem) {
-    this._remove(path, nestedItem);
-  }, this);
+  nestedDirectoryChildren.forEach(nested => this._remove(path, nested));
 
   // Check if item was on the watched list and remove it
   const parent = this._getWatchedDir(directory);
@@ -551,15 +629,15 @@ _remove(directory, item) {
   // If we wait for this file to be fully written, cancel the wait.
   let relPath = path;
   if (this.options.cwd) relPath = sysPath.relative(this.options.cwd, path);
-  if (this.options.awaitWriteFinish && this._pendingWrites[relPath]) {
-    const event = this._pendingWrites[relPath].cancelWait();
+  if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
+    const event = this._pendingWrites.get(relPath).cancelWait();
     if (event === 'add') return;
   }
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
-  delete this._watched[path];
-  delete this._watched[fullPath];
+  this._watched.delete(path);
+  this._watched.delete(fullPath);
   const eventName = isDirectory ? 'unlinkDir' : 'unlink';
   if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
 
@@ -570,34 +648,41 @@ _remove(directory, item) {
 }
 
 /**
- * 
- * @param {String} path
+ *
+ * @param {Path} path
  */
 _closePath(path) {
-  if (!this._closers[path]) return;
-  this._closers[path]();
-  delete this._closers[path];
-  this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
+  if (!this._closers.has(path)) return;
+  this._closers.get(path)();
+  this._closers.delete(path);
+  const dir = sysPath.dirname(path);
+  this._getWatchedDir(dir).remove(sysPath.basename(path));
 }
+
+
 
 /**
  * Adds paths to be watched on an existing FSWatcher instance
- * @param {String|Array<String>} paths 
- * @param {Boolean} _origAdd private; for handling non-existent paths to be watched
- * @param {Boolean} _internal private; indicates a non-user add
+ * @param {Path|Array<Path>} paths_
+ * @param {String=} _origAdd private; for handling non-existent paths to be watched
+ * @param {Boolean=} _internal private; indicates a non-user add
  * @returns {FSWatcher} for chaining
  */
-add(paths, _origAdd, _internal) {
+add(paths_, _origAdd, _internal) {
   const disableGlobbing = this.options.disableGlobbing;
   const cwd = this.options.cwd;
   this.closed = false;
-  paths = flatten(arrify(paths));
+
+  /**
+   * @type {Array<String>}
+   */
+  let paths = flatten(arrify(paths_));
 
   if (!paths.every(p => typeof p === 'string')) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
 
-  if (cwd) paths = paths.map(function(path) {
+  if (cwd) paths = paths.map((path) => {
     let absPath;
     if (sysPath.isAbsolute(path)) {
       absPath = path;
@@ -616,13 +701,14 @@ add(paths, _origAdd, _internal) {
   });
 
   // set aside negated glob strings
-  paths = paths.filter(function(path) {
+  paths = paths.filter((path) => {
     if (path[0] === '!') {
-      this._ignoredPaths[path.substring(1)] = true;
+      this._ignoredPaths.add(path.substring(1));
+      return false;
     } else {
       // if a path is being added that was previously ignored, stop ignoring it
-      delete this._ignoredPaths[path];
-      delete this._ignoredPaths[path + '/**'];
+      this._ignoredPaths.delete(path);
+      this._ignoredPaths.delete(path + '/**');
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
@@ -630,26 +716,26 @@ add(paths, _origAdd, _internal) {
 
       return true;
     }
-  }, this);
+  });
 
-  if (this.options.useFsEvents && FsEventsHandler.canUse()) {
+  if (this.options.useFsEvents && this.canUseFsevents()) {
     if (!this._readyCount) this._readyCount = paths.length;
     if (this.options.persistent) this._readyCount *= 2;
-    paths.forEach(this._addToFsEvents, this);
+    paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
   } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
-    asyncEach(paths, function(path, next) {
-      this._addToNodeFs(path, !_internal, 0, 0, _origAdd, function(err, res) {
+    asyncEach(paths, (path, next) => {
+      this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
         if (res) this._emitReady();
         next(err, res);
-      }.bind(this));
-    }.bind(this), function(error, results) {
-      results.forEach(function(item) {
+      });
+    }, (error, results) => {
+      results.forEach((item) => {
         if (!item || this.closed) return;
         this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
-      }, this);
-    }.bind(this));
+      });
+    });
   }
 
   return this;
@@ -657,31 +743,31 @@ add(paths, _origAdd, _internal) {
 
 /**
  * Close watchers or start ignoring events from specified paths.
- * @param {Array<String>} paths - string or array of strings, file/directory paths and/or globs
+ * @param {Path|Array<Path>} paths - string or array of strings, file/directory paths and/or globs
  * @returns {FSWatcher} for chaining
 */
 unwatch(paths) {
   if (this.closed) return this;
   paths = flatten(arrify(paths));
 
-  paths.forEach(function(path) {
+  paths.forEach((path) => {
     // convert to absolute path unless relative path already matches
-    if (!sysPath.isAbsolute(path) && !this._closers[path]) {
+    if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
       if (this.options.cwd) path = sysPath.join(this.options.cwd, path);
       path = sysPath.resolve(path);
     }
 
     this._closePath(path);
 
-    this._ignoredPaths[path] = true;
-    if (path in this._watched) {
-      this._ignoredPaths[path + '/**'] = true;
+    this._ignoredPaths.add(path);
+    if (this._watched.has(path)) {
+      this._ignoredPaths.add(path + '/**');
     }
 
     // reset the cached userIgnored anymatch fn
     // to make ignoredPaths changes effective
     this._userIgnored = null;
-  }, this);
+  });
 
   return this;
 }
@@ -694,11 +780,11 @@ close() {
   if (this.closed) return this;
 
   this.closed = true;
-  Object.keys(this._closers).forEach(function(watchPath) {
-    this._closers[watchPath]();
-    delete this._closers[watchPath];
-  }, this);
-  this._watched = Object.create(null);
+  this._closers.forEach((closer, watchPath) => {
+    closer();
+    this._closers.delete(watchPath);
+  });
+  this._watched.clear();
 
   this.removeAllListeners();
   return this;
@@ -706,22 +792,22 @@ close() {
 
 /**
  * Expose list of watched paths
- * @returns {{String: Array<String>}} for chaining
+ * @returns {Object} for chaining
 */
 getWatched() {
   const watchList = {};
-  Object.keys(this._watched).forEach(function(dir) {
+  this._watched.forEach((entry, dir) => {
     const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
-    watchList[key || '.'] = Object.keys(this._watched[dir]._items).sort();
-  }.bind(this));
+    watchList[key || '.'] = entry.getChildren().sort();
+  });
   return watchList;
 }
 
+canUseFsevents() {
+  return FsEventsHandler.canUse();
 }
 
-// Attach watch handler prototype methods
-Object.assign(FSWatcher.prototype, NodeFsHandler);
-if (FsEventsHandler.canUse()) Object.assign(FSWatcher.prototype, FsEventsHandler);
+}
 
 // Export FSWatcher class
 exports.FSWatcher = FSWatcher;
@@ -729,10 +815,8 @@ exports.FSWatcher = FSWatcher;
 /**
  * Instantiates watcher with paths to be tracked.
  * @param {String|Array<String>} paths file/directory paths and/or globs
- * @param {Object} options chokidar opts
+ * @param {Object=} options chokidar opts
  * @returns an instance of FSWatcher for chaining.
  */
-const watch = (paths, options) => {
-  return new FSWatcher(options).add(paths);
-};
+const watch = (paths, options) => new FSWatcher(options).add(paths);
 exports.watch = watch;

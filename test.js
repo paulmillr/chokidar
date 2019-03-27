@@ -38,22 +38,22 @@ const aspy = async (watcher, eventName, spy) => {
   });
 };
 
-let watcher,
-    watcher2,
-    usedWatchers = [],
-    fixturesPath,
-    subdir = 0,
-    options,
-    node010 = process.version.slice(0, 5) === 'v0.10',
-    osXFsWatch,
-    win32Polling,
-    slowerDelay,
-    mochaIt = it,
-    PERM_ARR = 0o755; // rwe, r+e, r+e; 755
+/** @type {chokidar.FSWatcher=} */
+let watcher;
+/** @type {chokidar.FSWatcher=} */
+let watcher2;
+let usedWatchers = [];
+let fixturesPath;
+let subdir = 0;
+let options;
+let osXFsWatch;
+let win32Polling;
+let slowerDelay;
+const PERM_ARR = 0o755; // rwe, r+e, r+e
 
 const delay = async (time) => {
   return new Promise((resolve) => {
-    const timer = time || slowerDelay || 50;
+    const timer = time || slowerDelay || 20;
     setTimeout(resolve, timer);
   });
 };
@@ -78,7 +78,6 @@ const closeWatchers = async () => {
     return true;
   }
 };
-
 
 const runTests = function(baseopts) {
   baseopts.persistent = true;
@@ -795,10 +794,8 @@ const runTests = function(baseopts) {
       spy.withArgs('add').should.have.been.calledThrice;
       spy.should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
       spy.should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
-      if (!node010) {
-        spy.withArgs('unlink').should.have.been.calledOnce;
-        spy.withArgs('change').should.have.been.calledOnce;
-      }
+      spy.withArgs('unlink').should.have.been.calledOnce;
+      spy.withArgs('change').should.have.been.calledOnce;
     });
     it('should resolve relative paths with glob patterns', async () => {
       const watchPath = 'test-*/' + subdir + '/*a*.txt';
@@ -1140,7 +1137,7 @@ const runTests = function(baseopts) {
       addSpy.should.have.been.calledThrice; // also unlink.txt & subdir/add.txt
       addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'change.txt'));
       dirSpy.should.have.been.calledWith(sysPath.join(watchDir, 'subdir'));
-      await write(sysPath.join(watchDir, 'add.txt'));
+      await write(sysPath.join(watchDir, 'add.txt'), '');
       await waitFor([[addSpy, 4]]);
       addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'add.txt'));
     });
@@ -1525,14 +1522,18 @@ const runTests = function(baseopts) {
         await delay();
       });
       describe('false', function() {
-        beforeEach(function() { options.ignorePermissionErrors = false; });
+        beforeEach(() => {
+          options.ignorePermissionErrors = false;
+          // stdWatcher();
+        });
         it('should not watch files without read permissions', async () => {
+
           if (os === 'win32') return true;
           const spy = await aspy(stdWatcher(), 'all');
           spy.should.not.have.been.calledWith('add', filePath);
           await write(filePath, Date.now());
 
-          await delay(500);
+          await delay(200);
           spy.should.not.have.been.calledWith('change', filePath);
         });
       });
@@ -1611,7 +1612,7 @@ const runTests = function(baseopts) {
       it('should wait for an existing file to be fully updated before emitting the change event', async () => {
         const testPath = getFixturePath('change.txt');
         const spy = await aspy(stdWatcher(), 'all');
-        fs.writeFile(testPath, 'hello');
+        fs.writeFile(testPath, 'hello', () => {});
 
         await delay(300);
         spy.should.not.have.been.called;
@@ -1957,7 +1958,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `true` when CHOKIDAR_USEPOLLING is set to true', async () => {
         options.usePolling = false;
-        process.env.CHOKIDAR_USEPOLLING = true;
+        process.env.CHOKIDAR_USEPOLLING = 'true';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -1966,7 +1967,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `true` when CHOKIDAR_USEPOLLING is set to 1', async () => {
         options.usePolling = false;
-        process.env.CHOKIDAR_USEPOLLING = 1;
+        process.env.CHOKIDAR_USEPOLLING = '1';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -1975,7 +1976,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `false` when CHOKIDAR_USEPOLLING is set to false', async () => {
         options.usePolling = true;
-        process.env.CHOKIDAR_USEPOLLING = false;
+        process.env.CHOKIDAR_USEPOLLING = 'false';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -1984,7 +1985,7 @@ const runTests = function(baseopts) {
 
       it('should make options.usePolling `false` when CHOKIDAR_USEPOLLING is set to 0', async () => {
         options.usePolling = true;
-        process.env.CHOKIDAR_USEPOLLING = false;
+        process.env.CHOKIDAR_USEPOLLING = 'false';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -2007,7 +2008,7 @@ const runTests = function(baseopts) {
 
       it('should make options.interval = CHOKIDAR_INTERVAL when it is set', async () => {
         options.interval = 100;
-        process.env.CHOKIDAR_INTERVAL = 1500;
+        process.env.CHOKIDAR_INTERVAL = '1500';
 
         watcher = chokidar.watch(fixturesPath, options);
         await aspy(watcher);
@@ -2041,11 +2042,15 @@ describe('chokidar', function() {
     fixturesPath = getFixturePath('');
   });
 
-  function disposeWatcher(watcher) {
-    if (!watcher || !watcher.close) return;
-    os === 'darwin' ? usedWatchers.push(watcher) : watcher.close();
-  }
+  after(async () => {
+    await rimraf(sysPath.join(__dirname, 'test-fixtures'));
+  });
+
   afterEach(function() {
+    function disposeWatcher(watcher) {
+      if (!watcher || !watcher.close) return;
+      os === 'darwin' ? usedWatchers.push(watcher) : watcher.close();
+    }
     disposeWatcher(watcher);
     disposeWatcher(watcher2);
   });
@@ -2057,8 +2062,7 @@ describe('chokidar', function() {
 
   if (os === 'darwin') {
     describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
-  }
-  if (os !== 'darwin') {
+  } else {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
