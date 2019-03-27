@@ -766,7 +766,7 @@ unwatch(paths) {
 
     this._ignoredPaths.add(path);
     if (this._watched.has(path)) {
-      this._ignoredPaths.delete(path + '/**');
+      this._ignoredPaths.add(path + '/**');
     }
 
     // reset the cached userIgnored anymatch fn

@@ -53,7 +53,7 @@ const PERM_ARR = 0o755; // rwe, r+e, r+e
 
 const delay = async (time) => {
   return new Promise((resolve) => {
-    const timer = time || slowerDelay || 50;
+    const timer = time || slowerDelay || 20;
     setTimeout(resolve, timer);
   });
 };
