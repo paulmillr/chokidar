@@ -54,7 +54,6 @@
     "coveralls": "^3.0.1",
     "dtslint": "0.4.1",
     "jshint": "^2.10.1",
-    "graceful-fs": "4.1.4",
     "mocha": "^5.2.0",
     "nyc": "^13.3.0",
     "rimraf": "^2.4.3",
