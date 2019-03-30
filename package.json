@@ -40,10 +40,10 @@
     "async-each": "^1.0.1",
     "braces": "^2.3.2",
     "glob-parent": "^5.0.0",
-    "is-binary-path": "^1.0.0",
+    "is-binary-path": "^2.0.1",
     "is-glob": "^4.0.0",
     "normalize-path": "^3.0.0",
-    "readdirp": "^2.2.1"
+    "readdirp": "paulmillr/readdirp"
   },
   "optionalDependencies": {
     "fsevents": "napi"
@@ -67,6 +67,8 @@
     "mocha": true,
     "expr": true,
     "esversion": 8,
-    "predef": ["toString"]
+    "predef": [
+      "toString"
+    ]
   }
 }
