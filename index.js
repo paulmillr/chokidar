@@ -8,7 +8,6 @@ const globParent = require('glob-parent');
 const isGlob = require('is-glob');
 const braces = require('braces');
 const normalizePath = require('normalize-path');
-const upath = require('upath');
 
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
@@ -49,9 +48,25 @@ const flatten = (list, result = []) => {
   return result;
 };
 
+const back = /\\/g;
+const double = /\/\//;
+const slash = '/';
+
+const toUnix = (string) => {
+  let str = string.replace(back, slash);
+  while (str.match(double)) {
+    str = str.replace(double, slash);
+  }
+  return str;
+};
+
+// Our version of upath.normalize
+// TODO: this is not equal to path-normalize module - investigate why
+const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
+
 const normalizeIgnored = (cwd) => (path) => {
   if (typeof path !== 'string') return path;
-  return upath.normalize(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+  return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
 
 const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;

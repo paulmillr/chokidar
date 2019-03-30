@@ -43,8 +43,7 @@
     "is-binary-path": "^1.0.0",
     "is-glob": "^4.0.0",
     "normalize-path": "^3.0.0",
-    "readdirp": "^2.2.1",
-    "upath": "^1.1.1"
+    "readdirp": "^2.2.1"
   },
   "optionalDependencies": {
     "fsevents": "napi"
@@ -54,8 +53,8 @@
     "chai": "^3.2.0",
     "coveralls": "^3.0.1",
     "dtslint": "0.4.1",
-    "graceful-fs": "4.1.4",
     "jshint": "^2.10.1",
+    "graceful-fs": "4.1.4",
     "mocha": "^5.2.0",
     "nyc": "^13.3.0",
     "rimraf": "^2.4.3",
