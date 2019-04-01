@@ -14,8 +14,8 @@ const exec = promisify(require('child_process').exec);
 chai.use(require('sinon-chai'));
 const os = process.platform;
 
-const fs_promises = require('fs').promises;
-const write = fs_promises ? fs_promises.writeFile : promisify(fs.writeFile);
+// const fs_promises = require('fs').promises;
+const write = promisify(fs.writeFile);
 const fs_symlink = promisify(fs.symlink);
 const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
@@ -25,7 +25,7 @@ const fs_unlink = promisify(fs.unlink);
 const isTravisMac = process.env.TRAVIS && os === 'darwin';
 
 // spyOnReady
-const aspy = async (watcher, eventName, spy) => {
+const aspy = (watcher, eventName, spy) => {
   if (spy == null) spy = sinon.spy();
   return new Promise((resolve, reject) => {
     watcher.on('error', reject);
@@ -1739,12 +1739,12 @@ const runTests = function(baseopts) {
           options.ignoreInitial = true;
 
           // Stub fs.stat() to take a while to return.
-          sinon.stub(_fs, 'stat', function(path, cb) { _realStat(path, w(cb, 250)); });
+          sinon.stub(_fs, 'stat').callsFake(function(path, cb) { _realStat(path, w(cb, 250)); });
         });
 
         afterEach(function() {
           // Restore fs.stat() back to normal.
-          sinon.restore(_fs.stat);
+          sinon.restore();
         });
 
         function _waitFor(spies, fn) {
@@ -1772,12 +1772,12 @@ const runTests = function(baseopts) {
             fs.writeFile(testPath, 'hello', simpleCb);
             _waitFor([spy], function() {
               spy.should.have.been.calledWith('add', testPath);
-              _fs.stat.reset();
+              _fs.stat.resetHistory();
               fs.writeFile(testPath, 'edit', simpleCb);
               w(function() {
                 // There will be a stat() call after we notice the change, plus pollInterval.
                 // After waiting a bit less, wait specifically for that stat() call.
-                _fs.stat.reset();
+                _fs.stat.resetHistory();
                 _waitFor([_fs.stat], function() {
                   // Once stat call is made, it will take some time to return. Meanwhile, unlink
                   // the file and wait for that to be noticed.

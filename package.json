@@ -43,7 +43,6 @@
     "is-binary-path": "^2.0.1",
     "is-glob": "^4.0.0",
     "normalize-path": "^3.0.0",
-    "readdirp": "paulmillr/readdirp"
     "readdirp": "^2"
   },
   "optionalDependencies": {
@@ -51,15 +50,16 @@
   },
   "devDependencies": {
     "@types/node": "^11.9.4",
-    "chai": "^3.2.0",
+    "chai": "^4.2.0",
     "coveralls": "^3.0.1",
     "dtslint": "0.4.1",
     "jshint": "^2.10.1",
-    "mocha": "^5.2.0",
+    "mocha": "^6.0.2",
     "nyc": "^13.3.0",
     "rimraf": "^2.4.3",
-    "sinon": "^1.10.3",
-    "sinon-chai": "^2.6.0"
+    "sinon": "^7.3.1",
+    "sinon-chai": "^3.3.0",
+    "upath": "^1.1.2"
   },
   "jshintConfig": {
     "node": true,
