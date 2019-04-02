@@ -580,7 +580,9 @@ FSWatcher.prototype._remove = function(directory, item) {
 
 FSWatcher.prototype._closePath = function(path) {
   if (!this._closers[path]) return;
-  this._closers[path]();
+  this._closers[path].forEach(function(closer) {
+    closer();
+  });
   delete this._closers[path];
   this._getWatchedDir(sysPath.dirname(path)).remove(sysPath.basename(path));
 }
@@ -699,7 +701,9 @@ FSWatcher.prototype.close = function() {
 
   this.closed = true;
   Object.keys(this._closers).forEach(function(watchPath) {
-    this._closers[watchPath]();
+    this._closers[watchPath].forEach(function(closer) {
+      closer();
+    });
     delete this._closers[watchPath];
   }, this);
   this._watched = Object.create(null);
