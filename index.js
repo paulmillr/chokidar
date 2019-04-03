@@ -2,6 +2,7 @@
 const EventEmitter = require('events').EventEmitter;
 const fs = require('fs');
 const sysPath = require('path');
+const readdirp = require('readdirp');
 const asyncEach = require('async-each');
 const anymatch = require('anymatch');
 const globParent = require('glob-parent');
@@ -692,6 +693,21 @@ _addPathCloser(path, closer) {
   list.push(closer);
 }
 
+_readdirp(options) {
+  let stream = readdirp(options);
+  this._streams.add(stream);
+  stream.on('close', () => {
+    stream = null;
+  })
+  stream.on('end', () => {
+    if (stream) {
+      this._streams.delete(stream);
+      stream = null;
+    }
+  })
+  return stream;
+}
+
 /**
  * Adds paths to be watched on an existing FSWatcher instance
  * @param {Path|Array<Path>} paths_
@@ -813,11 +829,11 @@ close() {
   this.closed = true;
   this._closers.forEach((closerList, watchPath) => {
     closerList.forEach(closer => closer());
-    this._closers.delete(watchPath);
   });
+  this._closers.clear();
   this._watched.clear();
   this._streams.forEach((stream) => {
-    console.log('destroy stream', stream);
+    console.log('destroy stream', stream[Symbol.toStringTag]);
     stream.destroy();
   });
   this._streams.clear();
