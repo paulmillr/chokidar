@@ -110,23 +110,14 @@ class DirEntry {
   }
 }
 
-// Public: Main class.
-// Watches files & directories for changes.
-//
-// * _opts - object, chokidar options hash
-//
-// Emitted events:
-// `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `all`, `error`
-//
-// Examples
-//
-//  const watcher = new FSWatcher()
-//    .add(directories)
-//    .on('add', path => log('File', path, 'was added'))
-//    .on('change', path => log('File', path, 'was changed'))
-//    .on('unlink', path => log('File', path, 'was removed'))
-//    .on('all', (event, path) => log(path, ' emitted ', event))
-//
+/**
+ * Watches files & directories for changes. Emitted events:
+ * `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `all`, `error`
+ *
+ *     new FSWatcher()
+ *       .add(directories)
+ *       .on('add', path => log('File', path, 'was added'))
+ */
 class FSWatcher extends EventEmitter {
 // Not indenting methods for history sake; for now.
 constructor(_opts) {
@@ -166,7 +157,8 @@ constructor(_opts) {
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  if (!this.canUseFsevents()) opts.useFsEvents = false;
+  const canUseFsEvents = FsEventsHandler.canUse();
+  if (!canUseFsEvents) opts.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
@@ -220,24 +212,167 @@ constructor(_opts) {
     }
   };
   this._emitRaw = (...args) => this.emit('raw', ...args);
-
   this._readyEmitted = false;
-
   this.options = opts;
 
-  // You’re frozen when your heart’s not open.
-  Object.freeze(opts);
-
-  // Attach watch handler prototype methods
-  if (opts.useFsEvents && this.canUseFsevents()) {
+  // Initialize with proper watcher.
+  if (opts.useFsEvents) {
     this._fsEventsHandler = new FsEventsHandler(this);
   } else {
     this._nodeFsHandler = new NodeFsHandler(this);
   }
+
+  // You’re frozen when your heart’s not open.
+  Object.freeze(opts);
 }
 
-_getGlobIgnored() {
-  return Array.from(this._ignoredPaths.values());
+// Public methods
+// --------------
+
+/**
+ * Adds paths to be watched on an existing FSWatcher instance
+ * @param {Path|Array<Path>} paths_
+ * @param {String=} _origAdd private; for handling non-existent paths to be watched
+ * @param {Boolean=} _internal private; indicates a non-user add
+ * @returns {FSWatcher} for chaining
+ */
+add(paths_, _origAdd, _internal) {
+  const disableGlobbing = this.options.disableGlobbing;
+  const cwd = this.options.cwd;
+  this.closed = false;
+
+  /**
+   * @type {Array<String>}
+   */
+  let paths = flatten(arrify(paths_));
+
+  if (!paths.every(p => typeof p === 'string')) {
+    throw new TypeError('Non-string provided as watch path: ' + paths);
+  }
+
+  if (cwd) paths = paths.map((path) => {
+    let absPath;
+    if (sysPath.isAbsolute(path)) {
+      absPath = path;
+    } else if (path[0] === '!') {
+      absPath = '!' + sysPath.join(cwd, path.substring(1));
+    } else {
+      absPath = sysPath.join(cwd, path);
+    }
+
+    // Check `path` instead of `absPath` because the cwd portion can't be a glob
+    if (disableGlobbing || !isGlob(path)) {
+      return absPath;
+    } else {
+      return normalizePath(absPath);
+    }
+  });
+
+  // set aside negated glob strings
+  paths = paths.filter((path) => {
+    if (path[0] === '!') {
+      this._ignoredPaths.add(path.substring(1));
+      return false;
+    } else {
+      // if a path is being added that was previously ignored, stop ignoring it
+      this._ignoredPaths.delete(path);
+      this._ignoredPaths.delete(path + '/**');
+
+      // reset the cached userIgnored anymatch fn
+      // to make ignoredPaths changes effective
+      this._userIgnored = null;
+
+      return true;
+    }
+  });
+
+  if (this.options.useFsEvents && this._fsEventsHandler) {
+    if (!this._readyCount) this._readyCount = paths.length;
+    if (this.options.persistent) this._readyCount *= 2;
+    paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
+  } else {
+    if (!this._readyCount) this._readyCount = 0;
+    this._readyCount += paths.length;
+    asyncEach(paths, (path, next) => {
+      this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
+        if (res) this._emitReady();
+        next(err, res);
+      });
+    }, (error, results) => {
+      results.forEach((item) => {
+        if (!item || this.closed) return;
+        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+      });
+    });
+  }
+
+  return this;
+}
+
+/**
+ * Close watchers or start ignoring events from specified paths.
+ * @param {Path|Array<Path>} paths - string or array of strings, file/directory paths and/or globs
+ * @returns {FSWatcher} for chaining
+*/
+unwatch(paths) {
+  if (this.closed) return this;
+  paths = flatten(arrify(paths));
+
+  paths.forEach((path) => {
+    // convert to absolute path unless relative path already matches
+    if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
+      const {cwd} = this.options.cwd;
+      if (cwd) path = sysPath.join(cwd, path);
+      path = sysPath.resolve(path);
+    }
+
+    this._closePath(path);
+
+    this._ignoredPaths.add(path);
+    if (this._watched.has(path)) {
+      this._ignoredPaths.add(path + '/**');
+    }
+
+    // reset the cached userIgnored anymatch fn
+    // to make ignoredPaths changes effective
+    this._userIgnored = null;
+  });
+
+  return this;
+}
+
+/**
+ * Close watchers and remove all listeners from watched paths.
+ * @returns {FSWatcher} for chaining
+*/
+close() {
+  if (this.closed) return this;
+  this.closed = true;
+
+  // Memory management
+  this._closers.forEach(closerList => closerList.forEach(closer => closer()));
+  this._closers.clear();
+  this._watched.clear();
+  this._streams.forEach(stream => stream.destroy());
+  this._streams.clear();
+  this._symlinkPaths.clear();
+  this._throttled.clear();
+  this.removeAllListeners();
+
+  return this;
+}
+
+/**
+ * Expose list of watched paths
+ * @returns {Object} for chaining
+*/
+getWatched() {
+  const watchList = {};
+  this._watched.forEach((entry, dir) => {
+    const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
+    watchList[key || '.'] = entry.getChildren().sort();
+  });
+  return watchList;
 }
 
 // Common helpers
@@ -342,12 +477,11 @@ _emit(event, path, val1, val2, val3) {
  */
 _handleError(error) {
   const code = error && error.code;
-  const ipe = this.options.ignorePermissionErrors;
-  if (error &&
-    code !== 'ENOENT' &&
-    code !== 'ENOTDIR' &&
-    (!ipe || (code !== 'EPERM' && code !== 'EACCES'))
-  ) this.emit('error', error);
+  if (error && code !== 'ENOENT' && code !== 'ENOTDIR' &&
+    (!this.options.ignorePermissionErrors || (code !== 'EPERM' && code !== 'EACCES'))
+  ) {
+    this.emit('error', error);
+  }
   return error || this.closed;
 }
 
@@ -451,6 +585,10 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
       this.options.awaitWriteFinish.pollInterval
     );
   }
+}
+
+_getGlobIgnored() {
+  return Array.from(this._ignoredPaths.values());
 }
 
 /**
@@ -706,154 +844,6 @@ _readdirp(options) {
     }
   })
   return stream;
-}
-
-/**
- * Adds paths to be watched on an existing FSWatcher instance
- * @param {Path|Array<Path>} paths_
- * @param {String=} _origAdd private; for handling non-existent paths to be watched
- * @param {Boolean=} _internal private; indicates a non-user add
- * @returns {FSWatcher} for chaining
- */
-add(paths_, _origAdd, _internal) {
-  const disableGlobbing = this.options.disableGlobbing;
-  const cwd = this.options.cwd;
-  this.closed = false;
-
-  /**
-   * @type {Array<String>}
-   */
-  let paths = flatten(arrify(paths_));
-
-  if (!paths.every(p => typeof p === 'string')) {
-    throw new TypeError('Non-string provided as watch path: ' + paths);
-  }
-
-  if (cwd) paths = paths.map((path) => {
-    let absPath;
-    if (sysPath.isAbsolute(path)) {
-      absPath = path;
-    } else if (path[0] === '!') {
-      absPath = '!' + sysPath.join(cwd, path.substring(1));
-    } else {
-      absPath = sysPath.join(cwd, path);
-    }
-
-    // Check `path` instead of `absPath` because the cwd portion can't be a glob
-    if (disableGlobbing || !isGlob(path)) {
-      return absPath;
-    } else {
-      return normalizePath(absPath);
-    }
-  });
-
-  // set aside negated glob strings
-  paths = paths.filter((path) => {
-    if (path[0] === '!') {
-      this._ignoredPaths.add(path.substring(1));
-      return false;
-    } else {
-      // if a path is being added that was previously ignored, stop ignoring it
-      this._ignoredPaths.delete(path);
-      this._ignoredPaths.delete(path + '/**');
-
-      // reset the cached userIgnored anymatch fn
-      // to make ignoredPaths changes effective
-      this._userIgnored = null;
-
-      return true;
-    }
-  });
-
-  if (this.options.useFsEvents && this.canUseFsevents()) {
-    if (!this._readyCount) this._readyCount = paths.length;
-    if (this.options.persistent) this._readyCount *= 2;
-    paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
-  } else {
-    if (!this._readyCount) this._readyCount = 0;
-    this._readyCount += paths.length;
-    asyncEach(paths, (path, next) => {
-      this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
-        if (res) this._emitReady();
-        next(err, res);
-      });
-    }, (error, results) => {
-      results.forEach((item) => {
-        if (!item || this.closed) return;
-        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
-      });
-    });
-  }
-
-  return this;
-}
-
-/**
- * Close watchers or start ignoring events from specified paths.
- * @param {Path|Array<Path>} paths - string or array of strings, file/directory paths and/or globs
- * @returns {FSWatcher} for chaining
-*/
-unwatch(paths) {
-  if (this.closed) return this;
-  paths = flatten(arrify(paths));
-
-  paths.forEach((path) => {
-    // convert to absolute path unless relative path already matches
-    if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
-      if (this.options.cwd) path = sysPath.join(this.options.cwd, path);
-      path = sysPath.resolve(path);
-    }
-
-    this._closePath(path);
-
-    this._ignoredPaths.add(path);
-    if (this._watched.has(path)) {
-      this._ignoredPaths.add(path + '/**');
-    }
-
-    // reset the cached userIgnored anymatch fn
-    // to make ignoredPaths changes effective
-    this._userIgnored = null;
-  });
-
-  return this;
-}
-
-/**
- * Close watchers and remove all listeners from watched paths.
- * @returns {FSWatcher} for chaining
-*/
-close() {
-  if (this.closed) return this;
-  this.closed = true;
-
-  this._closers.forEach(closerList => closerList.forEach(closer => closer()));
-  this._closers.clear();
-  this._watched.clear();
-  this._streams.forEach(stream => stream.destroy());
-  this._streams.clear();
-  this._symlinkPaths.clear();
-  this._throttled.clear();
-  this.removeAllListeners();
-
-  return this;
-}
-
-/**
- * Expose list of watched paths
- * @returns {Object} for chaining
-*/
-getWatched() {
-  const watchList = {};
-  this._watched.forEach((entry, dir) => {
-    const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
-    watchList[key || '.'] = entry.getChildren().sort();
-  });
-  return watchList;
-}
-
-canUseFsevents() {
-  return FsEventsHandler.canUse();
 }
 
 }
