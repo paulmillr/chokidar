@@ -2054,7 +2054,10 @@ describe('chokidar', function() {
   });
 
   if (os === 'darwin') {
-    describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
+    const FsEventsHandler = require('./lib/fsevents-handler');
+    if (FsEventsHandler.canUse()) {
+      describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
+    }
   } else {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
