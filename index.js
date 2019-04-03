@@ -146,6 +146,8 @@ constructor(_opts) {
 
   /** @type {Map<Path, String|Boolean>} */
   this._symlinkPaths = new Map();
+
+  this._streams = new Set();
   this.closed = false;
 
   const undef = (key) => opts[key] === undefined;
@@ -814,6 +816,11 @@ close() {
     this._closers.delete(watchPath);
   });
   this._watched.clear();
+  this._streams.forEach((stream) => {
+    console.log('destroy stream', stream);
+    stream.destroy();
+  });
+  this._streams.clear();
 
   this.removeAllListeners();
   return this;
