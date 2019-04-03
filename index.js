@@ -136,7 +136,7 @@ constructor(_opts) {
 
   /** @type {Map<String, DirEntry>} */
   this._watched = new Map();
-  /** @type {Map<String, Function>} */
+  /** @type {Map<String, Array>} */
   this._closers = new Map();
   /** @type {Set<String>} */
   this._ignoredPaths = new Set();
@@ -157,7 +157,7 @@ constructor(_opts) {
   if (undef('interval')) opts.interval = 100;
   if (undef('binaryInterval')) opts.binaryInterval = 300;
   if (undef('disableGlobbing')) opts.disableGlobbing = false;
-  this.enableBinaryInterval = opts.binaryInterval !== opts.interval;
+  opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
   // Enable fsevents on OS X when polling isn't explicitly enabled.
   if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
@@ -314,8 +314,7 @@ _emit(event, path, val1, val2, val3) {
     if (isThrottled) return this;
   }
 
-  if (
-    opts.alwaysStat && val1 === undefined &&
+  if (opts.alwaysStat && val1 === undefined &&
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
     const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
@@ -667,14 +666,29 @@ _remove(directory, item) {
  * @param {Path} path
  */
 _closePath(path) {
-  if (!this._closers.has(path)) return;
-  this._closers.get(path)();
+  let closers = this._closers.get(path);
+  if (!closers) return;
+  closers.forEach(closer => closer());
   this._closers.delete(path);
+  closers = [];
   const dir = sysPath.dirname(path);
   this._getWatchedDir(dir).remove(sysPath.basename(path));
 }
 
-
+/**
+ *
+ * @param {Path} path
+ * @param {Function} closer
+ */
+_addPathCloser(path, closer) {
+  if (!closer) return;
+  let list = this._closers.get(path);
+  if (!list) {
+    list = [];
+    this._closers.set(path, list);
+  }
+  list.push(closer);
+}
 
 /**
  * Adds paths to be watched on an existing FSWatcher instance
@@ -795,8 +809,8 @@ close() {
   if (this.closed) return this;
 
   this.closed = true;
-  this._closers.forEach((closer, watchPath) => {
-    closer();
+  this._closers.forEach((closerList, watchPath) => {
+    closerList.forEach(closer => closer());
     this._closers.delete(watchPath);
   });
   this._watched.clear();
