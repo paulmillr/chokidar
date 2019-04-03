@@ -832,6 +832,8 @@ close() {
   this._watched.clear();
   this._streams.forEach(stream => stream.destroy());
   this._streams.clear();
+  this._symlinkPaths.clear();
+  this._throttled.clear();
   this.removeAllListeners();
 
   return this;
