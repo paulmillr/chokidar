@@ -200,6 +200,8 @@ const runTests = function(baseopts) {
       });
     });
     it('should emit thirtythree `add` events when thirtythree files were added in nine directories', async () => {
+      watcher.close();
+
       const test1Path = getFixturePath('add1.txt');
       const testb1Path = getFixturePath('b/add1.txt');
       const testc1Path = getFixturePath('c/add1.txt');
@@ -242,7 +244,8 @@ const runTests = function(baseopts) {
       fs.mkdirSync(getFixturePath('h'), PERM_ARR);
       fs.mkdirSync(getFixturePath('i'), PERM_ARR);
 
-      const spy = await aspy(watcher, 'add', null, true);
+      watcher2 = stdWatcher().on('ready', readySpy).on('raw', rawSpy);
+      const spy = await aspy(watcher2, 'add', null, true);
 
       await write(test1Path, Date.now());
       await write(test2Path, Date.now());
