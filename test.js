@@ -25,16 +25,15 @@ const fs_unlink = promisify(fs.unlink);
 const isTravisMac = process.env.TRAVIS && os === 'darwin';
 
 // spyOnReady
-const aspy = (watcher, eventName, spy) => {
+const aspy = (watcher, eventName, spy=null, noStat=false) => {
+  if (typeof eventName !== 'string') {
+    throw new TypeError('aspy: eventName must be a String');
+  }
   if (spy == null) spy = sinon.spy();
   return new Promise((resolve, reject) => {
     watcher.on('error', reject);
-    if (typeof eventName === 'string') {
-      watcher.on(eventName, spy);
-    }
-    watcher.on('ready', () => {
-      resolve(spy);
-    });
+    watcher.on('ready', () => { resolve(spy); });
+    watcher.on(eventName, noStat ? (path => spy(path)) : spy);
   });
 };
 
@@ -243,7 +242,7 @@ const runTests = function(baseopts) {
       fs.mkdirSync(getFixturePath('h'), PERM_ARR);
       fs.mkdirSync(getFixturePath('i'), PERM_ARR);
 
-      const spy = await aspy(watcher, 'add');
+      const spy = await aspy(watcher, 'add', null, true);
 
       await write(test1Path, Date.now());
       await write(test2Path, Date.now());
