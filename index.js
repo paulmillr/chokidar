@@ -825,20 +825,15 @@ unwatch(paths) {
 */
 close() {
   if (this.closed) return this;
-
   this.closed = true;
-  this._closers.forEach((closerList, watchPath) => {
-    closerList.forEach(closer => closer());
-  });
+
+  this._closers.forEach(closerList => closerList.forEach(closer => closer()));
   this._closers.clear();
   this._watched.clear();
-  this._streams.forEach((stream) => {
-    console.log('destroy stream', stream[Symbol.toStringTag]);
-    stream.destroy();
-  });
+  this._streams.forEach(stream => stream.destroy());
   this._streams.clear();
-
   this.removeAllListeners();
+
   return this;
 }
 
