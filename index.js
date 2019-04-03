@@ -74,6 +74,11 @@ const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const replacerRe = /^\.[\/\\]/;
 const emptyFn = () => {};
 
+/**
+ * Directory entry.
+ * @property {Path} path
+ * @property {Set<Path>} items
+ */
 class DirEntry {
   /**
    * @param {Path} dir
@@ -82,7 +87,7 @@ class DirEntry {
   constructor(dir, removeWatcher) {
     this.path = dir;
     this._removeWatcher = removeWatcher;
-    /** @type {Set<String>} */
+    /** @type {Set<Path>} */
     this.items = new Set();
   }
   add(item) {
