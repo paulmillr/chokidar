@@ -92,7 +92,7 @@ const runTests = function(baseopts) {
     // flags for bypassing special-case test failures on CI
     osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
     win32Polling = os === 'win32' && baseopts.usePolling;
-    slowerDelay = osXFsWatch ? 900 : undefined;
+    slowerDelay = osXFsWatch ? 100 : undefined;
   });
 
   after(closeWatchers);
@@ -2059,7 +2059,7 @@ describe('chokidar', function() {
       describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
     }
   } else {
-    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
+  describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
 });
