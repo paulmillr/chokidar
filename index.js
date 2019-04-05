@@ -326,7 +326,7 @@ unwatch(paths) {
   paths.forEach((path) => {
     // convert to absolute path unless relative path already matches
     if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
-      const {cwd} = this.options.cwd;
+      const cwd = this.options.cwd;
       if (cwd) path = sysPath.join(cwd, path);
       path = sysPath.resolve(path);
     }
