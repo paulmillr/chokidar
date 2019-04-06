@@ -36,14 +36,14 @@
     "LICENSE"
   ],
   "dependencies": {
-    "anymatch": "^2.0.0",
+    "anymatch": "micromatch/anymatch",
     "async-each": "^1.0.1",
-    "braces": "^2.3.2",
+    "braces": "micromatch/braces#dev",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.0.1",
-    "is-glob": "^4.0.0",
+    "is-glob": "^4.0.1",
     "normalize-path": "^3.0.0",
-    "readdirp": "^2"
+    "readdirp": "paulmillr/readdirp"
   },
   "optionalDependencies": {
     "fsevents": "napi"
