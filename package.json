@@ -36,14 +36,14 @@
     "LICENSE"
   ],
   "dependencies": {
-    "anymatch": "micromatch/anymatch",
+    "anymatch": "github:micromatch/anymatch",
     "async-each": "^1.0.1",
-    "braces": "micromatch/braces#dev",
+    "braces": "github:micromatch/braces#dev",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.0.1",
     "is-glob": "^4.0.1",
     "normalize-path": "^3.0.0",
-    "readdirp": "paulmillr/readdirp"
+    "readdirp": "github:paulmillr/readdirp"
   },
   "optionalDependencies": {
     "fsevents": "napi"
@@ -54,7 +54,7 @@
     "coveralls": "^3.0.1",
     "dtslint": "0.4.1",
     "jshint": "^2.10.1",
-    "mocha": "^6.0.2",
+    "mocha": "^6.1.1",
     "nyc": "^13.3.0",
     "rimraf": "^2.4.3",
     "sinon": "^7.3.1",
