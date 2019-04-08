@@ -46,7 +46,7 @@
     "readdirp": "github:paulmillr/readdirp"
   },
   "optionalDependencies": {
-    "fsevents": "napi"
+    "fsevents": "^2.0.3"
   },
   "devDependencies": {
     "@types/node": "^11.9.4",
