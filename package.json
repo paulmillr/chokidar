@@ -38,7 +38,7 @@
   "dependencies": {
     "anymatch": "github:micromatch/anymatch",
     "async-each": "^1.0.1",
-    "braces": "github:micromatch/braces#dev",
+    "braces": "^3.0.0",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.0.1",
     "is-glob": "^4.0.1",
