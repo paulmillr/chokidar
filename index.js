@@ -841,13 +841,13 @@ _readdirp(options) {
   this._streams.add(stream);
   stream.on('close', () => {
     stream = null;
-  })
+  });
   stream.on('end', () => {
     if (stream) {
       this._streams.delete(stream);
       stream = null;
     }
-  })
+  });
   return stream;
 }
 

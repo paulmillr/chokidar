@@ -2,41 +2,17 @@
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
   "version": "3.0.0-pre",
-  "keywords": [
-    "fs",
-    "watch",
-    "watchFile",
-    "watcher",
-    "watching",
-    "file",
-    "fsevents"
-  ],
-  "types": "./types/index.d.ts",
   "homepage": "https://github.com/paulmillr/chokidar",
-  "author": "Paul Miller (https://paulmillr.com), Elan Shanker",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/paulmillr/chokidar.git"
-  },
-  "bugs": {
-    "url": "https://github.com/paulmillr/chokidar/issues"
-  },
-  "license": "MIT",
-  "scripts": {
-    "test": "nyc mocha --exit",
-    "mocha": "mocha",
-    "lint": "jshint index.js lib",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls",
-    "dtslint": "dtslint types"
-  },
-  "files": [
-    "index.js",
-    "lib/",
-    "types/index.d.ts",
-    "LICENSE"
+  "author": "Paul Miller (https://paulmillr.com)",
+  "contributors": [
+    "Paul Miller (https://paulmillr.com)",
+    "Elan Shanker"
   ],
+  "engines": {
+    "node": ">= 8"
+  },
   "dependencies": {
-    "anymatch": "github:micromatch/anymatch",
+    "anymatch": "^3.0.0",
     "async-each": "^1.0.1",
     "braces": "^3.0.0",
     "glob-parent": "^5.0.0",
@@ -61,6 +37,36 @@
     "sinon-chai": "^3.3.0",
     "upath": "^1.1.2"
   },
+  "files": [
+    "index.js",
+    "lib/",
+    "types/index.d.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paulmillr/chokidar.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paulmillr/chokidar/issues"
+  },
+  "license": "MIT",
+  "scripts": {
+    "test": "nyc mocha --exit",
+    "mocha": "mocha",
+    "lint": "jshint index.js lib",
+    "coveralls": "nyc report --reporter=text-lcov | coveralls",
+    "dtslint": "dtslint types"
+  },
+  "keywords": [
+    "fs",
+    "watch",
+    "watchFile",
+    "watcher",
+    "watching",
+    "file",
+    "fsevents"
+  ],
+  "types": "./types/index.d.ts",
   "jshintConfig": {
     "node": true,
     "curly": false,
