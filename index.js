@@ -665,12 +665,13 @@ _getWatchHelpers(path, depth) {
   };
 
   const filterPath = (entry) => {
-    if (entry.stat && entry.stat.isSymbolicLink()) return filterDir(entry);
+    const {stats} = entry;
+    if (stats && stats.isSymbolicLink()) return filterDir(entry);
     const resolvedPath = entryPath(entry);
     const matchesGlob = !hasGlob || globFilter(resolvedPath);
     return matchesGlob &&
-      this._isntIgnored(resolvedPath, entry.stat) &&
-      this._hasReadPermissions(entry.stat);
+      this._isntIgnored(resolvedPath, stats) &&
+      this._hasReadPermissions(stats);
   };
 
   const getDirParts = (path) => {
@@ -700,7 +701,7 @@ _getWatchHelpers(path, depth) {
         });
       });
     }
-    return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stat);
+    return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stats);
   };
 
   return {
