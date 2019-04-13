@@ -836,13 +836,13 @@ _addPathCloser(path, closer) {
   list.push(closer);
 }
 
-_readdirp(options) {
-  let stream = readdirp(options.root, options);
+_readdirp(root, options) {
+  let stream = readdirp(root, options);
   this._streams.add(stream);
-  stream.on('close', () => {
+  stream.once('close', () => {
     stream = null;
   });
-  stream.on('end', () => {
+  stream.once('end', () => {
     if (stream) {
       this._streams.delete(stream);
       stream = null;
