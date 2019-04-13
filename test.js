@@ -22,6 +22,16 @@ const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
 
 const isTravisMac = process.env.TRAVIS && os === 'darwin';
+const FIXTURES_PATH = sysPath.join(__dirname, 'test-fixtures');
+const FIXTURES_PATH_REL = 'test-fixtures';
+const allWatchers = [];
+const PERM_ARR = 0o755; // rwe, r+e, r+e
+let subdirId = 0;
+let options;
+let currentDir;
+let osXFsWatch;
+let win32Polling;
+let slowerDelay;
 
 // spyOnReady
 const aspy = (watcher, eventName, spy=null, noStat=false) => {
@@ -30,9 +40,14 @@ const aspy = (watcher, eventName, spy=null, noStat=false) => {
   }
   if (spy == null) spy = sinon.spy();
   return new Promise((resolve, reject) => {
+    const handler = noStat ?
+      eventName === 'all' ?
+      (event, path) => spy(event, path) :
+      (path) => spy(path) :
+      spy;
     watcher.on('error', reject);
     watcher.on('ready', () => { resolve(spy); });
-    watcher.on(eventName, noStat ? (path => spy(path)) : spy);
+    watcher.on(eventName, handler);
   });
 };
 
@@ -43,17 +58,6 @@ const waitForWatcher = (watcher) => {
   });
 };
 
-const FIXTURES_PATH = sysPath.join(__dirname, 'test-fixtures');
-const allWatchers = [];
-const disposedWatchers = [];
-let currentDir;
-let subdir = 0;
-let options;
-let osXFsWatch;
-let win32Polling;
-let slowerDelay;
-const PERM_ARR = 0o755; // rwe, r+e, r+e
-
 const delay = async (time) => {
   return new Promise((resolve) => {
     const timer = time || slowerDelay || 20;
@@ -62,11 +66,11 @@ const delay = async (time) => {
 };
 
 const getFixturePath = (subPath) => {
-  const subd = subdir && subdir.toString() || '';
+  const subd = subdirId && subdirId.toString() || '';
   return sysPath.join(FIXTURES_PATH, subd, subPath);
 };
 const getGlobPath = (subPath) => {
-  const subd = subdir && subdir.toString() || '';
+  const subd = subdirId && subdirId.toString() || '';
   return upath.join(FIXTURES_PATH, subd, subPath);
 };
 currentDir = getFixturePath('');
@@ -750,7 +754,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('unlink', unlinkPath);
     });
     it('should traverse subdirs to match globstar patterns', async () => {
-      const watchPath = getGlobPath('../../test-*/' + subdir + '/**/a*.txt');
+      const watchPath = getGlobPath('../../test-*/' + subdirId + '/**/a*.txt');
       fs.mkdirSync(getFixturePath('subdir'), PERM_ARR);
       fs.mkdirSync(getFixturePath('subdir/subsub'), PERM_ARR);
       fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
@@ -774,15 +778,16 @@ const runTests = function(baseopts) {
       spy.withArgs('change').should.have.been.calledOnce;
     });
     it('should resolve relative paths with glob patterns', async () => {
-      const watchPath = 'test-*/' + subdir + '/*a*.txt';
+      const id = subdirId.toString();
+      const watchPath = 'test-*/' + id + '/*a*.txt';
       // getFixturePath() returns absolute paths, so use sysPath.join() instead
-      const addPath = sysPath.join('test-fixtures', subdir.toString(), 'add.txt');
-      const changePath = sysPath.join('test-fixtures', subdir.toString(), 'change.txt');
-      const unlinkPath = sysPath.join('test-fixtures', subdir.toString(), 'unlink.txt');
+      const addPath = sysPath.join(FIXTURES_PATH_REL, id, 'add.txt');
+      const changePath = sysPath.join(FIXTURES_PATH_REL, id, 'change.txt');
+      const unlinkPath = getFixturePath('unlink.txt');
       let watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, 'all');
 
-      spy.should.have.been.calledWith('add', changePath);
+      spy.should.have.been.calledWith('add');
       setTimeout(async () => {
         await write(addPath, Date.now());
         await write(changePath, Date.now());
@@ -895,7 +900,7 @@ const runTests = function(baseopts) {
     });
     it('should not prematurely filter dirs against complex globstar patterns', async () => {
       const deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
-      const watchPath = getGlobPath('../../test-*/' + subdir + '/**/subsubsub/*.txt');
+      const watchPath = getGlobPath('../../test-*/' + subdirId + '/**/subsubsub/*.txt');
       fs.mkdirSync(getFixturePath('subdir'), PERM_ARR);
       fs.mkdirSync(getFixturePath('subdir/subsub'), PERM_ARR);
       fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), PERM_ARR);
@@ -963,7 +968,7 @@ const runTests = function(baseopts) {
     if (os === 'win32') return true;
     let linkedDir;
     beforeEach(async () => {
-      linkedDir = sysPath.resolve(currentDir, '..', subdir + '-link');
+      linkedDir = sysPath.resolve(currentDir, '..', subdirId + '-link');
       await fs_symlink(currentDir, linkedDir);
       await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
       await write(getFixturePath('subdir/add.txt'), 'b');
@@ -1150,7 +1155,6 @@ const runTests = function(baseopts) {
   describe('watch options', () => {
     describe('ignoreInitial', () => {
       describe('false', () => {
-        let watcher;
         beforeEach(() => { options.ignoreInitial = false; });
         it('should emit `add` events for preexisting files', async () => {
           let watcher = chokidar_watch(currentDir, options);
@@ -1770,7 +1774,7 @@ const runTests = function(baseopts) {
   describe('getWatched', () => {
     it('should return the watched paths', async () => {
       const expected = {};
-      expected[sysPath.dirname(currentDir)] = [subdir.toString()];
+      expected[sysPath.dirname(currentDir)] = [subdirId.toString()];
       expected[currentDir] = ['change.txt', 'unlink.txt'];
       let watcher = chokidar_watch();
       await waitForWatcher(watcher);
@@ -1780,7 +1784,7 @@ const runTests = function(baseopts) {
       options.cwd = currentDir;
       const expected = {
         '.': ['change.txt', 'subdir', 'unlink.txt'],
-        '..': [subdir.toString()],
+        '..': [subdirId.toString()],
         'subdir': []
       };
       await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
@@ -1921,6 +1925,10 @@ const runTests = function(baseopts) {
     });
   });
   describe('env variable option override', () => {
+    beforeEach(() => {
+      // Do not spin up
+      options.useFsEvents = false;
+    });
     describe('CHOKIDAR_USEPOLLING', () => {
       afterEach(() => {
         delete process.env.CHOKIDAR_USEPOLLING;
@@ -1971,20 +1979,21 @@ const runTests = function(baseopts) {
         watcher.options.usePolling.should.be.true;
       });
     });
-    describe('CHOKIDAR_INTERVAL', () => {
-      afterEach(() => {
-        delete process.env.CHOKIDAR_INTERVAL;
-      });
+    if (options && options.usePolling && !options.useFsEvents) {
+      describe('CHOKIDAR_INTERVAL', () => {
+        afterEach(() => {
+          delete process.env.CHOKIDAR_INTERVAL;
+        });
+        it('should make options.interval = CHOKIDAR_INTERVAL when it is set', async () => {
+          options.interval = 100;
+          process.env.CHOKIDAR_INTERVAL = '1500';
 
-      it('should make options.interval = CHOKIDAR_INTERVAL when it is set', async () => {
-        options.interval = 100;
-        process.env.CHOKIDAR_INTERVAL = '1500';
-
-        let watcher = chokidar_watch(currentDir, options);
-        await waitForWatcher(watcher);
-        watcher.options.interval.should.be.equal(1500);
+          let watcher = chokidar_watch(currentDir, options);
+          await waitForWatcher(watcher);
+          watcher.options.interval.should.be.equal(1500);
+        });
       });
-    });
+    }
   });
 };
 
@@ -1998,21 +2007,20 @@ describe('chokidar', function() {
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
     const testCount = itCount * 3;
     fs.mkdirSync(currentDir, PERM_ARR);
-    while (subdir < testCount) {
-      subdir++;
+    while (subdirId++ < testCount) {
       currentDir = getFixturePath('');
       fs.mkdirSync(currentDir, PERM_ARR);
       fs.writeFileSync(sysPath.join(currentDir, 'change.txt'), 'b');
       fs.writeFileSync(sysPath.join(currentDir, 'unlink.txt'), 'b');
     }
-    subdir = 0;
+    subdirId = 0;
   });
   after(async () => {
     await rimraf(FIXTURES_PATH);
   });
 
   beforeEach(() => {
-    subdir++;
+    subdirId++;
     currentDir = getFixturePath('');
   });
 
@@ -2031,7 +2039,7 @@ describe('chokidar', function() {
   if (os === 'darwin') {
     const FsEventsHandler = require('./lib/fsevents-handler');
     if (FsEventsHandler.canUse()) {
-      describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
+      // describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
     }
   } else {
   }
