@@ -14,7 +14,6 @@ const exec = promisify(require('child_process').exec);
 chai.use(require('sinon-chai'));
 const os = process.platform;
 
-// const fs_promises = require('fs').promises;
 const write = promisify(fs.writeFile);
 const fs_symlink = promisify(fs.symlink);
 const fs_rename = promisify(fs.rename);

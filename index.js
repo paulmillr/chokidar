@@ -837,7 +837,7 @@ _addPathCloser(path, closer) {
 }
 
 _readdirp(options) {
-  let stream = readdirp(options);
+  let stream = readdirp(options.root, options);
   this._streams.add(stream);
   stream.on('close', () => {
     stream = null;
