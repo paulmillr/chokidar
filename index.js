@@ -348,7 +348,7 @@ unwatch(paths) {
 
 /**
  * Close watchers and remove all listeners from watched paths.
- * @returns {FSWatcher} for chaining
+ * @returns {FSWatcher} for chaining.
 */
 close() {
   if (this.closed) return this;
