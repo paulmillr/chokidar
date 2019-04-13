@@ -5,14 +5,6 @@
 import * as fs from "fs";
 import { EventEmitter } from "events";
 
-/**
- * The object's keys are all the directories (using absolute paths unless the `cwd` option was
- * used), and the values are arrays of the names of the items contained in each directory.
- */
-export interface WatchedPaths {
-  [directory: string]: string[];
-}
-
 export class FSWatcher extends EventEmitter implements fs.FSWatcher {
   options: WatchOptions;
 
@@ -39,7 +31,9 @@ export class FSWatcher extends EventEmitter implements fs.FSWatcher {
    * the `cwd` option was used), and the values are arrays of the names of the items contained in
    * each directory.
    */
-  getWatched(): WatchedPaths;
+  getWatched(): {
+    [directory: string]: string[];
+  };
 
   /**
    * Removes all listeners from watched files.

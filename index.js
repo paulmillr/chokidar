@@ -354,7 +354,7 @@ close() {
   if (this.closed) return this;
   this.closed = true;
 
-  // Memory management
+  // Memory management.
   this._closers.forEach(closerList => closerList.forEach(closer => closer()));
   this._closers.clear();
   this._watched.clear();
