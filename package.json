@@ -19,7 +19,7 @@
     "is-binary-path": "^2.0.1",
     "is-glob": "^4.0.1",
     "normalize-path": "^3.0.0",
-    "readdirp": "github:JSMonk/readdirp"
+    "readdirp": "github:paulmillr/readdirp"
   },
   "optionalDependencies": {
     "fsevents": "^2.0.3"
