@@ -22,14 +22,14 @@ const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
 
 const isTravisMac = process.env.TRAVIS && os === 'darwin';
-const FIXTURES_PATH = sysPath.join(__dirname, 'test-fixtures');
 const FIXTURES_PATH_REL = 'test-fixtures';
+const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
 const allWatchers = [];
 const PERM_ARR = 0o755; // rwe, r+e, r+e
 let subdirId = 0;
 let options;
 let currentDir;
-let osXFsWatch;
+let macosFswatch;
 let win32Polling;
 let slowerDelay;
 
@@ -86,9 +86,9 @@ const runTests = function(baseopts) {
 
   before(() => {
     // flags for bypassing special-case test failures on CI
-    osXFsWatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
+    macosFswatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
     win32Polling = os === 'win32' && baseopts.usePolling;
-    slowerDelay = osXFsWatch ? 100 : undefined;
+    slowerDelay = macosFswatch ? 100 : undefined;
   });
 
   beforeEach(function clean() {
@@ -393,7 +393,7 @@ const runTests = function(baseopts) {
       addSpy.should.have.been.calledWith(newPath);
       expect(addSpy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
-      if (!osXFsWatch) unlinkSpy.should.have.been.calledOnce;
+      if (!macosFswatch) unlinkSpy.should.have.been.calledOnce;
     });
     it('should emit `add`, not `change`, when previously deleted file is re-added', async () => {
       const unlinkSpy = sinon.spy(function unlink(){});
@@ -797,7 +797,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('change', changePath);
       spy.should.not.have.been.calledWith('add', unlinkPath);
       spy.should.not.have.been.calledWith('addDir');
-      if (!osXFsWatch) spy.should.have.been.calledThrice;
+      if (!macosFswatch) spy.should.have.been.calledThrice;
     });
     it('should correctly handle conflicting glob patterns', async () => {
       const changePath = getFixturePath('change.txt');
@@ -1306,7 +1306,7 @@ const runTests = function(baseopts) {
         spy.should.have.been.calledWith('add', getFixturePath('change.txt'));
         spy.should.have.been.calledWith('add', getFixturePath('unlink.txt'));
         spy.should.not.have.been.calledWith('change');
-        if (!osXFsWatch) spy.callCount.should.equal(4);
+        if (!macosFswatch) spy.callCount.should.equal(4);
       });
       it('should recurse to specified depth', async () => {
         options.depth = 1;
@@ -1324,7 +1324,7 @@ const runTests = function(baseopts) {
         spy.should.have.been.calledWith('change', addPath);
         spy.should.not.have.been.calledWith('add', ignoredPath);
         spy.should.not.have.been.calledWith('change', ignoredPath);
-        if (!osXFsWatch) spy.callCount.should.equal(8);
+        if (!macosFswatch) spy.callCount.should.equal(8);
       });
       it('should respect depth setting when following symlinks', async () => {
         if (os === 'win32') return true; // skip on windows
@@ -1813,7 +1813,7 @@ const runTests = function(baseopts) {
       await delay(300);
       spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
       spy.should.not.have.been.calledWith('add');
-      if (!osXFsWatch) spy.should.have.been.calledOnce;
+      if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should ignore unwatched paths that are a subset of watched paths', async () => {
       let watcher = chokidar_watch(currentDir, options);
@@ -1834,7 +1834,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
       spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
       spy.should.not.have.been.calledWith('unlink');
-      if (!osXFsWatch) spy.should.have.been.calledOnce;
+      if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should unwatch relative paths', async () => {
       const fixturesDir = sysPath.relative(process.cwd(), currentDir);
@@ -1853,7 +1853,7 @@ const runTests = function(baseopts) {
       await delay(300);
       spy.should.have.been.calledWith('change', changeFile);
       spy.should.not.have.been.calledWith('add');
-      if (!osXFsWatch) spy.should.have.been.calledOnce;
+      if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should watch paths that were unwatched and added again', async () => {
       const spy = sinon.spy();
@@ -1871,7 +1871,7 @@ const runTests = function(baseopts) {
       await write(getFixturePath('change.txt'), Date.now());
       await waitFor([spy]);
       spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-      if (!osXFsWatch) spy.should.have.been.calledOnce;
+      if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should unwatch paths that are relative to options.cwd', async () => {
       options.cwd = currentDir;
@@ -1889,7 +1889,7 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('change', 'change.txt');
       spy.should.not.have.been.calledWith('add');
       spy.should.not.have.been.calledWith('unlink');
-      if (!osXFsWatch) spy.should.have.been.calledOnce;
+      if (!macosFswatch) spy.should.have.been.calledOnce;
     });
   });
   describe('close', () => {
