@@ -837,7 +837,8 @@ _addPathCloser(path, closer) {
   list.push(closer);
 }
 
-_readdirp(root, options) {
+_readdirp(root, opts) {
+  const options = Object.assign({type: 'all', alwaysStat: true, lstat: true}, opts);
   let stream = readdirp(root, options);
   this._streams.add(stream);
   stream.once('close', () => {

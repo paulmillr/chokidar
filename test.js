@@ -2039,7 +2039,7 @@ describe('chokidar', function() {
   if (os === 'darwin') {
     const FsEventsHandler = require('./lib/fsevents-handler');
     if (FsEventsHandler.canUse()) {
-      // describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
+      describe.skip('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
     }
   } else {
   }
