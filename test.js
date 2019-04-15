@@ -811,9 +811,9 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledTwice;
 
       await delay();
+      await fs_unlink(unlinkPath);
       await write(addPath, Date.now());
       await write(changePath, Date.now());
-      await fs_unlink(unlinkPath);
 
       await waitFor([[spy, 4], spy.withArgs('unlink', unlinkPath)]);
       spy.should.have.been.calledWith('change', changePath);
@@ -1405,8 +1405,8 @@ const runTests = function(baseopts) {
         options.cwd = currentDir;
         let watcher = chokidar_watch('**', options);
         const spy = await aspy(watcher, 'all');
-        await write(getFixturePath('change.txt'), Date.now());
         await fs_unlink(getFixturePath('unlink.txt'));
+        await write(getFixturePath('change.txt'), Date.now());
         await waitFor([spy.withArgs('unlink')]);
         spy.should.have.been.calledWith('add', 'change.txt');
         spy.should.have.been.calledWith('add', 'unlink.txt');
@@ -1448,8 +1448,8 @@ const runTests = function(baseopts) {
         let watcher2 = chokidar_watch(currentDir, options2);
         const spy2 = await aspy(watcher2, 'all');
 
-        await write(getFixturePath('change.txt'), Date.now());
         await fs_unlink(getFixturePath('unlink.txt'));
+        await write(getFixturePath('change.txt'), Date.now());
         await waitFor([spy1.withArgs('unlink'), spy2.withArgs('unlink')]);
         spy1.should.have.been.calledWith('change', 'change.txt');
         spy1.should.have.been.calledWith('unlink', 'unlink.txt');
