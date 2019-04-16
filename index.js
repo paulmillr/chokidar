@@ -677,7 +677,9 @@ _getWatchHelpers(path, depth) {
   const getDirParts = (path) => {
     if (!hasGlob) return [];
     const parts = [];
-    const expandedPath = braces.expand(path);
+    const expandedPath = path.includes("{") 
+      ? braces.expand(path) 
+      : [];
     expandedPath.forEach((path) => {
       parts.push(sysPath.relative(watchPath, path).split(/[\/\\]/));
     });
