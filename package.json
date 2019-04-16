@@ -22,7 +22,7 @@
     "readdirp": "github:paulmillr/readdirp"
   },
   "optionalDependencies": {
-    "fsevents": "^2.0.4"
+    "fsevents": "^2.0.6"
   },
   "devDependencies": {
     "@types/node": "^11.9.4",
