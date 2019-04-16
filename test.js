@@ -115,9 +115,11 @@ const runTests = function(baseopts) {
         resolve();
       }
       intrvl = setInterval(() => {
-        if (spies.every(isSpyReady)) finish();
+        process.nextTick(() => {
+          if (spies.every(isSpyReady)) finish();
+        });
       }, 20);
-      timeo = setTimeout(finish, 3500);
+      timeo = setTimeout(finish, 5000);
     });
   };
 
