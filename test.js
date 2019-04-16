@@ -119,7 +119,7 @@ const runTests = function(baseopts) {
           if (spies.every(isSpyReady)) finish();
         });
       }, 20);
-      timeo = setTimeout(finish, 3500);
+      timeo = setTimeout(finish, 5000);
     });
   };
 
