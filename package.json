@@ -12,9 +12,9 @@
     "node": ">= 8"
   },
   "dependencies": {
-    "anymatch": "^3.0.0",
+    "anymatch": "^3.0.1",
     "async-each": "^1.0.3",
-    "braces": "^3.0.0",
+    "braces": "^3.0.2",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.0.1",
     "is-glob": "^4.0.1",
@@ -25,7 +25,7 @@
     "fsevents": "^2.0.6"
   },
   "devDependencies": {
-    "@types/node": "^11.9.4",
+    "@types/node": "^11.13.4",
     "chai": "^4.2.0",
     "coveralls": "^3.0.1",
     "dtslint": "0.4.1",
