@@ -368,6 +368,7 @@ const runTests = function(baseopts) {
       fs.mkdirSync(testDir2, PERM_ARR);
       fs.mkdirSync(testDir3, PERM_ARR);
       const spy = await aspy(watcher, 'unlinkDir');
+      await waitFor([spy]);
       await rimraf(testDir2); // test removing in one
       await waitFor([spy]);
       spy.should.have.been.calledWith(testDir2);
@@ -688,8 +689,7 @@ const runTests = function(baseopts) {
 
       await delay(1000);
       await fs_rename(testDir, renamedDir);
-      await waitFor([spy]);
-      spy.should.have.been.calledOnce;
+      await waitFor([spy.withArgs(expectedPath)]);
       spy.should.have.been.calledWith(expectedPath);
     });
   });
@@ -766,11 +766,11 @@ const runTests = function(baseopts) {
       await delay();
       let watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, 'all');
-      setTimeout(() => {
-        write(getFixturePath('add.txt'), Date.now());
-        write(getFixturePath('subdir/subsub/ab.txt'), Date.now());
-        fs_unlink(getFixturePath('subdir/a.txt'));
-        fs_unlink(getFixturePath('subdir/b.txt'));
+      setTimeout(async () => {
+        await write(getFixturePath('add.txt'), Date.now());
+        await write(getFixturePath('subdir/subsub/ab.txt'), Date.now());
+        await fs_unlink(getFixturePath('subdir/a.txt'));
+        await fs_unlink(getFixturePath('subdir/b.txt'));
       }, 50);
       await waitFor([[spy.withArgs('add'), 3], spy.withArgs('unlink'), spy.withArgs('change')]);
       spy.withArgs('add').should.have.been.calledThrice;
@@ -2043,7 +2043,6 @@ describe('chokidar', function() {
     if (FsEventsHandler.canUse()) {
       describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
     }
-  } else {
   }
   describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
