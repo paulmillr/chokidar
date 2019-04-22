@@ -1818,24 +1818,26 @@ const runTests = function(baseopts) {
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should ignore unwatched paths that are a subset of watched paths', async () => {
+      const subdirRel = upath.relative(process.cwd(), getFixturePath('subdir'));
+      const unlinkFile = getFixturePath('unlink.txt');
+      const addFile = getFixturePath('subdir/add.txt');
+      const changedFile = getFixturePath('change.txt');
       let watcher = chokidar_watch(currentDir, options);
       const spy = await aspy(watcher, 'all');
 
-      await delay();
       // test with both relative and absolute paths
-      const subdirRel = upath.relative(process.cwd(), getFixturePath('subdir'));
       watcher.unwatch([subdirRel, getGlobPath('unl*')]);
 
       await delay();
-      await fs_unlink(getFixturePath('unlink.txt'));
-      await write(getFixturePath('subdir/add.txt'), Date.now());
-      await write(getFixturePath('change.txt'), Date.now());
+      await fs_unlink(unlinkFile);
+      await write(addFile, Date.now());
+      await write(changedFile, Date.now());
       await waitFor([spy.withArgs('change')]);
 
       await delay(300);
-      spy.should.have.been.calledWith('change', getFixturePath('change.txt'));
-      spy.should.not.have.been.calledWith('add', getFixturePath('subdir/add.txt'));
-      spy.should.not.have.been.calledWith('unlink');
+      spy.should.have.been.calledWith('change', changedFile);
+      spy.should.not.have.been.calledWith('add', addFile);
+      spy.should.not.have.been.calledWith('unlink', unlinkFile);
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should unwatch relative paths', async () => {

@@ -65,7 +65,7 @@ const toUnix = (string) => {
 // TODO: this is not equal to path-normalize module - investigate why
 const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
 
-const normalizeIgnored = (cwd) => (path) => {
+const normalizeIgnored = (cwd = '') => (path) => {
   if (typeof path !== 'string') return path;
   return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
@@ -608,13 +608,15 @@ _isIgnored(path, stats) {
     const cwd = this.options.cwd;
     const ign = this.options.ignored;
 
-    let ignored = ign;
-    if (cwd && ign) ignored = ign.map(normalizeIgnored(cwd));
+    const ignored = ign &&  ign.map(normalizeIgnored(cwd));
     const paths = arrify(ignored)
       .filter((path) => typeof path === 'string' && !isGlob(path))
       .map((path) => path + '/**');
     this._userIgnored = anymatch(
-      this._getGlobIgnored().concat(ignored).concat(paths)
+      this._getGlobIgnored()
+        .map(normalizeIgnored(cwd))
+        .concat(ignored)
+        .concat(paths)
     );
   }
 
