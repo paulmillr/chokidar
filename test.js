@@ -759,25 +759,31 @@ const runTests = function(baseopts) {
     });
     it('should traverse subdirs to match globstar patterns', async () => {
       const watchPath = getGlobPath('../../test-*/' + subdirId + '/**/a*.txt');
-      fs.mkdirSync(getFixturePath('subdir'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir/subsub'), PERM_ARR);
-      fs.writeFileSync(getFixturePath('subdir/a.txt'), 'b');
-      fs.writeFileSync(getFixturePath('subdir/b.txt'), 'b');
-      fs.writeFileSync(getFixturePath('subdir/subsub/ab.txt'), 'b');
+      const addFile = getFixturePath('add.txt');
+      const subdir = getFixturePath('subdir');
+      const subsubdir = getFixturePath('subdir/subsub');
+      const aFile = getFixturePath('subdir/a.txt');
+      const bFile = getFixturePath('subdir/b.txt');
+      const subFile = getFixturePath('subdir/subsub/ab.txt');
+      fs.mkdirSync(subdir, PERM_ARR);
+      fs.mkdirSync(subsubdir, PERM_ARR);
+      fs.writeFileSync(aFile, 'b');
+      fs.writeFileSync(bFile, 'b');
+      fs.writeFileSync(subFile, 'b');
 
       await delay();
       let watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, 'all');
       setTimeout(async () => {
-        await write(getFixturePath('add.txt'), Date.now());
-        await write(getFixturePath('subdir/subsub/ab.txt'), Date.now());
-        await fs_unlink(getFixturePath('subdir/a.txt'));
-        await fs_unlink(getFixturePath('subdir/b.txt'));
+        await write(addFile, Date.now());
+        await write(subFile, Date.now());
+        await fs_unlink(aFile);
+        await fs_unlink(bFile);
       }, 50);
       await waitFor([[spy.withArgs('add'), 3], spy.withArgs('unlink'), spy.withArgs('change')]);
       spy.withArgs('add').should.have.been.calledThrice;
-      spy.should.have.been.calledWith('unlink', getFixturePath('subdir/a.txt'));
-      spy.should.have.been.calledWith('change', getFixturePath('subdir/subsub/ab.txt'));
+      spy.should.have.been.calledWith('unlink', aFile);
+      spy.should.have.been.calledWith('change', subFile);
       spy.withArgs('unlink').should.have.been.calledOnce;
       spy.withArgs('change').should.have.been.calledOnce;
     });
@@ -833,8 +839,8 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('add', changePath);
       spy.should.have.been.calledOnce;
 
-      await delay();
       await write(changePath, Date.now());
+      await delay();
       await waitFor([[spy, 2]]);
       spy.should.have.been.calledWith('change', changePath);
       spy.should.have.been.calledTwice;
