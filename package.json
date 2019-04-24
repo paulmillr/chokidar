@@ -16,10 +16,10 @@
     "async-each": "^1.0.3",
     "braces": "^3.0.2",
     "glob-parent": "^5.0.0",
-    "is-binary-path": "^2.0.1",
+    "is-binary-path": "^2.1.0",
     "is-glob": "^4.0.1",
     "normalize-path": "^3.0.0",
-    "readdirp": "^3.0.0"
+    "readdirp": "^3.0.1"
   },
   "optionalDependencies": {
     "fsevents": "^2.0.6"
