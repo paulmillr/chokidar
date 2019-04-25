@@ -774,18 +774,23 @@ const runTests = function(baseopts) {
       await delay();
       let watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, 'all');
-      setTimeout(async () => {
-        await write(addFile, Date.now());
-        await write(subFile, Date.now());
-        await fs_unlink(aFile);
-        await fs_unlink(bFile);
-      }, 50);
-      await waitFor([[spy.withArgs('add'), 3], spy.withArgs('unlink'), spy.withArgs('change')]);
-      spy.withArgs('add').should.have.been.calledThrice;
-      spy.should.have.been.calledWith('unlink', aFile);
-      spy.should.have.been.calledWith('change', subFile);
-      spy.withArgs('unlink').should.have.been.calledOnce;
+      await Promise.all([
+        write(addFile, Date.now()),
+        write(subFile, Date.now()),
+        fs_unlink(aFile),
+        fs_unlink(bFile),
+      ]);
+
+      await waitFor([spy.withArgs('change')]);
       spy.withArgs('change').should.have.been.calledOnce;
+      spy.should.have.been.calledWith('change', subFile);
+
+      await waitFor([spy.withArgs('unlink')]);
+      spy.withArgs('unlink').should.have.been.calledOnce;
+      spy.should.have.been.calledWith('unlink', aFile);
+
+      await waitFor([[spy.withArgs('add'), 3]]);
+      spy.withArgs('add').should.have.been.calledThrice;
     });
     it('should resolve relative paths with glob patterns', async () => {
       const id = subdirId.toString();
@@ -798,10 +803,10 @@ const runTests = function(baseopts) {
       const spy = await aspy(watcher, 'all');
 
       spy.should.have.been.calledWith('add');
-      setTimeout(async () => {
-        await write(addPath, Date.now());
-        await write(changePath, Date.now());
-      }, 50);
+      await Promise.all([
+        write(addPath, Date.now()),
+        write(changePath, Date.now())
+      ]);
       await waitFor([[spy, 3], spy.withArgs('add', addPath)]);
       spy.should.have.been.calledWith('add', addPath);
       spy.should.have.been.calledWith('change', changePath);
@@ -2010,7 +2015,7 @@ const runTests = function(baseopts) {
 };
 
 describe('chokidar', function() {
-  this.timeout(6000);
+  this.timeout(60000);
   before(async () => {
     let created = 0;
     await rimraf(FIXTURES_PATH);
