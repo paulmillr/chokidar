@@ -2010,7 +2010,7 @@ const runTests = function(baseopts) {
 };
 
 describe('chokidar', function() {
-  this.timeout(6000);
+  this.timeout(60000);
   before(async () => {
     let created = 0;
     await rimraf(FIXTURES_PATH);
