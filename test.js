@@ -780,12 +780,17 @@ const runTests = function(baseopts) {
         fs_unlink(aFile),
         fs_unlink(bFile),
       ]);
-      await waitFor([[spy.withArgs('add'), 3], spy.withArgs('unlink'), spy.withArgs('change')]);
+
+      await waitFor([spy.withArgs('change')]);
       spy.withArgs('change').should.have.been.calledOnce;
-      spy.withArgs('unlink').should.have.been.calledOnce;
-      spy.withArgs('add').should.have.been.calledThrice;
-      spy.should.have.been.calledWith('unlink', aFile);
       spy.should.have.been.calledWith('change', subFile);
+
+      await waitFor([spy.withArgs('unlink')]);
+      spy.withArgs('unlink').should.have.been.calledOnce;
+      spy.should.have.been.calledWith('unlink', aFile);
+
+      await waitFor([[spy.withArgs('add'), 3]]);
+      spy.withArgs('add').should.have.been.calledThrice;
     });
     it('should resolve relative paths with glob patterns', async () => {
       const id = subdirId.toString();
