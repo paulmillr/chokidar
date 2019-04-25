@@ -774,12 +774,12 @@ const runTests = function(baseopts) {
       await delay();
       let watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, 'all');
-      setTimeout(async () => {
-        await write(addFile, Date.now());
-        await write(subFile, Date.now());
-        await fs_unlink(aFile);
-        await fs_unlink(bFile);
-      }, 50);
+      await Promise.all([
+        write(addFile, Date.now()),
+        write(subFile, Date.now()),
+        fs_unlink(aFile),
+        fs_unlink(bFile),
+      ]);
       await waitFor([[spy.withArgs('add'), 3], spy.withArgs('unlink'), spy.withArgs('change')]);
       spy.withArgs('add').should.have.been.calledThrice;
       spy.should.have.been.calledWith('unlink', aFile);
@@ -798,10 +798,10 @@ const runTests = function(baseopts) {
       const spy = await aspy(watcher, 'all');
 
       spy.should.have.been.calledWith('add');
-      setTimeout(async () => {
-        await write(addPath, Date.now());
-        await write(changePath, Date.now());
-      }, 50);
+      await Promise.all([
+        write(addPath, Date.now()),
+        write(changePath, Date.now())
+      ]);
       await waitFor([[spy, 3], spy.withArgs('add', addPath)]);
       spy.should.have.been.calledWith('add', addPath);
       spy.should.have.been.calledWith('change', changePath);
