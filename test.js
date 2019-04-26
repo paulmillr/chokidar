@@ -172,19 +172,17 @@ const runTests = function(baseopts) {
 
       await waitForWatcher(watcher);
 
-      (async () => {
-        for (let path of paths.slice(0, 5)) {
-          await write(path, Date.now());
-        }
-        await delay(100);
-        for (let path of paths.slice(5)) {
-          await write(path, Date.now());
-        }
-        delay();
-      })();
+      for (let path of paths.slice(0, 5)) {
+        await write(path, Date.now());
+      }
+      await delay(100);
+      for (let path of paths.slice(5)) {
+        await write(path, Date.now());
+      }
 
       await waitFor([[spy, 4]]);
       await waitFor([[spy, 9]]);
+      await delay(1000);
       paths.forEach(path => {
         spy.should.have.been.calledWith(path);
       });
@@ -281,6 +279,7 @@ const runTests = function(baseopts) {
       await waitFor([[spy, 11]]);
       await waitFor([[spy, 22]]);
       await waitFor([[spy, 33]]);
+      await delay(1000);
 
       spy.should.have.been.calledWith(test1Path);
       spy.should.have.been.calledWith(test2Path);
