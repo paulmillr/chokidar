@@ -1,3 +1,7 @@
+# Chokidar 3.0.0 (Apr 30, 2019)
+* Massive CPU & RAM consumption improvements. 17x package & deps size reduction
+* Node 8+-only
+
 # Chokidar 2.1.4 (Mar 22, 2019)
 * Improve TypeScript type definitions for `on` method.
 
