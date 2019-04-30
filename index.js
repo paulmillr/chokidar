@@ -49,14 +49,18 @@ const flatten = (list, result = []) => {
   return result;
 };
 
-const back = /\\/g;
-const double = /\/\//;
+const backslash = /\\/g;
 const slash = '/';
+const doubleslash = /\/\//;
+const braceStart = '{';
+const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
+const replacerRe = /^\.[\/\\]/;
+const emptyFn = () => {};
 
 const toUnix = (string) => {
-  let str = string.replace(back, slash);
-  while (str.match(double)) {
-    str = str.replace(double, slash);
+  let str = string.replace(backslash, slash);
+  while (str.match(doubleslash)) {
+    str = str.replace(doubleslash, slash);
   }
   return str;
 };
@@ -69,10 +73,6 @@ const normalizeIgnored = (cwd = '') => (path) => {
   if (typeof path !== 'string') return path;
   return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
-
-const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
-const replacerRe = /^\.[\/\\]/;
-const emptyFn = () => {};
 
 /**
  * Directory entry.
@@ -670,7 +670,7 @@ _getWatchHelpers(path, depth) {
     const {stats} = entry;
     if (stats && stats.isSymbolicLink()) return filterDir(entry);
     const resolvedPath = entryPath(entry);
-    const matchesGlob = !hasGlob || globFilter(resolvedPath);
+    const matchesGlob = hasGlob ? globFilter(resolvedPath) : true;
     return matchesGlob &&
       this._isntIgnored(resolvedPath, stats) &&
       this._hasReadPermissions(stats);
@@ -679,7 +679,7 @@ _getWatchHelpers(path, depth) {
   const getDirParts = (path) => {
     if (!hasGlob) return [];
     const parts = [];
-    const expandedPath = path.includes("{")
+    const expandedPath = path.includes(braceStart)
       ? braces.expand(path)
       : [path];
     expandedPath.forEach((path) => {
