@@ -49,18 +49,22 @@ const flatten = (list, result = []) => {
   return result;
 };
 
-const backslash = /\\/g;
-const slash = '/';
-const doubleslash = /\/\//;
-const braceStart = '{';
-const dotRe = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
-const replacerRe = /^\.[\/\\]/;
-const emptyFn = () => {};
+// Optimize RAM usage.
+const BACK_SLASH = /\\/g;
+const SLASH = '/';
+const DOUBLE_SLASH = /\/\//;
+const BRACE_START = '{';
+const BANG = '!';
+const ONE_DOT = '.';
+const TWO_DOTS = '..';
+const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
+const REPLACER_RE = /^\.[\/\\]/;
+const EMPTY_FN = () => {};
 
 const toUnix = (string) => {
-  let str = string.replace(backslash, slash);
-  while (str.match(doubleslash)) {
-    str = str.replace(doubleslash, slash);
+  let str = string.replace(BACK_SLASH, SLASH);
+  while (str.match(DOUBLE_SLASH)) {
+    str = str.replace(DOUBLE_SLASH, SLASH);
   }
   return str;
 };
@@ -91,7 +95,7 @@ class DirEntry {
     this.items = new Set();
   }
   add(item) {
-    if (item !== '.' && item !== '..') this.items.add(item);
+    if (item !== ONE_DOT && item !== TWO_DOTS) this.items.add(item);
   }
   remove(item) {
     this.items.delete(item);
@@ -210,7 +214,7 @@ constructor(_opts) {
   this._emitReady = () => {
     readyCalls++;
     if (readyCalls >= this._readyCount) {
-      this._emitReady = emptyFn;
+      this._emitReady = EMPTY_FN;
       this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
       process.nextTick(this.emit.bind(this, 'ready'));
@@ -259,8 +263,8 @@ add(paths_, _origAdd, _internal) {
     let absPath;
     if (sysPath.isAbsolute(path)) {
       absPath = path;
-    } else if (path[0] === '!') {
-      absPath = '!' + sysPath.join(cwd, path.substring(1));
+    } else if (path[0] === BANG) {
+      absPath = BANG + sysPath.join(cwd, path.substring(1));
     } else {
       absPath = sysPath.join(cwd, path);
     }
@@ -275,7 +279,7 @@ add(paths_, _origAdd, _internal) {
 
   // set aside negated glob strings
   paths = paths.filter((path) => {
-    if (path[0] === '!') {
+    if (path[0] === BANG) {
       this._ignoredPaths.add(path.substring(1));
       return false;
     } else {
@@ -375,7 +379,7 @@ getWatched() {
   const watchList = {};
   this._watched.forEach((entry, dir) => {
     const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
-    watchList[key || '.'] = entry.getChildren().sort();
+    watchList[key || ONE_DOT] = entry.getChildren().sort();
   });
   return watchList;
 }
@@ -603,7 +607,7 @@ _getGlobIgnored() {
  * @returns {Boolean}
  */
 _isIgnored(path, stats) {
-  if (this.options.atomic && dotRe.test(path)) return true;
+  if (this.options.atomic && DOT_RE.test(path)) return true;
   if (!this._userIgnored) {
     const cwd = this.options.cwd;
     const ign = this.options.ignored;
@@ -634,7 +638,7 @@ _isntIgnored(path, stat) {
  * @returns {WatchHelpers} object containing helpers for this path
  */
 _getWatchHelpers(path, depth) {
-  path = path.replace(replacerRe, '');
+  path = path.replace(REPLACER_RE, '');
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const fullWatchPath = sysPath.resolve(watchPath);
   const hasGlob = watchPath !== path;
@@ -679,7 +683,7 @@ _getWatchHelpers(path, depth) {
   const getDirParts = (path) => {
     if (!hasGlob) return [];
     const parts = [];
-    const expandedPath = path.includes(braceStart)
+    const expandedPath = path.includes(BRACE_START)
       ? braces.expand(path)
       : [path];
     expandedPath.forEach((path) => {
