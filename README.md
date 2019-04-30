@@ -22,13 +22,13 @@ Node.js `fs.watchFile`:
 Chokidar resolves these problems.
 
 Initially made for **[Brunch](http://brunch.io)** (an ultra-swift web app build tool), it is now used in
+[Microsoft's Visual Studio Code](https://github.com/microsoft/vscode),
 [gulp](https://github.com/gulpjs/gulp/),
 [karma](http://karma-runner.github.io),
 [PM2](https://github.com/Unitech/PM2),
 [browserify](http://browserify.org/),
 [webpack](http://webpack.github.io/),
 [BrowserSync](http://www.browsersync.io/),
-[Microsoft's Visual Studio Code](https://github.com/microsoft/vscode),
 and [many others](https://www.npmjs.org/browse/depended/chokidar/).
 It has proven itself in production environments.
 
@@ -268,6 +268,15 @@ execute a command on each change, or get a stdio stream of change events.
 * `gyp ERR! stack Error: not found: make`
   * On Mac, install the XCode command-line tools
 
+
+## Changelog
+
+For more detailed changelog, see `.github/old_changelog.md`
+
+- v3 (Apr 30, 2019): Massive CPU & RAM consumption improvements. 17x package & deps size reduction. Node 8+-only
+- v2 (Dec 29, 2017): Globs are now posix-style-only; without windows support. Tons of bugfixes.
+- v1 (Apr 7, 2015): Glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
+- v0.1 (Apr 20, 2012): Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
 
 ## License
 
