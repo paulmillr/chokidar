@@ -78,6 +78,8 @@ const normalizeIgnored = (cwd = '') => (path) => {
   return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
 
+const undef = (opts, key) => opts[key] === undefined;
+
 /**
  * Directory entry.
  * @property {Path} path
@@ -94,9 +96,11 @@ class DirEntry {
     /** @type {Set<Path>} */
     this.items = new Set();
   }
+
   add(item) {
     if (item !== ONE_DOT && item !== TWO_DOTS) this.items.add(item);
   }
+
   remove(item) {
     this.items.delete(item);
 
@@ -107,6 +111,7 @@ class DirEntry {
       });
     }
   }
+
   has(item) {
     return this.items.has(item);
   }
@@ -116,6 +121,84 @@ class DirEntry {
    */
   getChildren() {
     return Array.from(this.items.values());
+  }
+}
+
+class WatchHelper {
+
+  constructor(path, watchPath, follow, fsw) {
+    this.fsw = fsw;
+    this.path = path = path.replace(REPLACER_RE, '');
+    this.watchPath = watchPath;
+    this.fullWatchPath = sysPath.resolve(watchPath);
+    this.hasGlob = watchPath !== path;
+    this.globSymlink = this.hasGlob && follow ? null : false;
+    this.globFilter = this.hasGlob ? anymatch(path) : false;
+    this.dirParts = this.getDirParts(path);
+    this.dirParts.forEach((parts) => {
+      if (parts.length > 1) parts.pop();
+    });
+    this.followSymlinks = follow;
+    this.statMethod = follow ? 'stat' : 'lstat';
+  }
+
+  checkGlobSymlink(entry) {
+    // only need to resolve once
+    // first entry should always have entry.parentDir === ''
+    if (this.globSymlink == null) {
+      this.globSymlink = entry.fullParentDir === this.fullWatchPath ? false : {
+        realPath: entry.fullParentDir,
+        linkPath: this.fullWatchPath
+      };
+    }
+
+    if (this.globSymlink) {
+      return entry.fullPath.replace(this.globSymlink.realPath, this.globSymlink.linkPath);
+    }
+
+    return entry.fullPath;
+  }
+  
+  entryPath(entry) {
+    return sysPath.join(this.watchPath,
+      sysPath.relative(this.watchPath, this.checkGlobSymlink(entry))
+    );
+  }
+  
+  filterPath(entry) {
+    const {stats} = entry;
+    if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
+    const resolvedPath = this.entryPath(entry);
+    const matchesGlob = this.hasGlob ? this.globFilter(resolvedPath) : true;
+    return matchesGlob &&
+      this.fsw._isntIgnored(resolvedPath, stats) &&
+      this.fsw._hasReadPermissions(stats);
+  }
+
+  getDirParts(path) {
+    if (!this.hasGlob) return [];
+    const parts = [];
+    const expandedPath = path.includes(BRACE_START)
+      ? braces.expand(path)
+      : [path];
+    expandedPath.forEach((path) => {
+      parts.push(sysPath.relative(this.watchPath, path).split(/[\/\\]/));
+    });
+    return parts;
+  }
+
+  filterDir(entry) {
+    if (this.hasGlob) {
+      const entryParts = this.getDirParts(this.checkGlobSymlink(entry));
+      let globstar = false;
+      this.unmatchedGlob = !this.dirParts.some((parts) => {
+        return parts.every((part, i) => {
+          if (part === '**') globstar = true;
+          return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i]);
+        });
+      });
+    }
+    return !this.unmatchedGlob && this.fsw._isntIgnored(this.entryPath(entry), entry.stats);
   }
 }
 
@@ -151,19 +234,18 @@ constructor(_opts) {
   this._streams = new Set();
   this.closed = false;
 
-  const undef = (key) => opts[key] === undefined;
 
   // Set up default options.
-  if (undef('persistent')) opts.persistent = true;
-  if (undef('ignoreInitial')) opts.ignoreInitial = false;
-  if (undef('ignorePermissionErrors')) opts.ignorePermissionErrors = false;
-  if (undef('interval')) opts.interval = 100;
-  if (undef('binaryInterval')) opts.binaryInterval = 300;
-  if (undef('disableGlobbing')) opts.disableGlobbing = false;
+  if (undef(opts, 'persistent')) opts.persistent = true;
+  if (undef(opts, 'ignoreInitial')) opts.ignoreInitial = false;
+  if (undef(opts, 'ignorePermissionErrors')) opts.ignorePermissionErrors = false;
+  if (undef(opts, 'interval')) opts.interval = 100;
+  if (undef(opts, 'binaryInterval')) opts.binaryInterval = 300;
+  if (undef(opts, 'disableGlobbing')) opts.disableGlobbing = false;
   opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
   // Enable fsevents on OS X when polling isn't explicitly enabled.
-  if (undef('useFsEvents')) opts.useFsEvents = !opts.usePolling;
+  if (undef(opts, 'useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
   const canUseFsEvents = FsEventsHandler.canUse();
@@ -171,7 +253,7 @@ constructor(_opts) {
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
-  if (undef('usePolling') && !opts.useFsEvents) {
+  if (undef(opts, 'usePolling') && !opts.useFsEvents) {
     opts.usePolling = process.platform === 'darwin';
   }
 
@@ -195,12 +277,12 @@ constructor(_opts) {
   }
 
   // Editor atomic write normalization enabled by default with fs.watch
-  if (undef('atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
+  if (undef(opts, 'atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
   if (opts.atomic) this._pendingUnlinks = new Map();
 
-  if (undef('followSymlinks')) opts.followSymlinks = true;
+  if (undef(opts, 'followSymlinks')) opts.followSymlinks = true;
 
-  if (undef('awaitWriteFinish')) opts.awaitWriteFinish = false;
+  if (undef(opts, 'awaitWriteFinish')) opts.awaitWriteFinish = false;
   if (opts.awaitWriteFinish === true) opts.awaitWriteFinish = {};
   const awf = opts.awaitWriteFinish;
   if (awf) {
@@ -217,7 +299,7 @@ constructor(_opts) {
       this._emitReady = EMPTY_FN;
       this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
-      process.nextTick(this.emit.bind(this, 'ready'));
+      process.nextTick(() => this.emit('ready'));
     }
   };
   this._emitRaw = (...args) => this.emit('raw', ...args);
@@ -326,11 +408,11 @@ add(paths_, _origAdd, _internal) {
 unwatch(paths) {
   if (this.closed) return this;
   paths = flatten(arrify(paths));
+  const cwd = this.options.cwd;
 
   paths.forEach((path) => {
     // convert to absolute path unless relative path already matches
     if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
-      const cwd = this.options.cwd;
       if (cwd) path = sysPath.join(cwd, path);
       path = sysPath.resolve(path);
     }
@@ -384,6 +466,11 @@ getWatched() {
   return watchList;
 }
 
+emitWithAll(event, args) {
+  this.emit(...args);
+  if (event !== 'error') this.emit(...['all', ...args]);
+}
+
 // Common helpers
 // --------------
 
@@ -430,17 +517,12 @@ _emit(event, path, val1, val2, val3) {
     }
   }
 
-  const emitEvent = () => {
-    this.emit.apply(this, args);
-    if (event !== 'error') this.emit.apply(this, ['all'].concat(args));
-  };
-
   if (awf && (event === 'add' || event === 'change') && this._readyEmitted) {
     const awfEmit = (err, stats) => {
       if (err) {
         event = args[0] = 'error';
         args[1] = err;
-        emitEvent();
+        this.emitWithAll(event, args);
       } else if (stats) {
         // if stats doesn't exist the file must have been deleted
         if (args.length > 2) {
@@ -448,7 +530,7 @@ _emit(event, path, val1, val2, val3) {
         } else {
           args.push(stats);
         }
-        emitEvent();
+        this.emitWithAll(event, args);
       }
     };
 
@@ -470,10 +552,10 @@ _emit(event, path, val1, val2, val3) {
       if (error || !stats) return;
 
       args.push(stats);
-      emitEvent();
+      this.emitWithAll(event, args);
     });
   } else {
-    emitEvent();
+    this.emitWithAll(event, args);
   }
 
   return this;
@@ -573,8 +655,9 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
         awfEmit(null, curStat);
       } else {
         timeoutHandler = setTimeout(
-          awaitWriteFinish.bind(this, curStat),
-          this.options.awaitWriteFinish.pollInterval
+          awaitWriteFinish,
+          this.options.awaitWriteFinish.pollInterval,
+          curStat
         );
       }
     });
@@ -590,7 +673,7 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
       }
     });
     timeoutHandler = setTimeout(
-      awaitWriteFinish.bind(this),
+      awaitWriteFinish,
       this.options.awaitWriteFinish.pollInterval
     );
   }
@@ -638,91 +721,10 @@ _isntIgnored(path, stat) {
  * @returns {WatchHelpers} object containing helpers for this path
  */
 _getWatchHelpers(path, depth) {
-  path = path.replace(REPLACER_RE, '');
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
-  const fullWatchPath = sysPath.resolve(watchPath);
-  const hasGlob = watchPath !== path;
-  const globFilter = hasGlob ? anymatch(path) : false;
   const follow = this.options.followSymlinks;
-  /** @type {any} */
-  let globSymlink = hasGlob && follow ? null : false;
-
-  const checkGlobSymlink = (entry) => {
-    // only need to resolve once
-    // first entry should always have entry.parentDir === ''
-    if (globSymlink == null) {
-      globSymlink = entry.fullParentDir === fullWatchPath ? false : {
-        realPath: entry.fullParentDir,
-        linkPath: fullWatchPath
-      };
-    }
-
-    if (globSymlink) {
-      return entry.fullPath.replace(globSymlink.realPath, globSymlink.linkPath);
-    }
-
-    return entry.fullPath;
-  };
-
-  const entryPath = (entry) => {
-    return sysPath.join(watchPath,
-      sysPath.relative(watchPath, checkGlobSymlink(entry))
-    );
-  };
-
-  const filterPath = (entry) => {
-    const {stats} = entry;
-    if (stats && stats.isSymbolicLink()) return filterDir(entry);
-    const resolvedPath = entryPath(entry);
-    const matchesGlob = hasGlob ? globFilter(resolvedPath) : true;
-    return matchesGlob &&
-      this._isntIgnored(resolvedPath, stats) &&
-      this._hasReadPermissions(stats);
-  };
-
-  const getDirParts = (path) => {
-    if (!hasGlob) return [];
-    const parts = [];
-    const expandedPath = path.includes(BRACE_START)
-      ? braces.expand(path)
-      : [path];
-    expandedPath.forEach((path) => {
-      parts.push(sysPath.relative(watchPath, path).split(/[\/\\]/));
-    });
-    return parts;
-  };
-
-  const dirParts = getDirParts(path);
-  dirParts.forEach((parts) => {
-    if (parts.length > 1) parts.pop();
-  });
-  let unmatchedGlob;
-
-  const filterDir = (entry) => {
-    if (hasGlob) {
-      const entryParts = getDirParts(checkGlobSymlink(entry));
-      let globstar = false;
-      unmatchedGlob = !dirParts.some((parts) => {
-        return parts.every((part, i) => {
-          if (part === '**') globstar = true;
-          return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i]);
-        });
-      });
-    }
-    return !unmatchedGlob && this._isntIgnored(entryPath(entry), entry.stats);
-  };
-
-  return {
-    followSymlinks: follow,
-    statMethod: follow ? 'stat' : 'lstat',
-    path: path,
-    watchPath: watchPath,
-    entryPath: entryPath,
-    hasGlob: hasGlob,
-    globFilter: globFilter,
-    filterPath: filterPath,
-    filterDir: filterDir
-  };
+  
+  return new WatchHelper(path, watchPath, follow, this);
 }
 
 // Directory helpers
