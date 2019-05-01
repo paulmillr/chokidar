@@ -53,12 +53,16 @@ const flatten = (list, result = []) => {
 const BACK_SLASH = /\\/g;
 const SLASH = '/';
 const DOUBLE_SLASH = /\/\//;
+const SLASH_OR_BACK_SLASH = /[\/\\]/;
 const BRACE_START = '{';
 const BANG = '!';
 const ONE_DOT = '.';
 const TWO_DOTS = '..';
+const GLOBSTAR = '**';
+const SLASH_GLOBSTAR = '/**';
 const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const REPLACER_RE = /^\.[\/\\]/;
+const STRING_TYPE = 'string';
 const EMPTY_FN = () => {};
 
 const toUnix = (string) => {
@@ -74,7 +78,7 @@ const toUnix = (string) => {
 const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
 
 const normalizeIgnored = (cwd = '') => (path) => {
-  if (typeof path !== 'string') return path;
+  if (typeof path !== STRING_TYPE) return path;
   return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
 
@@ -125,7 +129,6 @@ class DirEntry {
 }
 
 class WatchHelper {
-
   constructor(path, watchPath, follow, fsw) {
     this.fsw = fsw;
     this.path = path = path.replace(REPLACER_RE, '');
@@ -146,10 +149,8 @@ class WatchHelper {
     // only need to resolve once
     // first entry should always have entry.parentDir === ''
     if (this.globSymlink == null) {
-      this.globSymlink = entry.fullParentDir === this.fullWatchPath ? false : {
-        realPath: entry.fullParentDir,
-        linkPath: this.fullWatchPath
-      };
+      this.globSymlink = entry.fullParentDir === this.fullWatchPath ?
+        false : {realPath: entry.fullParentDir, linkPath: this.fullWatchPath};
     }
 
     if (this.globSymlink) {
@@ -158,13 +159,13 @@ class WatchHelper {
 
     return entry.fullPath;
   }
-  
+
   entryPath(entry) {
     return sysPath.join(this.watchPath,
       sysPath.relative(this.watchPath, this.checkGlobSymlink(entry))
     );
   }
-  
+
   filterPath(entry) {
     const {stats} = entry;
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
@@ -182,7 +183,7 @@ class WatchHelper {
       ? braces.expand(path)
       : [path];
     expandedPath.forEach((path) => {
-      parts.push(sysPath.relative(this.watchPath, path).split(/[\/\\]/));
+      parts.push(sysPath.relative(this.watchPath, path).split(SLASH_OR_BACK_SLASH));
     });
     return parts;
   }
@@ -193,7 +194,7 @@ class WatchHelper {
       let globstar = false;
       this.unmatchedGlob = !this.dirParts.some((parts) => {
         return parts.every((part, i) => {
-          if (part === '**') globstar = true;
+          if (part === GLOBSTAR) globstar = true;
           return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i]);
         });
       });
@@ -328,8 +329,7 @@ constructor(_opts) {
  * @returns {FSWatcher} for chaining
  */
 add(paths_, _origAdd, _internal) {
-  const disableGlobbing = this.options.disableGlobbing;
-  const cwd = this.options.cwd;
+  const {cwd, disableGlobbing} = this.options;
   this.closed = false;
 
   /**
@@ -337,27 +337,29 @@ add(paths_, _origAdd, _internal) {
    */
   let paths = flatten(arrify(paths_));
 
-  if (!paths.every(p => typeof p === 'string')) {
+  if (!paths.every(p => typeof p === STRING_TYPE)) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
 
-  if (cwd) paths = paths.map((path) => {
-    let absPath;
-    if (sysPath.isAbsolute(path)) {
-      absPath = path;
-    } else if (path[0] === BANG) {
-      absPath = BANG + sysPath.join(cwd, path.substring(1));
-    } else {
-      absPath = sysPath.join(cwd, path);
-    }
+  if (cwd) {
+    paths = paths.map((path) => {
+      let absPath;
+      if (sysPath.isAbsolute(path)) {
+        absPath = path;
+      } else if (path[0] === BANG) {
+        absPath = BANG + sysPath.join(cwd, path.substring(1));
+      } else {
+        absPath = sysPath.join(cwd, path);
+      }
 
-    // Check `path` instead of `absPath` because the cwd portion can't be a glob
-    if (disableGlobbing || !isGlob(path)) {
-      return absPath;
-    } else {
-      return normalizePath(absPath);
-    }
-  });
+      // Check `path` instead of `absPath` because the cwd portion can't be a glob
+      if (disableGlobbing || !isGlob(path)) {
+        return absPath;
+      } else {
+        return normalizePath(absPath);
+      }
+    });
+  }
 
   // set aside negated glob strings
   paths = paths.filter((path) => {
@@ -367,7 +369,7 @@ add(paths_, _origAdd, _internal) {
     } else {
       // if a path is being added that was previously ignored, stop ignoring it
       this._ignoredPaths.delete(path);
-      this._ignoredPaths.delete(path + '/**');
+      this._ignoredPaths.delete(path + SLASH_GLOBSTAR);
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
@@ -421,7 +423,7 @@ unwatch(paths) {
 
     this._ignoredPaths.add(path);
     if (this._watched.has(path)) {
-      this._ignoredPaths.add(path + '/**');
+      this._ignoredPaths.add(path + SLASH_GLOBSTAR);
     }
 
     // reset the cached userIgnored anymatch fn
@@ -468,7 +470,7 @@ getWatched() {
 
 emitWithAll(event, args) {
   this.emit(...args);
-  if (event !== 'error') this.emit(...['all', ...args]);
+  if (event !== 'error') this.emit(...['all'].concat(args));
 }
 
 // Common helpers
@@ -695,10 +697,10 @@ _isIgnored(path, stats) {
     const cwd = this.options.cwd;
     const ign = this.options.ignored;
 
-    const ignored = ign &&  ign.map(normalizeIgnored(cwd));
+    const ignored = ign && ign.map(normalizeIgnored(cwd));
     const paths = arrify(ignored)
-      .filter((path) => typeof path === 'string' && !isGlob(path))
-      .map((path) => path + '/**');
+      .filter((path) => typeof path === STRING_TYPE && !isGlob(path))
+      .map((path) => path + SLASH_GLOBSTAR);
     this._userIgnored = anymatch(
       this._getGlobIgnored()
         .map(normalizeIgnored(cwd))
@@ -718,12 +720,12 @@ _isntIgnored(path, stat) {
  * Provides a set of common helpers and properties relating to symlink and glob handling.
  * @param {Path} path file, directory, or glob pattern being watched
  * @param {Number=} depth at any depth > 0, this isn't a glob
- * @returns {WatchHelpers} object containing helpers for this path
+ * @returns {WatchHelper} object containing helpers for this path
  */
 _getWatchHelpers(path, depth) {
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const follow = this.options.followSymlinks;
-  
+
   return new WatchHelper(path, watchPath, follow, this);
 }
 
