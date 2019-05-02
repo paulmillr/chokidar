@@ -271,7 +271,7 @@ execute a command on each change, or get a stdio stream of change events.
 
 ## Changelog
 
-For more detailed changelog, see `.github/full_changelog.md`
+For more detailed changelog, see [`.github/full_changelog.md`](.github/full_changelog.md).
 
 - v3 (Apr 30, 2019): Massive CPU & RAM consumption improvements. 17x package & deps size reduction. Node 8+-only
 - v2 (Dec 29, 2017): Globs are now posix-style-only; without windows support. Tons of bugfixes.
