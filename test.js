@@ -1929,11 +1929,13 @@ const runTests = function(baseopts) {
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
-      const scriptContent = '\
-      const chokidar = require("' + __dirname.replace(/\\/g, '\\\\') + '");\n\
-      const watcher = chokidar.watch("' + scriptFile.replace(/\\/g, '\\\\') + '");\n\
-      watcher.close();\n\
-      process.stdout.write("closed");\n';
+      const scriptContent = `
+        const chokidar = require("${__dirname.replace(/\\/g, '\\\\')}");
+        const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
+        watcher.on("ready", () => {
+          watcher.close();
+          process.stdout.write("closed");
+        });`;
       await write(scriptFile, scriptContent);
       const obj = await exec('node ' + scriptFile);
       const stdout = obj.stdout;
