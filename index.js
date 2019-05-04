@@ -650,36 +650,6 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
   const now = new Date();
 
-  // const awaitWriteFinish = async (prevStat) => {
-  //   try {
-  //     const curStat = await stat(fullPath);
-
-  //     if (!this._pendingWrites.has(path)) {
-  //       return;
-  //     }
-
-  //     const now = Date.now();
-
-  //     if (prevStat && curStat.size !== prevStat.size) {
-  //       this._pendingWrites.get(path).lastChange = now;
-  //     }
-  //     const pw = this._pendingWrites.get(path);
-  //     const df = now - pw.lastChange;
-
-  //     if (df >= threshold) {
-  //       this._pendingWrites.delete(path);
-  //       awfEmit(null, curStat);
-  //     } else {
-  //       timeoutHandler = setTimeout(
-  //         awaitWriteFinish,
-  //         this.options.awaitWriteFinish.pollInterval,
-  //         curStat
-  //       );
-  //     }
-  //   } catch (err) {
-  //     if (err.code !== 'ENOENT') awfEmit(err);
-  //   }
-  // };
   const awaitWriteFinish = (prevStat) => {
     fs.stat(fullPath, (err, curStat) => {
       if (err || !this._pendingWrites.has(path)) {
