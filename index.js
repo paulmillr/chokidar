@@ -254,8 +254,8 @@ constructor(_opts) {
   if (undef(opts, 'useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
   // If we can't use fsevents, ensure the options reflect it's disabled.
-  //const canUseFsEvents = FsEventsHandler.canUse();
-  //if (!canUseFsEvents) opts.useFsEvents = false;
+  const canUseFsEvents = FsEventsHandler.canUse();
+  if (!canUseFsEvents) opts.useFsEvents = false;
 
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
