@@ -325,9 +325,7 @@ constructor(_opts) {
 
 // Public methods
 // --------------
-emit(...args) {
-  super.emit(...args);
-}
+
 _normalizePaths(paths_) {
   const paths = flatten(arrify(paths_));
 
