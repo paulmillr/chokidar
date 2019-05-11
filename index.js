@@ -3,15 +3,18 @@ const EventEmitter = require('events').EventEmitter;
 const fs = require('fs');
 const sysPath = require('path');
 const readdirp = require('readdirp');
-const asyncEach = require('async-each');
 const anymatch = require('anymatch');
 const globParent = require('glob-parent');
 const isGlob = require('is-glob');
 const braces = require('braces');
 const normalizePath = require('normalize-path');
+const { promisify } = require('util');
 
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
+
+const stat = promisify(fs.stat);
+const readdir = promisify(fs.readdir);
 
 /**
  * @typedef {String} Path
@@ -105,14 +108,16 @@ class DirEntry {
     if (item !== ONE_DOT && item !== TWO_DOTS) this.items.add(item);
   }
 
-  remove(item) {
+  async remove(item) {
     this.items.delete(item);
 
     if (!this.items.size) {
       const dir = this.path;
-      fs.readdir(dir, err => {
-        if (err) this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
-      });
+      try {
+        await readdir(dir);
+      } catch (err) {
+        this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
+      }
     }
   }
 
@@ -321,6 +326,16 @@ constructor(_opts) {
 // Public methods
 // --------------
 
+_normalizePaths(paths_) {
+  const paths = flatten(arrify(paths_));
+
+  if (!paths.every(p => typeof p === STRING_TYPE)) {
+    throw new TypeError('Non-string provided as watch path: ' + paths);
+  }
+
+  return paths;
+}
+
 /**
  * Adds paths to be watched on an existing FSWatcher instance
  * @param {Path|Array<Path>} paths_
@@ -328,18 +343,14 @@ constructor(_opts) {
  * @param {Boolean=} _internal private; indicates a non-user add
  * @returns {FSWatcher} for chaining
  */
-add(paths_, _origAdd, _internal) {
+async add(paths_, _origAdd, _internal) {
   const {cwd, disableGlobbing} = this.options;
   this.closed = false;
 
   /**
    * @type {Array<String>}
    */
-  let paths = flatten(arrify(paths_));
-
-  if (!paths.every(p => typeof p === STRING_TYPE)) {
-    throw new TypeError('Non-string provided as watch path: ' + paths);
-  }
+  let paths = this._normalizePaths(paths_);
 
   if (cwd) {
     paths = paths.map((path) => {
@@ -386,16 +397,16 @@ add(paths_, _origAdd, _internal) {
   } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
-    asyncEach(paths, (path, next) => {
-      this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd, (err, res) => {
+    const results = await Promise.all(
+      paths.map(async path => {
+        const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd);
         if (res) this._emitReady();
-        next(err, res);
-      });
-    }, (error, results) => {
-      results.forEach((item) => {
-        if (!item || this.closed) return;
-        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
-      });
+        return res;
+      })
+    );
+    results.forEach((item) => {
+      if (!item || this.closed) return;
+      this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
     });
   }
 
@@ -486,7 +497,7 @@ emitWithAll(event, args) {
  * @param {*=} val3
  * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
-_emit(event, path, val1, val2, val3) {
+async _emit(event, path, val1, val2, val3) {
   const opts = this.options;
   if (opts.cwd) path = sysPath.relative(opts.cwd, path);
   /** @type Array<any> */
@@ -507,8 +518,8 @@ _emit(event, path, val1, val2, val3) {
       this._pendingUnlinks.set(path, args);
       setTimeout(() => {
         this._pendingUnlinks.forEach((entry, path) => {
-          this.emit.apply(this, entry);
-          this.emit.apply(this, ['all'].concat(entry));
+          this.emit(...entry);
+          this.emit(...['all', ...entry]);
           this._pendingUnlinks.delete(path);
         });
       }, typeof opts.atomic === "number" ? opts.atomic : 100);
@@ -549,13 +560,13 @@ _emit(event, path, val1, val2, val3) {
     (event === 'add' || event === 'addDir' || event === 'change')
   ) {
     const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
-    fs.stat(fullPath, (error, stats) => {
+    try {
+      const stats = await stat(fullPath);
       // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
-      if (error || !stats) return;
-
+      if (!stats) return;
       args.push(stats);
       this.emitWithAll(event, args);
-    });
+    } catch (err) {}
   } else {
     this.emitWithAll(event, args);
   }
@@ -876,5 +887,10 @@ exports.FSWatcher = FSWatcher;
  * @param {Object=} options chokidar opts
  * @returns an instance of FSWatcher for chaining.
  */
-const watch = (paths, options) => new FSWatcher(options).add(paths);
+const watch = (paths, options) => {
+  const watcher = new FSWatcher(options);
+  watcher.add(watcher._normalizePaths(paths));
+  return watcher;
+};
+
 exports.watch = watch;
