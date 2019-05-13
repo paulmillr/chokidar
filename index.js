@@ -287,6 +287,9 @@ constructor(_opts) {
   if (opts.atomic) this._pendingUnlinks = new Map();
 
   if (undef(opts, 'followSymlinks')) opts.followSymlinks = true;
+  
+  if (undef(opts, 'reportErrorOnDanglingSymlinks')) opts.reportErrorOnDanglingSymlinks = false;
+  if (!opts.followSymlinks) opts.reportErrorOnDanglingSymlinks = false;
 
   if (undef(opts, 'awaitWriteFinish')) opts.awaitWriteFinish = false;
   if (opts.awaitWriteFinish === true) opts.awaitWriteFinish = {};
@@ -320,7 +323,7 @@ constructor(_opts) {
   }
 
   // You’re frozen when your heart’s not open.
-  Object.freeze(opts);
+  Object.freeze(opts); console.log(opts);
 }
 
 // Public methods
@@ -588,6 +591,21 @@ _handleError(error) {
   }
   return error || this.closed;
 }
+
+/**
+ * Special handler for dangling symlink errors
+ * @param {Error} error
+ * @returns {Boolean} True if Dangling conditions are met
+ */
+_handleDanglingSymlinkError(error) {
+  const code = error && error.code;
+  if (error && this.options.reportErrorOnDanglingSymlinks && code === 'ENOENT') {
+    error.message = `Dangling Symlink: ${error.message}`;
+    this.emit('error', error);
+    return true;
+  } 
+}
+
 
 /**
  * Helper utility for throttling

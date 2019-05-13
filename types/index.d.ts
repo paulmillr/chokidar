@@ -94,6 +94,15 @@ export interface WatchOptions {
   followSymlinks?: boolean;
 
   /**
+   * When `followSymlinks: true`, Chokidar silently waits for paths under dangling symlinks to be
+   * created. The user might instead want to confine themselves to watch explicitly specified paths. 
+   * 
+   * If set to `true`, the dangling symlink is reported as an error and Chokidar ignores  
+   * the absence of the underlying path. 
+   */
+  reportErrorOnDanglingSymlinks?: boolean;
+
+  /**
    * The base directory from which watch `paths` are to be derived. Paths emitted with events will
    * be relative to this.
    */
