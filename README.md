@@ -167,6 +167,10 @@ instantiating the watching as chokidar discovers these file paths (before the `r
 * `followSymlinks` (default: `true`). When `false`, only the
 symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
+* `reportErrorOnDanglingSymlinks` (default: `false`) When `followSymlinks: true`, Chokidar silently waits for paths under 
+dangling symlinks to be created. The user might instead want to confine Chokidar to wait for explicitly specified paths only. 
+When set to `true`, the dangling symlink is reported as an error instead and the absence of underlying symlinked path 
+ is ignored.
 * `cwd` (no default). The base directory from which watch `paths` are to be
 derived. Paths emitted with events will be relative to this.
 * `disableGlobbing` (default: `false`). If set to `true` then the strings passed to `.watch()` and `.add()` are treated as
