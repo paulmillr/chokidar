@@ -85,6 +85,16 @@ const normalizeIgnored = (cwd = '') => (path) => {
   return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
 
+const getAbsolutePath = (path, cwd) => {
+  if (sysPath.isAbsolute(path)) {
+    return path;
+  } else if (path[0] === BANG) {
+    return BANG + sysPath.join(cwd, path.substring(1));
+  } else {
+    return sysPath.join(cwd, path);
+  }
+};
+
 const undef = (opts, key) => opts[key] === undefined;
 
 /**
@@ -354,14 +364,7 @@ async add(paths_, _origAdd, _internal) {
 
   if (cwd) {
     paths = paths.map((path) => {
-      let absPath;
-      if (sysPath.isAbsolute(path)) {
-        absPath = path;
-      } else if (path[0] === BANG) {
-        absPath = BANG + sysPath.join(cwd, path.substring(1));
-      } else {
-        absPath = sysPath.join(cwd, path);
-      }
+      const absPath = getAbsolutePath(path, cwd);
 
       // Check `path` instead of `absPath` because the cwd portion can't be a glob
       if (disableGlobbing || !isGlob(path)) {
