@@ -501,6 +501,8 @@ emitWithAll(event, args) {
  * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
  */
 async _emit(event, path, val1, val2, val3) {
+  if (this.closed) return;
+
   const opts = this.options;
   if (opts.cwd) path = sysPath.relative(opts.cwd, path);
   /** @type Array<any> */
