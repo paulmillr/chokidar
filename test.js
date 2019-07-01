@@ -1133,6 +1133,17 @@ const runTests = function(baseopts) {
       await waitFor([[addSpy, 4]]);
       addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'add.txt'));
     });
+    it('should emit ready event even when broken symlinks are encountered', async () => {
+      const targetDir = getFixturePath('subdir/nonexistent');
+      await fs_mkdir(targetDir);
+      await fs_symlink(targetDir, getFixturePath('subdir/broken'));
+      await fs_rmdir(targetDir);
+      const readySpy = sinon.spy(function readySpy(){});
+      let watcher = chokidar_watch(getFixturePath('subdir'), options)
+          .on('ready', readySpy);
+      await waitForWatcher(watcher);
+      readySpy.should.have.been.calledOnce;
+    });
   });
   describe('watch arrays of paths/globs', () => {
     it('should watch all paths in an array', async () => {
