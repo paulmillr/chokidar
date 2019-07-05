@@ -91,7 +91,7 @@ watcher
   .on('unlinkDir', path => log(`Directory ${path} has been removed`))
   .on('error', error => log(`Watcher error: ${error}`))
   .on('ready', () => log('Initial scan complete. Ready for changes'))
-  .on('raw', (event, path, details) => {
+  .on('raw', (event, path, details) => { // internal
     log('Raw event info:', event, path, details);
   });
 
@@ -239,7 +239,7 @@ Takes an array of strings or just one string.
 Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`,
 `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event
-name and path for every event other than `ready`, `raw`, and `error`.
+name and path for every event other than `ready`, `raw`, and `error`.  `raw` is internal, use it carefully.
 * `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
 Takes an array of strings or just one string.
 * `.close()`: Removes all listeners from watched files.
