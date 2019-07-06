@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
   "contributors": [
@@ -13,19 +13,18 @@
   },
   "dependencies": {
     "anymatch": "^3.0.1",
-    "async-each": "^1.0.3",
     "braces": "^3.0.2",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.1.0",
     "is-glob": "^4.0.1",
     "normalize-path": "^3.0.0",
-    "readdirp": "^3.0.2"
+    "readdirp": "^3.0.3"
   },
   "optionalDependencies": {
     "fsevents": "^2.0.6"
   },
   "devDependencies": {
-    "@types/node": "^11.13.4",
+    "@types/node": "^12",
     "chai": "^4.2.0",
     "coveralls": "^3.0.1",
     "dtslint": "0.4.1",
