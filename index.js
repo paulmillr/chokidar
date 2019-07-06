@@ -772,7 +772,8 @@ _getWatchedDir(directory) {
 _hasReadPermissions(stats) {
   if (this.options.ignorePermissionErrors) return true;
 
-  const st = parseInt(stats && stats.mode) & 0o777;
+  // stats.mode may be bigint
+  const st = stats && (Number.parseInt(stats.mode) & 0o777);
   const it = parseInt(st.toString(8)[0], 10);
   return Boolean(4 & it);
 }
