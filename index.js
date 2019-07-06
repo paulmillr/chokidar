@@ -150,6 +150,7 @@ class WatchHelper {
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath.resolve(watchPath);
     this.hasGlob = watchPath !== path;
+    /** @type {object|boolean} */
     this.globSymlink = this.hasGlob && follow ? null : false;
     this.globFilter = this.hasGlob ? anymatch(path) : false;
     this.dirParts = this.getDirParts(path);
