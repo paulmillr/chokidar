@@ -1,3 +1,10 @@
+# Chokidar 3.0.2 (Jul 7, 2019)
+* Brings `bigint` support to `stat` outputs on windows.
+* Fixes `ready` event emission for symlink directories.
+
+# Chokidar 3.0.1 (Jun 3, 2019)
+* Fixes an issue when a node process was crashing after `chokidar.close()` call.
+
 # Chokidar 3.0.0 (Apr 30, 2019)
 * Massive CPU & RAM consumption improvements. 17x package & deps size reduction
 * Node 8+-only

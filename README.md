@@ -4,6 +4,8 @@
 
 [![NPM](https://nodei.co/npm/chokidar.png)](https://www.npmjs.com/package/chokidar)
 
+Version 3 is out! Check out our blog post about it: [Chokidar 3: How to save 32TB of traffic every week](https://paulmillr.com/posts/chokidar-3-save-32tb-of-traffic/)
+
 ## Why?
 Node.js `fs.watch`:
 
@@ -273,7 +275,7 @@ execute a command on each change, or get a stdio stream of change events.
 
 For more detailed changelog, see [`.github/full_changelog.md`](.github/full_changelog.md).
 
-- v3 (Apr 30, 2019): Massive CPU & RAM consumption improvements. 17x package & deps size reduction. Node 8+-only
+- v3 (Apr 30, 2019): massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8 and higher.
 - v2 (Dec 29, 2017): Globs are now posix-style-only; without windows support. Tons of bugfixes.
 - v1 (Apr 7, 2015): Glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
 - v0.1 (Apr 20, 2012): Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
