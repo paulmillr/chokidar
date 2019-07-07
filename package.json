@@ -12,7 +12,7 @@
     "node": ">= 8"
   },
   "dependencies": {
-    "anymatch": "^3.0.1",
+    "anymatch": "^3.0.3",
     "braces": "^3.0.2",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.1.0",

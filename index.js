@@ -3,7 +3,7 @@ const EventEmitter = require('events').EventEmitter;
 const fs = require('fs');
 const sysPath = require('path');
 const readdirp = require('readdirp');
-const anymatch = require('anymatch');
+const anymatch = require('anymatch').default;
 const globParent = require('glob-parent');
 const isGlob = require('is-glob');
 const braces = require('braces');
@@ -186,7 +186,8 @@ class WatchHelper {
     const {stats} = entry;
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
     const resolvedPath = this.entryPath(entry);
-    const matchesGlob = this.hasGlob ? this.globFilter(resolvedPath) : true;
+    const matchesGlob = this.hasGlob && typeof this.globFilter === 'function' ?
+      this.globFilter(resolvedPath) : true;
     return matchesGlob &&
       this.fsw._isntIgnored(resolvedPath, stats) &&
       this.fsw._hasReadPermissions(stats);
@@ -354,7 +355,7 @@ _normalizePaths(paths_) {
  * @param {Boolean=} _internal private; indicates a non-user add
  * @returns {FSWatcher} for chaining
  */
-async add(paths_, _origAdd, _internal) {
+add(paths_, _origAdd, _internal) {
   const {cwd, disableGlobbing} = this.options;
   this.closed = false;
 
@@ -401,16 +402,17 @@ async add(paths_, _origAdd, _internal) {
   } else {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
-    const results = await Promise.all(
+    Promise.all(
       paths.map(async path => {
         const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd);
         if (res) this._emitReady();
         return res;
       })
-    );
-    results.forEach((item) => {
-      if (!item || this.closed) return;
-      this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+    ).then(results => {
+      if (this.closed) return;
+      results.filter(item => item).forEach(item => {
+        this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+      });
     });
   }
 
