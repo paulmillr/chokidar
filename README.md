@@ -145,7 +145,7 @@ chokidar.watch('file', {
 `chokidar.watch(paths, [options])`
 
 * `paths` (string or array of strings). Paths to files, dirs to be watched
-recursively, or glob patterns.
+recursively, or glob patterns. Note that globs must not contain windows separators (`\`), because that's how they work by the standard — you'll need to replace them with forward slashes (`/`).
 * `options` (object) Options object as defined below:
 
 #### Persistence
