@@ -58,3 +58,9 @@ chokidar
   .on("all", (event: string, path: string) => {
     console.log(event, path);
   });
+
+// watch an (readonly-) array of files
+const files: ReadonlyArray<string> = ["a", "b"];
+const watcher2 = chokidar.watch(files);
+watcher2.add(["c", "d"] as ReadonlyArray<string>);
+watcher2.unwatch(["b"] as ReadonlyArray<string>);
