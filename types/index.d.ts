@@ -17,13 +17,13 @@ export class FSWatcher extends EventEmitter implements fs.FSWatcher {
    * Add files, directories, or glob patterns for tracking. Takes an array of strings or just one
    * string.
    */
-  add(paths: string | string[]): void;
+  add(paths: string | ReadonlyArray<string>): void;
 
   /**
    * Stop watching files, directories, or glob patterns. Takes an array of strings or just one
    * string.
    */
-  unwatch(paths: string | string[]): void;
+  unwatch(paths: string | ReadonlyArray<string>): void;
 
   /**
    * Returns an object representing all the paths on the file system being watched by this
@@ -182,6 +182,6 @@ export interface AwaitWriteFinishOptions {
  * produces an instance of `FSWatcher`.
  */
 export function watch(
-  paths: string | string[],
+  paths: string | ReadonlyArray<string>,
   options?: WatchOptions
 ): FSWatcher;
