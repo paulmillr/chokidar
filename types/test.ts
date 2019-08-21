@@ -58,3 +58,18 @@ chokidar
   .on("all", (event: string, path: string) => {
     console.log(event, path);
   });
+
+// test readonly arrays
+const listOfFiles = ["a", "b"];
+const readonlyFiles: ReadonlyArray<string> = listOfFiles;
+
+const readonlyInputWatcher = chokidar.watch(readonlyFiles);
+const mutableInputWatcher = chokidar.watch(listOfFiles);
+
+const anotherListOfFiles = ["c", "d"];
+const anotherReadonlyList: ReadonlyArray<string> = anotherListOfFiles;
+
+readonlyInputWatcher.add(anotherReadonlyList);
+mutableInputWatcher.add(anotherListOfFiles);
+
+readonlyInputWatcher.unwatch(["b"] as ReadonlyArray<string>);
