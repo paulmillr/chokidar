@@ -1,3 +1,7 @@
+# Chokidar 3.0.3
+* Fix .add() returning promise & other type issues.
+* Improves typings for watched paths.
+
 # Chokidar 3.0.2 (Jul 7, 2019)
 * Brings `bigint` support to `stat` outputs on windows.
 * Fixes `ready` event emission for symlink directories.
@@ -8,6 +12,12 @@
 # Chokidar 3.0.0 (Apr 30, 2019)
 * Massive CPU & RAM consumption improvements. 17x package & deps size reduction
 * Node 8+-only
+
+# Chokidar 2.1.7 (Aug 21, 2019)
+* Fix fsevents v2 interoperability. Chokidar won't start fsevents if they're v2 in node_modules.
+
+# Chokidar 2.1.6 (May 15, 2019)
+* Fix watcher.close() preventing process from exitting when watching globs
 
 # Chokidar 2.1.4 (Mar 22, 2019)
 * Improve TypeScript type definitions for `on` method.
