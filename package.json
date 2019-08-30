@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
-  "version": "3.0.2",
+  "version": "3.1.0-pre",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
   "contributors": [
@@ -12,7 +12,7 @@
     "node": ">= 8"
   },
   "dependencies": {
-    "anymatch": "^3.0.3",
+    "anymatch": "^3.1.0",
     "braces": "^3.0.2",
     "glob-parent": "^5.0.0",
     "is-binary-path": "^2.1.0",

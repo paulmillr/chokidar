@@ -65,6 +65,7 @@ const GLOBSTAR = '**';
 const SLASH_GLOBSTAR = '/**';
 const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const REPLACER_RE = /^\.[\/\\]/;
+const ANYMATCH_OPTS = {dot: true};
 const STRING_TYPE = 'string';
 const EMPTY_FN = () => {};
 
@@ -152,7 +153,7 @@ class WatchHelper {
     this.hasGlob = watchPath !== path;
     /** @type {object|boolean} */
     this.globSymlink = this.hasGlob && follow ? null : false;
-    this.globFilter = this.hasGlob ? anymatch(path) : false;
+    this.globFilter = this.hasGlob ? anymatch(path, undefined, ANYMATCH_OPTS) : false;
     this.dirParts = this.getDirParts(path);
     this.dirParts.forEach((parts) => {
       if (parts.length > 1) parts.pop();
@@ -212,7 +213,7 @@ class WatchHelper {
       this.unmatchedGlob = !this.dirParts.some((parts) => {
         return parts.every((part, i) => {
           if (part === GLOBSTAR) globstar = true;
-          return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i]);
+          return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i], ANYMATCH_OPTS);
         });
       });
     }
@@ -725,6 +726,7 @@ _isIgnored(path, stats) {
         .map(normalizeIgnored(cwd))
         .concat(ignored)
         .concat(paths)
+      , undefined, ANYMATCH_OPTS
     );
   }
 
