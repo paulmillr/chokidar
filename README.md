@@ -268,13 +268,14 @@ execute a command on each change, or get a stdio stream of change events.
     not indicative of a problem. Even if accompanied by other related error messages,
     Chokidar should function properly.
 
-* `ERR! stack Error: Python executable "python" is v3.4.1, which is not supported by gyp.`
-  * You should be able to resolve this by installing python 2.7 and running:
-    `npm config set python python2.7`
+* `TypeError: fsevents is not a constructor`
+  * Update chokidar by doing `rm -rf node_modules && npm install`,  or 
 
-* `gyp ERR! stack Error: not found: make`
-  * On Mac, install the XCode command-line tools
-
+* Chokidar is producing `ENOSP` error on Linux, like this:
+  * `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
+  `Error: watch /home/ ENOSPC`
+  * This means Chokidar ran out of file handles and you'll need to increase their count by executing the following command in Terminal:
+  `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
 
 ## Changelog
 
