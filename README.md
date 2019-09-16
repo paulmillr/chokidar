@@ -269,7 +269,7 @@ execute a command on each change, or get a stdio stream of change events.
     Chokidar should function properly.
 
 * `TypeError: fsevents is not a constructor`
-  * Update chokidar by doing `rm -rf node_modules && npm install`, or update your dependency that uses chokidar.
+  * Update chokidar by doing `rm -rf node_modules package-lock.json yarn.lock && npm install`, or update your dependency that uses chokidar.
 
 * Chokidar is producing `ENOSP` error on Linux, like this:
   * `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
