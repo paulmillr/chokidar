@@ -62,8 +62,8 @@ Then `require` and use it in your code:
 ```javascript
 const chokidar = require('chokidar');
 
-// One-liner for current directory, ignores .dotfiles
-chokidar.watch('.', {ignored: /(^|[\/\\])\../}).on('all', (event, path) => {
+// One-liner for current directory
+chokidar.watch('.').on('all', (event, path) => {
   console.log(event, path);
 });
 ```
@@ -75,7 +75,7 @@ chokidar.watch('.', {ignored: /(^|[\/\\])\../}).on('all', (event, path) => {
 
 // Initialize watcher.
 const watcher = chokidar.watch('file, dir, glob, or array', {
-  ignored: /(^|[\/\\])\../,
+  ignored: /(^|[\/\\])\../, // ignore dotfiles
   persistent: true
 });
 
