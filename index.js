@@ -341,12 +341,11 @@ constructor(_opts) {
 
 _normalizePaths(paths_) {
   const paths = flatten(arrify(paths_));
-
   if (!paths.every(p => typeof p === STRING_TYPE)) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
-
-  return paths;
+  const norm = paths.map(path => sysPath.normalize(path))
+  return norm;
 }
 
 /**
