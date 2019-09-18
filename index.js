@@ -337,16 +337,6 @@ constructor(_opts) {
 }
 
 // Public methods
-// --------------
-
-_normalizePaths(paths_) {
-  const paths = flatten(arrify(paths_));
-  if (!paths.every(p => typeof p === STRING_TYPE)) {
-    throw new TypeError('Non-string provided as watch path: ' + paths);
-  }
-  const norm = paths.map(path => sysPath.normalize(path))
-  return norm;
-}
 
 /**
  * Adds paths to be watched on an existing FSWatcher instance
@@ -362,7 +352,11 @@ add(paths_, _origAdd, _internal) {
   /**
    * @type {Array<String>}
    */
-  let paths = this._normalizePaths(paths_);
+  let paths = flatten(arrify(paths_));
+  if (!paths.every(p => typeof p === STRING_TYPE)) {
+    throw new TypeError('Non-string provided as watch path: ' + paths);
+  }
+  paths = paths.map(path => sysPath.normalize(path));
 
   if (cwd) {
     paths = paths.map((path) => {
@@ -900,7 +894,7 @@ exports.FSWatcher = FSWatcher;
  */
 const watch = (paths, options) => {
   const watcher = new FSWatcher(options);
-  watcher.add(watcher._normalizePaths(paths));
+  watcher.add(paths);
   return watcher;
 };
 
