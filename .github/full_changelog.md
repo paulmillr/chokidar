@@ -1,5 +1,5 @@
 ### Chokidar 3.1.0 (Sep 16, 2019)
-* **Breaking:** Emit dotfiles by default. You can filter them out by using `ignored` option.
+* **Breaking:** dotfiles are no longer filtered out by default. Use `ignored` option if needed.
 * Increase performance on Linux by 30-50%, by getting rid of unnecessary `realpath` calls (#882)
 * Fix .add() returning promise & other type issues.
 * Improves typings for watched paths.
