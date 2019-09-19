@@ -1,3 +1,6 @@
+### Chokidar 3.1.1 (Sep 19, 2019)
+* Fixes "Expected pattern to be a non-empty string" (#871)
+
 ### Chokidar 3.1.0 (Sep 16, 2019)
 * **Breaking:** dotfiles are no longer filtered out by default. Use `ignored` option if needed.
 * Increase performance on Linux by 30-50%, by getting rid of unnecessary `realpath` calls (#882)
