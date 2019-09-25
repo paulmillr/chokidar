@@ -9,19 +9,19 @@
     "Elan Shanker"
   ],
   "engines": {
-    "node": ">= 8"
+    "node": ">= 8.16"
   },
   "dependencies": {
-    "anymatch": "^3.1.0",
-    "braces": "^3.0.2",
-    "glob-parent": "^5.0.0",
-    "is-binary-path": "^2.1.0",
-    "is-glob": "^4.0.1",
-    "normalize-path": "^3.0.0",
-    "readdirp": "^3.1.1"
+    "anymatch": "~3.1.0",
+    "braces": "~3.0.2",
+    "glob-parent": "~5.1.0",
+    "is-binary-path": "~2.1.0",
+    "is-glob": "~4.0.1",
+    "normalize-path": "~3.0.0",
+    "readdirp": "~3.1.2"
   },
   "optionalDependencies": {
-    "fsevents": "^2.0.6"
+    "fsevents": "~2.0.6"
   },
   "devDependencies": {
     "@types/node": "^12",
