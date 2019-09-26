@@ -3,10 +3,8 @@ global.watcher = require('./').watch('.', {
   persistent: true,
   // followSymlinks: false,
   // useFsEvents: false,
-  // usePolling: false
-}).on('all', function(event, path) {
-  console.log(event, path);
-}).on('ready', function() {
-  console.log('Ready');
+  // usePolling: false,
 })
-//.on('raw', console.log.bind(console, 'RawEvent:'))
+.on('all', (event, path) => { console.log(event, path); })
+.on('ready', () => { console.log('Ready'); })
+//.on('raw', console.log.bind(console, 'Raw event:'))
