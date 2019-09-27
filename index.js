@@ -356,7 +356,7 @@ add(paths_, _origAdd, _internal) {
   if (!paths.every(p => typeof p === STRING_TYPE)) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
-  paths = paths.map(path => sysPath.normalize(path));
+  paths = paths.map(path => normalizePathToUnix(path));
 
   if (cwd) {
     paths = paths.map((path) => {
