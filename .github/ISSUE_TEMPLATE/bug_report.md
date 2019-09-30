@@ -5,6 +5,7 @@ about: Create a report to help us improve
 ---
 
 **Describe the bug**
+
 A clear and concise description of what the bug is.
 
 **Versions (please complete the following information):**
@@ -12,8 +13,9 @@ A clear and concise description of what the bug is.
  - Node version [e.g. 12.11.0]
  - OS version: [e.g. Ubuntu 19.04 or MacOS 10.15 or Windows 10]
 
-**To Reproduce**
-Steps to reproduce the behavior.
+**To Reproduce:**
+
+Steps to reproduce the behavior. Include filename and chokidar config.
 
 Ideally prove a problem by isolating and making it reproducible with a very short sample program, which you could paste here:
 
