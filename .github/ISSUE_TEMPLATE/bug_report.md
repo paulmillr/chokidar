@@ -8,9 +8,9 @@ about: Create a report to help us improve
 A clear and concise description of what the bug is.
 
 **Versions (please complete the following information):**
- - Chokidar version [e.g. 2.0.4, or commit hash]
- - Node version [e.g. 10.4.1]
- - OS version: [e.g. Ubuntu 16.04, or Windows 10]
+ - Chokidar version [e.g. 3.2.0 or commit hash]
+ - Node version [e.g. 12.11.0]
+ - OS version: [e.g. Ubuntu 19.04 or MacOS 10.15 or Windows 10]
 
 **To Reproduce**
 Steps to reproduce the behavior.
@@ -18,8 +18,8 @@ Steps to reproduce the behavior.
 Ideally prove a problem by isolating and making it reproducible with a very short sample program, which you could paste here:
 
 ```
-var chokidar = require('chokidar');
-var fs = require('fs');
+const chokidar = require('chokidar');
+const fs = require('fs');
 // One-liner for files and directories starting with 'test'
 chokidar.watch('test*', {}).on('all', (event, path) => {
   console.log(event, path);
