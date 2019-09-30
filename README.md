@@ -281,7 +281,8 @@ execute a command on each change, or get a stdio stream of change events.
 
 For more detailed changelog, see [`full_changelog.md`](.github/full_changelog.md).
 
-- **v3.1 (Sep 16, 2019):** dotfiles are no longer filtered out by default. Use `ignored` option if needed. Improve Linux performance by 50%.
+- **v3.2 (unreleased):** Improve Linux RAM usage by 50%.
+- **v3.1 (Sep 16, 2019):** dotfiles are no longer filtered out by default. Use `ignored` option if needed. Improve initial Linux scan time by 50%.
 - **v3 (Apr 30, 2019):** massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8.16 and higher.
 - **v2 (Dec 29, 2017):** Globs are now posix-style-only; without windows support. Tons of bugfixes.
 - **v1 (Apr 7, 2015):** Glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
