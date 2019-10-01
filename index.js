@@ -36,24 +36,8 @@ const readdir = promisify(fs.readdir);
  * @property {Function} filterDir
  */
 
-/**
- * @param {String|Array<String>} value
- */
-const arrify = (value = []) => Array.isArray(value) ? value : [value];
-
-const flatten = (list, result = []) => {
-  list.forEach(item => {
-    if (Array.isArray(item)) {
-      flatten(item, result);
-    } else {
-      result.push(item);
-    }
-  });
-  return result;
-};
-
 // Optimize RAM usage.
-const BACK_SLASH = /\\/g;
+const BACK_SLASH_RE = /\\/g;
 const SLASH = '/';
 const DOUBLE_SLASH = /\/\//;
 const SLASH_OR_BACK_SLASH = /[\/\\]/;
@@ -67,10 +51,35 @@ const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const REPLACER_RE = /^\.[\/\\]/;
 const ANYMATCH_OPTS = {dot: true};
 const STRING_TYPE = 'string';
+const isWindows = sysPath.sep === '\\';
 const EMPTY_FN = () => {};
 
+const arrify = (value = []) => Array.isArray(value) ? value : [value];
+const flatten = (list, result = []) => {
+  list.forEach(item => {
+    if (Array.isArray(item)) {
+      flatten(item, result);
+    } else {
+      result.push(item);
+    }
+  });
+  return result;
+};
+
+const unifyPaths = (paths_) => {
+  /**
+   * @type {Array<String>}
+   */
+  let paths = flatten(arrify(paths_));
+  if (!paths.every(p => typeof p === STRING_TYPE)) {
+    throw new TypeError('Non-string provided as watch path: ' + paths);
+  }
+  paths = paths.map(normalizePathToUnix);
+  return paths;
+};
+
 const toUnix = (string) => {
-  let str = string.replace(BACK_SLASH, SLASH);
+  let str = string.replace(BACK_SLASH_RE, SLASH);
   while (str.match(DOUBLE_SLASH)) {
     str = str.replace(DOUBLE_SLASH, SLASH);
   }
@@ -349,16 +358,7 @@ constructor(_opts) {
 add(paths_, _origAdd, _internal) {
   const {cwd, disableGlobbing} = this.options;
   this.closed = false;
-
-  /**
-   * @type {Array<String>}
-   */
-  let paths = flatten(arrify(paths_));
-  if (!paths.every(p => typeof p === STRING_TYPE)) {
-    throw new TypeError('Non-string provided as watch path: ' + paths);
-  }
-  paths = paths.map(path => sysPath.normalize(path));
-
+  let paths = unifyPaths(paths_);
   if (cwd) {
     paths = paths.map((path) => {
       const absPath = getAbsolutePath(path, cwd);
@@ -416,12 +416,12 @@ add(paths_, _origAdd, _internal) {
 
 /**
  * Close watchers or start ignoring events from specified paths.
- * @param {Path|Array<Path>} paths - string or array of strings, file/directory paths and/or globs
+ * @param {Path|Array<Path>} paths_ - string or array of strings, file/directory paths and/or globs
  * @returns {FSWatcher} for chaining
 */
-unwatch(paths) {
+unwatch(paths_) {
   if (this.closed) return this;
-  paths = flatten(arrify(paths));
+  let paths = unifyPaths(paths_);
   const cwd = this.options.cwd;
 
   paths.forEach((path) => {
@@ -502,6 +502,7 @@ async _emit(event, path, val1, val2, val3) {
   if (this.closed) return;
 
   const opts = this.options;
+  if (isWindows) path = sysPath.normalize(path);
   if (opts.cwd) path = sysPath.relative(opts.cwd, path);
   /** @type Array<any> */
   const args = [event, path];
