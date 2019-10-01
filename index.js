@@ -52,6 +52,7 @@ const REPLACER_RE = /^\.[\/\\]/;
 const ANYMATCH_OPTS = {dot: true};
 const STRING_TYPE = 'string';
 const isWindows = process.platform === 'win32';
+const isMacos = process.platform === 'darwin';
 const EMPTY_FN = () => {};
 
 const EV_ALL = 'all';
@@ -84,8 +85,7 @@ const unifyPaths = (paths_) => {
   if (!paths.every(p => typeof p === STRING_TYPE)) {
     throw new TypeError('Non-string provided as watch path: ' + paths);
   }
-  paths = paths.map(normalizePathToUnix);
-  return paths;
+  return paths.map(normalizePathToUnix);
 };
 
 const toUnix = (string) => {
@@ -293,7 +293,7 @@ constructor(_opts) {
   // Use polling on Mac if not using fsevents.
   // Other platforms use non-polling fs_watch.
   if (undef(opts, 'usePolling') && !opts.useFsEvents) {
-    opts.usePolling = process.platform === 'darwin';
+    opts.usePolling = isMacos;
   }
 
   // Global override (useful for end-developers that need to force polling for all
@@ -878,6 +878,7 @@ _addPathCloser(path, closer) {
 }
 
 _readdirp(root, opts) {
+  if (this.closed) return;
   const options = Object.assign({type: EV_ALL, alwaysStat: true, lstat: true}, opts);
   let stream = readdirp(root, options);
   this._streams.add(stream);
