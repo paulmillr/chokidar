@@ -51,8 +51,18 @@ const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
 const REPLACER_RE = /^\.[\/\\]/;
 const ANYMATCH_OPTS = {dot: true};
 const STRING_TYPE = 'string';
-const isWindows = sysPath.sep === '\\';
+const isWindows = process.platform === 'win32';
 const EMPTY_FN = () => {};
+
+const EV_ALL = 'all';
+const EV_READY = 'ready';
+const EV_ADD = 'add';
+const EV_CHANGE = 'change';
+const EV_UNLINK = 'unlink';
+const EV_ADD_DIR = 'addDir';
+const EV_UNLINK_DIR = 'unlinkDir';
+const EV_RAW = 'raw';
+const EV_ERROR = 'error';
 
 const arrify = (value = []) => Array.isArray(value) ? value : [value];
 const flatten = (list, result = []) => {
@@ -328,10 +338,10 @@ constructor(_opts) {
       this._emitReady = EMPTY_FN;
       this._readyEmitted = true;
       // use process.nextTick to allow time for listener to be bound
-      process.nextTick(() => this.emit('ready'));
+      process.nextTick(() => this.emit(EV_READY));
     }
   };
-  this._emitRaw = (...args) => this.emit('raw', ...args);
+  this._emitRaw = (...args) => this.emit(EV_RAW, ...args);
   this._readyEmitted = false;
   this.options = opts;
 
@@ -482,7 +492,7 @@ getWatched() {
 
 emitWithAll(event, args) {
   this.emit(...args);
-  if (event !== 'error') this.emit('all', ...args);
+  if (event !== EV_ERROR) this.emit(EV_ALL, ...args);
 }
 
 // Common helpers
@@ -518,26 +528,26 @@ async _emit(event, path, val1, val2, val3) {
   }
 
   if (opts.atomic) {
-    if (event === 'unlink') {
+    if (event === EV_UNLINK) {
       this._pendingUnlinks.set(path, args);
       setTimeout(() => {
         this._pendingUnlinks.forEach((entry, path) => {
           this.emit(...entry);
-          this.emit('all', ...entry);
+          this.emit(EV_ALL, ...entry);
           this._pendingUnlinks.delete(path);
         });
       }, typeof opts.atomic === "number" ? opts.atomic : 100);
       return this;
-    } else if (event === 'add' && this._pendingUnlinks.has(path)) {
-      event = args[0] = 'change';
+    } else if (event === EV_ADD && this._pendingUnlinks.has(path)) {
+      event = args[0] = EV_CHANGE;
       this._pendingUnlinks.delete(path);
     }
   }
 
-  if (awf && (event === 'add' || event === 'change') && this._readyEmitted) {
+  if (awf && (event === EV_ADD || event === EV_CHANGE) && this._readyEmitted) {
     const awfEmit = (err, stats) => {
       if (err) {
-        event = args[0] = 'error';
+        event = args[0] = EV_ERROR;
         args[1] = err;
         this.emitWithAll(event, args);
       } else if (stats) {
@@ -555,13 +565,13 @@ async _emit(event, path, val1, val2, val3) {
     return this;
   }
 
-  if (event === 'change') {
-    const isThrottled = !this._throttle('change', path, 50);
+  if (event === EV_CHANGE) {
+    const isThrottled = !this._throttle(EV_CHANGE, path, 50);
     if (isThrottled) return this;
   }
 
   if (opts.alwaysStat && val1 === undefined &&
-    (event === 'add' || event === 'addDir' || event === 'change')
+    (event === EV_ADD || event === EV_ADD_DIR || event === EV_CHANGE)
   ) {
     const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
     try {
@@ -588,7 +598,7 @@ _handleError(error) {
   if (error && code !== 'ENOENT' && code !== 'ENOTDIR' &&
     (!this.options.ignorePermissionErrors || (code !== 'EPERM' && code !== 'EACCES'))
   ) {
-    this.emit('error', error);
+    this.emit(EV_ERROR, error);
   }
   return error || this.closed;
 }
@@ -822,14 +832,14 @@ _remove(directory, item) {
   if (this.options.cwd) relPath = sysPath.relative(this.options.cwd, path);
   if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
     const event = this._pendingWrites.get(relPath).cancelWait();
-    if (event === 'add') return;
+    if (event === EV_ADD) return;
   }
 
   // The Entry will either be a directory that just got removed
   // or a bogus entry to a file, in either case we have to remove it
   this._watched.delete(path);
   this._watched.delete(fullPath);
-  const eventName = isDirectory ? 'unlinkDir' : 'unlink';
+  const eventName = isDirectory ? EV_UNLINK_DIR : EV_UNLINK;
   if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
 
   // Avoid conflicts if we later create another file with the same name
@@ -868,7 +878,7 @@ _addPathCloser(path, closer) {
 }
 
 _readdirp(root, opts) {
-  const options = Object.assign({type: 'all', alwaysStat: true, lstat: true}, opts);
+  const options = Object.assign({type: EV_ALL, alwaysStat: true, lstat: true}, opts);
   let stream = readdirp(root, options);
   this._streams.add(stream);
   stream.once('close', () => {
