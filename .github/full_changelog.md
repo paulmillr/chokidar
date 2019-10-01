@@ -1,6 +1,8 @@
-### Chokidar 3.2.0 (unreleased)
+### Chokidar 3.2.0 (Oct 1, 2019)
 - Improve Linux RAM usage by 50%.
 - Another fix for non-empty strings of #871
+- Stability optimizations.
+- Windows glob fixes.
 
 ### Chokidar 3.1.1 (Sep 19, 2019)
 * Fixes "Expected pattern to be a non-empty string" (#871)
