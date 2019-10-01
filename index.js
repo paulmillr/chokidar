@@ -153,7 +153,7 @@ class WatchHelper {
     this.hasGlob = watchPath !== path;
     /** @type {object|boolean} */
     if (path === '') this.hasGlob = false;
-    this.globSymlink = this.hasGlob && follow ? null : false;
+    this.globSymlink = this.hasGlob && follow ? undefined : false;
     this.globFilter = this.hasGlob ? anymatch(path, undefined, ANYMATCH_OPTS) : false;
     this.dirParts = this.getDirParts(path);
     this.dirParts.forEach((parts) => {
@@ -166,7 +166,7 @@ class WatchHelper {
   checkGlobSymlink(entry) {
     // only need to resolve once
     // first entry should always have entry.parentDir === ''
-    if (this.globSymlink == null) {
+    if (this.globSymlink === undefined) {
       this.globSymlink = entry.fullParentDir === this.fullWatchPath ?
         false : {realPath: entry.fullParentDir, linkPath: this.fullWatchPath};
     }
@@ -384,7 +384,7 @@ add(paths_, _origAdd, _internal) {
 
       // reset the cached userIgnored anymatch fn
       // to make ignoredPaths changes effective
-      this._userIgnored = null;
+      this._userIgnored = undefined;
 
       return true;
     }
@@ -440,7 +440,7 @@ unwatch(paths) {
 
     // reset the cached userIgnored anymatch fn
     // to make ignoredPaths changes effective
-    this._userIgnored = null;
+    this._userIgnored = undefined;
   });
 
   return this;
@@ -455,15 +455,15 @@ close() {
   this.closed = true;
 
   // Memory management.
-  this._closers.forEach(closerList => closerList.forEach(closer => closer()));
-  this._closers.clear();
-  this._watched.clear();
-  this._streams.forEach(stream => stream.destroy());
-  this._streams.clear();
-  this._symlinkPaths.clear();
-  this._throttled.clear();
   this.removeAllListeners();
-
+  this._closers.forEach(closerList => closerList.forEach(closer => closer()));
+  this._streams.forEach(stream => stream.destroy());
+  this._userIgnored = undefined;
+  this._readyCount = 0;
+  this._readyEmitted = false;
+  ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach(key => {
+    this['_' + key].clear();
+  });
   return this;
 }
 
@@ -482,7 +482,7 @@ getWatched() {
 
 emitWithAll(event, args) {
   this.emit(...args);
-  if (event !== 'error') this.emit(...['all'].concat(args));
+  if (event !== 'error') this.emit('all', ...args);
 }
 
 // Common helpers
@@ -522,7 +522,7 @@ async _emit(event, path, val1, val2, val3) {
       setTimeout(() => {
         this._pendingUnlinks.forEach((entry, path) => {
           this.emit(...entry);
-          this.emit(...['all', ...entry]);
+          this.emit('all', ...entry);
           this._pendingUnlinks.delete(path);
         });
       }, typeof opts.atomic === "number" ? opts.atomic : 100);
@@ -871,12 +871,12 @@ _readdirp(root, opts) {
   let stream = readdirp(root, options);
   this._streams.add(stream);
   stream.once('close', () => {
-    stream = null;
+    stream = undefined;
   });
   stream.once('end', () => {
     if (stream) {
       this._streams.delete(stream);
-      stream = null;
+      stream = undefined;
     }
   });
   return stream;
