@@ -72,7 +72,7 @@
     "bitwise": false,
     "mocha": true,
     "expr": true,
-    "esversion": 8,
+    "esversion": 9,
     "predef": [
       "toString"
     ]

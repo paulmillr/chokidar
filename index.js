@@ -239,9 +239,7 @@ class WatchHelper {
   getDirParts(path) {
     if (!this.hasGlob) return [];
     const parts = [];
-    const expandedPath = path.includes(BRACE_START)
-      ? braces.expand(path)
-      : [path];
+    const expandedPath = path.includes(BRACE_START) ? braces.expand(path) : [path];
     expandedPath.forEach((path) => {
       parts.push(sysPath.relative(this.watchPath, path).split(SLASH_OR_BACK_SLASH_RE));
     });
@@ -749,13 +747,8 @@ _isIgnored(path, stats) {
     const paths = arrify(ignored)
       .filter((path) => typeof path === STRING_TYPE && !isGlob(path))
       .map((path) => path + SLASH_GLOBSTAR);
-    this._userIgnored = anymatch(
-      this._getGlobIgnored()
-        .map(normalizeIgnored(cwd))
-        .concat(ignored)
-        .concat(paths)
-      , undefined, ANYMATCH_OPTS
-    );
+    const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
+    this._userIgnored = anymatch(list, undefined, ANYMATCH_OPTS);
   }
 
   return this._userIgnored([path, stats]);
