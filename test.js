@@ -246,6 +246,8 @@ const runTests = function(baseopts) {
       await write(test7Path, Date.now());
       await write(test8Path, Date.now());
       await write(test9Path, Date.now());
+
+      await delay(200);
       await write(testb1Path, Date.now());
       await write(testb2Path, Date.now());
       await write(testb3Path, Date.now());
@@ -257,6 +259,8 @@ const runTests = function(baseopts) {
       await write(testb7Path, Date.now());
       await write(testb8Path, Date.now());
       await write(testb9Path, Date.now());
+
+      await delay(200);
       await write(testc1Path, Date.now());
       await write(testc2Path, Date.now());
       await write(testc3Path, Date.now());
@@ -276,6 +280,8 @@ const runTests = function(baseopts) {
       await write(testg1Path, Date.now());
       await write(testh1Path, Date.now());
       await write(testi1Path, Date.now());
+
+      await delay(300);
       await waitFor([[spy, 11]]);
       await waitFor([[spy, 22]]);
       await waitFor([[spy, 33]]);
@@ -287,6 +293,8 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(test4Path);
       spy.should.have.been.calledWith(test5Path);
       spy.should.have.been.calledWith(test6Path);
+
+      await delay(100);
       spy.should.have.been.calledWith(test7Path);
       spy.should.have.been.calledWith(test8Path);
       spy.should.have.been.calledWith(test9Path);
@@ -296,6 +304,8 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(testb4Path);
       spy.should.have.been.calledWith(testb5Path);
       spy.should.have.been.calledWith(testb6Path);
+      await delay(100);
+
       spy.should.have.been.calledWith(testb7Path);
       spy.should.have.been.calledWith(testb8Path);
       spy.should.have.been.calledWith(testb9Path);
@@ -303,11 +313,15 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith(testc2Path);
       spy.should.have.been.calledWith(testc3Path);
       spy.should.have.been.calledWith(testc4Path);
+
+      await delay(100);
       spy.should.have.been.calledWith(testc5Path);
       spy.should.have.been.calledWith(testc6Path);
       spy.should.have.been.calledWith(testc7Path);
       spy.should.have.been.calledWith(testc8Path);
       spy.should.have.been.calledWith(testc9Path);
+
+      await delay(100);
       spy.should.have.been.calledWith(testd1Path);
       spy.should.have.been.calledWith(teste1Path);
       spy.should.have.been.calledWith(testf1Path);
