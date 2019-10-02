@@ -185,7 +185,6 @@ const runTests = function(baseopts) {
       await delay(150);
       write(paths[7], Date.now());
       write(paths[8], Date.now());
-      write(paths[9], Date.now());
 
       await waitFor([[spy, 4]]);
 
