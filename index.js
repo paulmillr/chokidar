@@ -37,24 +37,6 @@ const readdir = promisify(fs.readdir);
  */
 
 // Optimize RAM usage.
-const BACK_SLASH_RE = /\\/g;
-const SLASH = '/';
-const DOUBLE_SLASH = /\/\//;
-const SLASH_OR_BACK_SLASH = /[\/\\]/;
-const BRACE_START = '{';
-const BANG = '!';
-const ONE_DOT = '.';
-const TWO_DOTS = '..';
-const GLOBSTAR = '**';
-const SLASH_GLOBSTAR = '/**';
-const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
-const REPLACER_RE = /^\.[\/\\]/;
-const ANYMATCH_OPTS = {dot: true};
-const STRING_TYPE = 'string';
-const isWindows = process.platform === 'win32';
-const isMacos = process.platform === 'darwin';
-const EMPTY_FN = () => {};
-
 const EV_ALL = 'all';
 const EV_READY = 'ready';
 const EV_ADD = 'add';
@@ -64,6 +46,28 @@ const EV_ADD_DIR = 'addDir';
 const EV_UNLINK_DIR = 'unlinkDir';
 const EV_RAW = 'raw';
 const EV_ERROR = 'error';
+
+const BACK_SLASH_RE = /\\/g;
+const DOUBLE_SLASH_RE = /\/\//;
+const SLASH_OR_BACK_SLASH_RE = /[\/\\]/;
+const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
+const REPLACER_RE = /^\.[\/\\]/;
+
+const SLASH = '/';
+const BRACE_START = '{';
+const BANG = '!';
+const ONE_DOT = '.';
+const TWO_DOTS = '..';
+const GLOBSTAR = '**';
+const SLASH_GLOBSTAR = '/**';
+const ANYMATCH_OPTS = {dot: true};
+const STRING_TYPE = 'string';
+const FUNCTION_TYPE = 'function';
+const EMPTY_STR = '';
+const EMPTY_FN = () => {};
+
+const isWindows = process.platform === 'win32';
+const isMacos = process.platform === 'darwin';
 
 const arrify = (value = []) => Array.isArray(value) ? value : [value];
 const flatten = (list, result = []) => {
@@ -90,8 +94,8 @@ const unifyPaths = (paths_) => {
 
 const toUnix = (string) => {
   let str = string.replace(BACK_SLASH_RE, SLASH);
-  while (str.match(DOUBLE_SLASH)) {
-    str = str.replace(DOUBLE_SLASH, SLASH);
+  while (str.match(DOUBLE_SLASH_RE)) {
+    str = str.replace(DOUBLE_SLASH_RE, SLASH);
   }
   return str;
 };
@@ -100,7 +104,7 @@ const toUnix = (string) => {
 // TODO: this is not equal to path-normalize module - investigate why
 const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
 
-const normalizeIgnored = (cwd = '') => (path) => {
+const normalizeIgnored = (cwd = EMPTY_STR) => (path) => {
   if (typeof path !== STRING_TYPE) return path;
   return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
 };
@@ -135,13 +139,17 @@ class DirEntry {
   }
 
   add(item) {
-    if (item !== ONE_DOT && item !== TWO_DOTS) this.items.add(item);
+    const {items} = this;
+    if (!items) return;
+    if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
   }
 
   async remove(item) {
-    this.items.delete(item);
+    const {items} = this;
+    if (!items) return;
+    items.delete(item);
 
-    if (!this.items.size) {
+    if (!items.size) {
       const dir = this.path;
       try {
         await readdir(dir);
@@ -152,26 +160,40 @@ class DirEntry {
   }
 
   has(item) {
-    return this.items.has(item);
+    const {items} = this;
+    if (!items) return;
+    return items.has(item);
   }
 
   /**
    * @returns {Array<String>}
    */
   getChildren() {
-    return Array.from(this.items.values());
+    const {items} = this;
+    if (!items) return;
+    return Array.from(items.values());
+  }
+
+  dispose() {
+    this.items.clear();
+    delete this.path;
+    delete this._removeWatcher;
+    delete this.items;
+    Object.freeze(this);
   }
 }
 
+const STAT_METHOD_F = 'stat';
+const STAT_METHOD_L = 'lstat';
 class WatchHelper {
   constructor(path, watchPath, follow, fsw) {
     this.fsw = fsw;
-    this.path = path = path.replace(REPLACER_RE, '');
+    this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath.resolve(watchPath);
     this.hasGlob = watchPath !== path;
     /** @type {object|boolean} */
-    if (path === '') this.hasGlob = false;
+    if (path === EMPTY_STR) this.hasGlob = false;
     this.globSymlink = this.hasGlob && follow ? undefined : false;
     this.globFilter = this.hasGlob ? anymatch(path, undefined, ANYMATCH_OPTS) : false;
     this.dirParts = this.getDirParts(path);
@@ -179,12 +201,12 @@ class WatchHelper {
       if (parts.length > 1) parts.pop();
     });
     this.followSymlinks = follow;
-    this.statMethod = follow ? 'stat' : 'lstat';
+    this.statMethod = follow ? STAT_METHOD_F : STAT_METHOD_L;
   }
 
   checkGlobSymlink(entry) {
     // only need to resolve once
-    // first entry should always have entry.parentDir === ''
+    // first entry should always have entry.parentDir === EMPTY_STR
     if (this.globSymlink === undefined) {
       this.globSymlink = entry.fullParentDir === this.fullWatchPath ?
         false : {realPath: entry.fullParentDir, linkPath: this.fullWatchPath};
@@ -207,7 +229,7 @@ class WatchHelper {
     const {stats} = entry;
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
     const resolvedPath = this.entryPath(entry);
-    const matchesGlob = this.hasGlob && typeof this.globFilter === 'function' ?
+    const matchesGlob = this.hasGlob && typeof this.globFilter === FUNCTION_TYPE ?
       this.globFilter(resolvedPath) : true;
     return matchesGlob &&
       this.fsw._isntIgnored(resolvedPath, stats) &&
@@ -221,7 +243,7 @@ class WatchHelper {
       ? braces.expand(path)
       : [path];
     expandedPath.forEach((path) => {
-      parts.push(sysPath.relative(this.watchPath, path).split(SLASH_OR_BACK_SLASH));
+      parts.push(sysPath.relative(this.watchPath, path).split(SLASH_OR_BACK_SLASH_RE));
     });
     return parts;
   }
@@ -471,6 +493,7 @@ close() {
   this._userIgnored = undefined;
   this._readyCount = 0;
   this._readyEmitted = false;
+  this._watched.forEach(dirent => dirent.dispose());
   ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach(key => {
     this['_' + key].clear();
   });
