@@ -190,7 +190,7 @@ non-standard situations. Setting to `true` explicitly on MacOS overrides the
 `useFsEvents` default. You may also set the CHOKIDAR_USEPOLLING env variable
 to true (1) or false (0) in order to override this option.
 * _Polling-specific settings_ (effective when `usePolling: true`)
-  * `interval` (default: `100`). Interval of file system polling. You may also
+  * `interval` (default: `100`). Interval of file system polling, in milliseconds. You may also
     set the CHOKIDAR_INTERVAL env variable to override this option.
   * `binaryInterval` (default: `300`). Interval of file system
   polling for binary files.
@@ -222,7 +222,7 @@ Use with caution.
   timing params:*
   * `awaitWriteFinish.stabilityThreshold` (default: 2000). Amount of time in
   milliseconds for a file size to remain constant before emitting its event.
-  * `awaitWriteFinish.pollInterval` (default: 100). File size polling interval.
+  * `awaitWriteFinish.pollInterval` (default: 100). File size polling interval, in milliseconds.
 
 #### Errors
 * `ignorePermissionErrors` (default: `false`). Indicates whether to watch files
