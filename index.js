@@ -12,6 +12,42 @@ const { promisify } = require('util');
 
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
+const {
+  EV_ALL,
+  EV_READY,
+  EV_ADD,
+  EV_CHANGE,
+  EV_UNLINK,
+  EV_ADD_DIR,
+  EV_UNLINK_DIR,
+  EV_RAW,
+  EV_ERROR,
+
+  STR_CLOSE,
+  STR_END,
+
+  BACK_SLASH_RE,
+  DOUBLE_SLASH_RE,
+  SLASH_OR_BACK_SLASH_RE,
+  DOT_RE,
+  REPLACER_RE,
+
+  SLASH,
+  BRACE_START,
+  BANG,
+  ONE_DOT,
+  TWO_DOTS,
+  GLOBSTAR,
+  SLASH_GLOBSTAR,
+  ANYMATCH_OPTS,
+  STRING_TYPE,
+  FUNCTION_TYPE,
+  EMPTY_STR,
+  EMPTY_FN,
+
+  isWindows,
+  isMacos
+} = require('./lib/constants');
 
 const stat = promisify(fs.stat);
 const readdir = promisify(fs.readdir);
@@ -35,39 +71,6 @@ const readdir = promisify(fs.readdir);
  * @property {Function} filterPath
  * @property {Function} filterDir
  */
-
-// Optimize RAM usage.
-const EV_ALL = 'all';
-const EV_READY = 'ready';
-const EV_ADD = 'add';
-const EV_CHANGE = 'change';
-const EV_UNLINK = 'unlink';
-const EV_ADD_DIR = 'addDir';
-const EV_UNLINK_DIR = 'unlinkDir';
-const EV_RAW = 'raw';
-const EV_ERROR = 'error';
-
-const BACK_SLASH_RE = /\\/g;
-const DOUBLE_SLASH_RE = /\/\//;
-const SLASH_OR_BACK_SLASH_RE = /[\/\\]/;
-const DOT_RE = /\..*\.(sw[px])$|\~$|\.subl.*\.tmp/;
-const REPLACER_RE = /^\.[\/\\]/;
-
-const SLASH = '/';
-const BRACE_START = '{';
-const BANG = '!';
-const ONE_DOT = '.';
-const TWO_DOTS = '..';
-const GLOBSTAR = '**';
-const SLASH_GLOBSTAR = '/**';
-const ANYMATCH_OPTS = {dot: true};
-const STRING_TYPE = 'string';
-const FUNCTION_TYPE = 'function';
-const EMPTY_STR = '';
-const EMPTY_FN = () => {};
-
-const isWindows = process.platform === 'win32';
-const isMacos = process.platform === 'darwin';
 
 const arrify = (value = []) => Array.isArray(value) ? value : [value];
 const flatten = (list, result = []) => {
@@ -700,7 +703,7 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
       if (df >= threshold) {
         this._pendingWrites.delete(path);
-        awfEmit(null, curStat);
+        awfEmit(undefined, curStat);
       } else {
         timeoutHandler = setTimeout(
           awaitWriteFinish,
@@ -898,10 +901,10 @@ _readdirp(root, opts) {
   const options = Object.assign({type: EV_ALL, alwaysStat: true, lstat: true}, opts);
   let stream = readdirp(root, options);
   this._streams.add(stream);
-  stream.once('close', () => {
+  stream.once(STR_CLOSE, () => {
     stream = undefined;
   });
-  stream.once('end', () => {
+  stream.once(STR_END, () => {
     if (stream) {
       this._streams.delete(stream);
       stream = undefined;
