@@ -1,7 +1,10 @@
+### Chokidar 3.2.1 (Oct 1, 2019)
+- Decrease required node version in package.json from 8.16 to 8.0.
+
 ### Chokidar 3.2.0 (Oct 1, 2019)
 - Improve Linux RAM usage by 50%.
 - Another fix for non-empty strings of #871
-- Stability optimizations.
+- Stability optimizations. Tight dep version management: switch from `^` to `~` for all dependencies.
 - Windows glob fixes.
 
 ### Chokidar 3.1.1 (Sep 19, 2019)
