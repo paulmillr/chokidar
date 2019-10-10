@@ -766,9 +766,10 @@ _isntIgnored(path, stat) {
  * Provides a set of common helpers and properties relating to symlink and glob handling.
  * @param {Path} path file, directory, or glob pattern being watched
  * @param {Number=} depth at any depth > 0, this isn't a glob
- * @returns {WatchHelper} object containing helpers for this path
+ * @returns {Promise<WatchHelper>} object containing helpers for this path
  */
-async _getWatchHelpers(path, depth) {
+async _getWatchHelpers(path, depth)
+{
   let watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
 
   const follow = this.options.followSymlinks;
