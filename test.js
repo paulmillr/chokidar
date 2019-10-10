@@ -744,6 +744,53 @@ const runTests = function(baseopts) {
       spy.should.have.been.calledWith('add', testPath);
     });
   });
+
+    it('should watch glob path with  non-existent dir and detect addDir/add', async () => {
+        const testDir = getFixturePath('subdir');
+        const testPathWithGlob=getFixturePath("subdir/*.txt")
+        const testPath = getFixturePath('subdir/add.txt');
+        let watcher = chokidar_watch(testPathWithGlob, options);
+        const spy = await aspy(watcher, 'all');
+        spy.should.not.have.been.called;
+
+        await delay();
+        await fs_mkdir(testDir, PERM_ARR);
+
+        await delay();
+        await write(testPath, 'hello');
+        await waitFor([spy.withArgs('add')]);
+      spy.should.not.have.been.calledWith('addDir', testDir);
+      spy.should.have.been.calledWith('add', testPath);
+    });
+
+  it('should watch glob path with  non-existent dir and detect addDir/add', async function  ()  {
+    function skipIfCantRun() {
+      let currentNodeVersion = Number(process.version.match(/^v(\d+\.\d+)/)[1])
+      if (currentNodeVersion < 10.12)
+        this.skip("recursive mkdir  is not supported before node 10.12")
+    }
+
+    skipIfCantRun.call(this);
+    const subPath = 'subdir0/subdir1/subdir2/subdir3';
+    const testDir = getFixturePath(subPath);
+    const testPathWithGlob=getFixturePath(subPath+"/*.txt")
+    const testPath = getFixturePath(subPath+'/add.txt');
+    let watcher = chokidar_watch(testPathWithGlob, options);
+    const spy = await aspy(watcher, 'all');
+    spy.should.not.have.been.called;
+
+    await delay();
+    await fs_mkdir(testDir, {recursive:true,mode:PERM_ARR});
+
+    await delay();
+    await write(testPath, 'hello');
+    await waitFor([spy.withArgs('add')]);
+    spy.should.not.have.been.calledWith('addDir');
+    spy.should.have.been.calledWith('add', testPath);
+  });
+
+
+
   describe('watch glob patterns', () => {
     it('should correctly watch and emit based on glob input', async () => {
       const watchPath = getGlobPath('*a*.txt');
