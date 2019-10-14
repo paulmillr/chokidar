@@ -9,8 +9,8 @@ about: Create a report to help us improve
 A clear and concise description of what the bug is.
 
 **Versions (please complete the following information):**
- - Chokidar version [e.g. 3.2.0 or commit hash]
- - Node version [e.g. 12.11.0]
+ - Chokidar version [e.g. 3.2.1 or commit hash]
+ - Node version [e.g. 12.11.0, ensure you are using the latest node.js]
  - OS version: [e.g. Ubuntu 19.04 or MacOS 10.15 or Windows 10]
 
 **To Reproduce:**
