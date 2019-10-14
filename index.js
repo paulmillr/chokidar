@@ -770,11 +770,11 @@ _isntIgnored(path, stat) {
  */
 async _getWatchHelpers(path, depth)
 {
-  let watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
-
+  const baseWatchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const follow = this.options.followSymlinks;
-  watchPath=await this._mostSpecifiedExistingAncestor(watchPath);
-  return new WatchHelper(path, watchPath, follow, this);
+  const existingWatchPath=await this._mostSpecifiedExistingAncestor(baseWatchPath);
+
+  return new WatchHelper(path, existingWatchPath, follow, this);
 }
 
   /**
@@ -784,18 +784,18 @@ async _getWatchHelpers(path, depth)
    * @private
    */
   async _mostSpecifiedExistingAncestor(path)
-{
-  let father=globParent(path);
+  {
+      const father = globParent(path);
 
-  if(father==path)
-    return path;
+      if (father == path)
+          return path;
 
-  const doesExists=await exists(path);
-  if(doesExists)
-    return path;
+      const doesExists = await exists(path);
+      if (doesExists)
+          return path;
 
-  return this._mostSpecifiedExistingAncestor(father);
-}
+      return this._mostSpecifiedExistingAncestor(father);
+  }
 
 // Directory helpers
 // -----------------
