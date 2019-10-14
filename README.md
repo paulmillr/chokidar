@@ -116,7 +116,8 @@ watcher.unwatch('new-file*');
 // Stop watching.
 watcher.close();
 
-// Full list of options. See below for descriptions. (do not use this example)
+// Full list of options. See below for descriptions.
+// Do not use this example!
 chokidar.watch('file', {
   persistent: true,
 
@@ -126,7 +127,7 @@ chokidar.watch('file', {
   cwd: '.',
   disableGlobbing: false,
 
-  usePolling: true,
+  usePolling: false,
   interval: 100,
   binaryInterval: 300,
   alwaysStat: false,
