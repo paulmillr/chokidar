@@ -21,7 +21,7 @@
     "readdirp": "~3.2.0"
   },
   "optionalDependencies": {
-    "fsevents": "~2.1.0"
+    "fsevents": "~2.1.1"
   },
   "devDependencies": {
     "@types/node": "^12",
