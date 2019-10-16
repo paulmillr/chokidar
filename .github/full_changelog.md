@@ -1,3 +1,8 @@
+### Chokidar 3.2.2 (Oct 16, 2019)
+- Fix "resource starved CPU prevents ready from happening" (#873)
+  by fixing fsevents
+- Improve low-level directory scan time by 50% by improving readdirp
+
 ### Chokidar 3.2.1 (Oct 1, 2019)
 - Decrease required node version in package.json from 8.16 to 8.0.
 
