@@ -53,7 +53,7 @@
   "scripts": {
     "test": "nyc mocha --exit",
     "mocha": "mocha",
-    "lint": "jshint index.js lib",
+    "lint": "jshint index.js test.js lib",
     "coveralls": "nyc report --reporter=text-lcov | coveralls",
     "dtslint": "dtslint types"
   },
@@ -68,15 +68,20 @@
   ],
   "types": "./types/index.d.ts",
   "jshintConfig": {
-    "node": true,
-    "curly": false,
     "bitwise": false,
-    "mocha": true,
-    "expr": true,
+    "curly": false,
+    "eqeqeq": true,
+    "eqnull": true,
     "esversion": 9,
-    "predef": [
-      "toString"
-    ]
+    "expr": true,
+    "mocha": true,
+    "nocomma": true,
+    "node": true,
+    "nonbsp": true,
+    "strict": "global",
+    "trailingcomma": false,
+    "undef": true,
+    "unused": true
   },
   "nyc": {
     "include": [
