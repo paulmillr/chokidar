@@ -45,7 +45,7 @@ export class FSWatcher extends EventEmitter implements fs.FSWatcher {
   on(event: 'all', listener: (eventName: 'add'|'addDir'|'change'|'unlink'|'unlinkDir', path: string, stats?: fs.Stats) => void): this;
 
   /**
-   * Error occured
+   * Error occurred
    */
   on(event: 'error', listener: (error: Error) => void): this;
 
