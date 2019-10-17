@@ -77,5 +77,16 @@
     "predef": [
       "toString"
     ]
+  },
+  "nyc": {
+    "include": [
+      "index.js",
+      "lib/*.js"
+    ],
+    "reporter": [
+      "html",
+      "lcov",
+      "text"
+    ]
   }
 }
