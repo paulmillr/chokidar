@@ -1229,7 +1229,7 @@ const runTests = function(baseopts) {
       describe('true', () => {
         let watcher;
         beforeEach(() => { options.ignoreInitial = true; });
-        it('should ignore inital add events', async () => {
+        it('should ignore initial add events', async () => {
           let watcher = chokidar_watch();
           const spy = await aspy(watcher, 'add');
           await delay();
