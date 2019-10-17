@@ -11,6 +11,7 @@
   "engines": {
     "node": ">= 8"
   },
+  "main": "index.js",
   "dependencies": {
     "anymatch": "~3.1.1",
     "braces": "~3.0.2",
@@ -38,12 +39,12 @@
   },
   "files": [
     "index.js",
-    "lib/",
+    "lib/*.js",
     "types/index.d.ts"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/paulmillr/chokidar.git"
+    "url": "git+https://github.com/paulmillr/chokidar.git"
   },
   "bugs": {
     "url": "https://github.com/paulmillr/chokidar/issues"
