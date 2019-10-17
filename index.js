@@ -1,14 +1,15 @@
 'use strict';
+
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const sysPath = require('path');
+const { promisify } = require('util');
 const readdirp = require('readdirp');
 const anymatch = require('anymatch').default;
 const globParent = require('glob-parent');
 const isGlob = require('is-glob');
 const braces = require('braces');
 const normalizePath = require('normalize-path');
-const { promisify } = require('util');
 
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
@@ -88,9 +89,9 @@ const unifyPaths = (paths_) => {
   /**
    * @type {Array<String>}
    */
-  let paths = flatten(arrify(paths_));
+  const paths = flatten(arrify(paths_));
   if (!paths.every(p => typeof p === STRING_TYPE)) {
-    throw new TypeError('Non-string provided as watch path: ' + paths);
+    throw new TypeError(`Non-string provided as watch path: ${paths}`);
   }
   return paths.map(normalizePathToUnix);
 };
@@ -115,11 +116,11 @@ const normalizeIgnored = (cwd = EMPTY_STR) => (path) => {
 const getAbsolutePath = (path, cwd) => {
   if (sysPath.isAbsolute(path)) {
     return path;
-  } else if (path[0] === BANG) {
-    return BANG + sysPath.join(cwd, path.substring(1));
-  } else {
-    return sysPath.join(cwd, path);
   }
+  if (path[0] === BANG) {
+    return BANG + sysPath.join(cwd, path.substring(1));
+  }
+  return sysPath.join(cwd, path);
 };
 
 const undef = (opts, key) => opts[key] === undefined;
@@ -174,7 +175,7 @@ class DirEntry {
   getChildren() {
     const {items} = this;
     if (!items) return;
-    return Array.from(items.values());
+    return [...items.values()];
   }
 
   dispose() {
@@ -296,7 +297,6 @@ constructor(_opts) {
   this._streams = new Set();
   this.closed = false;
 
-
   // Set up default options.
   if (undef(opts, 'persistent')) opts.persistent = true;
   if (undef(opts, 'ignoreInitial')) opts.ignoreInitial = false;
@@ -335,7 +335,7 @@ constructor(_opts) {
   }
   const envInterval = process.env.CHOKIDAR_INTERVAL;
   if (envInterval) {
-    opts.interval = parseInt(envInterval);
+    opts.interval = parseInt(envInterval, 10);
   }
 
   // Editor atomic write normalization enabled by default with fs.watch
@@ -399,9 +399,8 @@ add(paths_, _origAdd, _internal) {
       // Check `path` instead of `absPath` because the cwd portion can't be a glob
       if (disableGlobbing || !isGlob(path)) {
         return absPath;
-      } else {
-        return normalizePath(absPath);
       }
+      return normalizePath(absPath);
     });
   }
 
@@ -410,17 +409,17 @@ add(paths_, _origAdd, _internal) {
     if (path[0] === BANG) {
       this._ignoredPaths.add(path.substring(1));
       return false;
-    } else {
-      // if a path is being added that was previously ignored, stop ignoring it
-      this._ignoredPaths.delete(path);
-      this._ignoredPaths.delete(path + SLASH_GLOBSTAR);
-
-      // reset the cached userIgnored anymatch fn
-      // to make ignoredPaths changes effective
-      this._userIgnored = undefined;
-
-      return true;
     }
+
+    // if a path is being added that was previously ignored, stop ignoring it
+    this._ignoredPaths.delete(path);
+    this._ignoredPaths.delete(path + SLASH_GLOBSTAR);
+
+    // reset the cached userIgnored anymatch fn
+    // to make ignoredPaths changes effective
+    this._userIgnored = undefined;
+
+    return true;
   });
 
   if (this.options.useFsEvents && this._fsEventsHandler) {
@@ -454,8 +453,8 @@ add(paths_, _origAdd, _internal) {
 */
 unwatch(paths_) {
   if (this.closed) return this;
-  let paths = unifyPaths(paths_);
-  const cwd = this.options.cwd;
+  const paths = unifyPaths(paths_);
+  const {cwd} = this.options;
 
   paths.forEach((path) => {
     // convert to absolute path unless relative path already matches
@@ -496,7 +495,7 @@ close() {
   this._readyEmitted = false;
   this._watched.forEach(dirent => dirent.dispose());
   ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach(key => {
-    this['_' + key].clear();
+    this[`_${key}`].clear();
   });
   return this;
 }
@@ -560,9 +559,10 @@ async _emit(event, path, val1, val2, val3) {
           this.emit(EV_ALL, ...entry);
           this._pendingUnlinks.delete(path);
         });
-      }, typeof opts.atomic === "number" ? opts.atomic : 100);
+      }, typeof opts.atomic === 'number' ? opts.atomic : 100);
       return this;
-    } else if (event === EV_ADD && this._pendingUnlinks.has(path)) {
+    }
+    if (event === EV_ADD && this._pendingUnlinks.has(path)) {
       event = args[0] = EV_CHANGE;
       this._pendingUnlinks.delete(path);
     }
@@ -659,7 +659,7 @@ _throttle(actionType, path, timeout) {
     return count;
   };
   timeoutObject = setTimeout(clear, timeout);
-  const thr = {timeoutObject: timeoutObject, clear: clear, count: 0};
+  const thr = {timeoutObject, clear, count: 0};
   action.set(path, thr);
   return thr;
 }
@@ -695,7 +695,7 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 
       const now = Number(new Date());
 
-      if (prevStat && curStat.size != prevStat.size) {
+      if (prevStat && curStat.size !== prevStat.size) {
         this._pendingWrites.get(path).lastChange = now;
       }
       const pw = this._pendingWrites.get(path);
@@ -731,7 +731,7 @@ _awaitWriteFinish(path, threshold, event, awfEmit) {
 }
 
 _getGlobIgnored() {
-  return Array.from(this._ignoredPaths.values());
+  return [...this._ignoredPaths.values()];
 }
 
 /**
@@ -743,7 +743,7 @@ _getGlobIgnored() {
 _isIgnored(path, stats) {
   if (this.options.atomic && DOT_RE.test(path)) return true;
   if (!this._userIgnored) {
-    const cwd = this.options.cwd;
+    const {cwd} = this.options;
     const ign = this.options.ignored;
 
     const ignored = ign && ign.map(normalizeIgnored(cwd));
@@ -898,7 +898,7 @@ _addPathCloser(path, closer) {
 
 _readdirp(root, opts) {
   if (this.closed) return;
-  const options = Object.assign({type: EV_ALL, alwaysStat: true, lstat: true}, opts);
+  const options = {type: EV_ALL, alwaysStat: true, lstat: true, ...opts};
   let stream = readdirp(root, options);
   this._streams.add(stream);
   stream.once(STR_CLOSE, () => {

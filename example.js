@@ -1,4 +1,4 @@
-global.watcher = require('./').watch('.', {
+global.watcher = require('.').watch('.', {
   ignored: /node_modules|\.git/,
   persistent: true,
   // followSymlinks: false,
