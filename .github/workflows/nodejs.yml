@@ -1,27 +1,25 @@
 name: Node CI
-
 on: [push]
+env:
+  CI: true
 
 jobs:
   build:
     name: node ${{ matrix.node-version }} @ ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         node-version: [8, 10, 12]
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-    - uses: actions/checkout@v1
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: npm install, build, and test
-      shell: bash
-      run: |
-        npm install
-        npm run build --if-present
-        npm test
-      env:
-        CI: true
+      - uses: actions/checkout@v1
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm install
+      - name: Run tests
+        shell: bash
+        run: npm test
