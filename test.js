@@ -11,8 +11,9 @@ const fs = require('fs');
 const sysPath = require('path');
 const upath = require("upath");
 const exec = promisify(require('child_process').exec);
+const {isWindows, isMacos} = require('./lib/constants');
+
 chai.use(require('sinon-chai'));
-const os = process.platform;
 
 const write = promisify(fs.writeFile);
 const fs_symlink = promisify(fs.symlink);
@@ -86,8 +87,8 @@ const runTests = function(baseopts) {
 
   before(() => {
     // flags for bypassing special-case test failures on CI
-    macosFswatch = os === 'darwin' && !baseopts.usePolling && !baseopts.useFsEvents;
-    win32Polling = os === 'win32' && baseopts.usePolling;
+    macosFswatch = isMacos && !baseopts.usePolling && !baseopts.useFsEvents;
+    win32Polling = isWindows && baseopts.usePolling;
     slowerDelay = macosFswatch ? 100 : undefined;
   });
 
@@ -1001,7 +1002,7 @@ const runTests = function(baseopts) {
     });
   });
   describe('watch symlinks', () => {
-    if (os === 'win32') return true;
+    if (isWindows) return true;
     let linkedDir;
     beforeEach(async () => {
       linkedDir = sysPath.resolve(currentDir, '..', subdirId + '-link');
@@ -1374,7 +1375,7 @@ const runTests = function(baseopts) {
         if (!macosFswatch) spy.callCount.should.equal(8);
       });
       it('should respect depth setting when following symlinks', async () => {
-        if (os === 'win32') return true; // skip on windows
+        if (isWindows) return true; // skip on windows
         options.depth = 1;
         await fs_symlink(getFixturePath('subdir'), getFixturePath('link'));
         await delay();
@@ -1385,7 +1386,7 @@ const runTests = function(baseopts) {
         spy.should.not.have.been.calledWith('add', getFixturePath('link/subsub/ab.txt'));
       });
       it('should respect depth setting when following a new symlink', async () => {
-        if (os === 'win32') return true; // skip on windows
+        if (isWindows) return true; // skip on windows
         options.depth = 1;
         options.ignoreInitial = true;
         const linkPath = getFixturePath('link');
@@ -1548,8 +1549,7 @@ const runTests = function(baseopts) {
           // chokidar_watch();
         });
         it('should not watch files without read permissions', async () => {
-
-          if (os === 'win32') return true;
+          if (isWindows) return true;
           const spy = await aspy(chokidar_watch(), 'all');
           spy.should.not.have.been.calledWith('add', filePath);
           await write(filePath, Date.now());
@@ -2087,7 +2087,7 @@ describe('chokidar', function() {
     chokidar.watch.should.be.a('function');
   });
 
-  if (os === 'darwin') {
+  if (isMacos) {
     const FsEventsHandler = require('./lib/fsevents-handler');
     if (FsEventsHandler.canUse()) {
       describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
