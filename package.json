@@ -28,7 +28,7 @@
     "@types/node": "^12",
     "chai": "^4.2",
     "dtslint": "0.4.1",
-    "jshint": "^2.10.2",
+    "eslint": "^6.5.1",
     "mocha": "^6.2.1",
     "nyc": "^14.1.1",
     "rimraf": "^2.7.1",
@@ -51,7 +51,7 @@
   "license": "MIT",
   "scripts": {
     "dtslint": "dtslint types",
-    "lint": "jshint index.js test.js lib",
+    "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
     "mocha": "mocha",
     "test": "npm run lint && nyc npm run mocha -- --exit"
   },
@@ -65,21 +65,53 @@
     "fsevents"
   ],
   "types": "./types/index.d.ts",
-  "jshintConfig": {
-    "bitwise": false,
-    "curly": false,
-    "eqeqeq": true,
-    "eqnull": true,
-    "esversion": 9,
-    "expr": true,
-    "mocha": true,
-    "nocomma": true,
-    "node": true,
-    "nonbsp": true,
-    "strict": "global",
-    "trailingcomma": false,
-    "undef": true,
-    "unused": true
+  "eslintConfig": {
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "ecmaVersion": 9,
+      "sourceType": "script"
+    },
+    "env": {
+      "node": true,
+      "es6": true
+    },
+    "rules": {
+      "no-empty": [
+        "error",
+        {
+          "allowEmptyCatch": true
+        }
+      ],
+      "object-shorthand": "error",
+      "prefer-arrow-callback": [
+        "error",
+        {
+          "allowNamedFunctions": true
+        }
+      ],
+      "prefer-const": [
+        "error",
+        {
+          "ignoreReadBeforeAssign": true
+        }
+      ],
+      "prefer-destructuring": [
+        "error",
+        {
+          "object": true,
+          "array": false
+        }
+      ],
+      "prefer-spread": "error",
+      "prefer-template": "error",
+      "radix": "error",
+      "strict": "error",
+      "quotes": [
+        "error",
+        "single"
+      ],
+      "no-var": "error"
+    }
   },
   "nyc": {
     "include": [
