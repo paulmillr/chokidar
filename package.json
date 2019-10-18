@@ -51,7 +51,7 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "nyc mocha --exit",
+    "test": "npm run lint && nyc npm run mocha -- --exit",
     "mocha": "mocha",
     "lint": "jshint index.js test.js lib",
     "coveralls": "nyc report --reporter=text-lcov | coveralls",
