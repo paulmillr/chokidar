@@ -794,7 +794,7 @@ _getWatchedDir(directory) {
 
 /**
  * Check for read permissions.
- * Based on this answer on SO: http://stackoverflow.com/a/11781404/1358405
+ * Based on this answer on SO: https://stackoverflow.com/a/11781404/1358405
  * @param {fs.Stats} stats - object, result of fs_stat
  * @returns {Boolean} indicates whether the file can be read
 */

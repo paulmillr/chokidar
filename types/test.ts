@@ -35,7 +35,7 @@ watcher
   });
 
 // 'add', 'addDir' and 'change' events also receive stat() results as second
-// argument when available: http://nodejs.org/api/fs.html#fs_class_fs_stats
+// argument when available: https://nodejs.org/api/fs.html#fs_class_fs_stats
 watcher.on("change", (path: string, stats: fs.Stats) => {
   if (stats) {
     console.log("File", path, "changed size to", stats.size);

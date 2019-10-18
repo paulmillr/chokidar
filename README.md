@@ -1,12 +1,13 @@
 # Chokidar [![Weekly downloads](https://img.shields.io/npm/dw/chokidar.svg)](https://github.com/paulmillr/chokidar) [![Yearly downloads](https://img.shields.io/npm/dy/chokidar.svg)](https://github.com/paulmillr/chokidar)
 
-> A neat wrapper around node.js fs.watch / fs.watchFile / FSEvents.
+> A neat wrapper around Node.js fs.watch / fs.watchFile / FSEvents.
 
 [![NPM](https://nodei.co/npm/chokidar.png)](https://www.npmjs.com/package/chokidar)
 
 Version 3 is out! Check out our blog post about it: [Chokidar 3: How to save 32TB of traffic every week](https://paulmillr.com/posts/chokidar-3-save-32tb-of-traffic/)
 
 ## Why?
+
 Node.js `fs.watch`:
 
 * Doesn't report filenames on MacOS.
@@ -23,18 +24,19 @@ Node.js `fs.watchFile`:
 
 Chokidar resolves these problems.
 
-Initially made for **[Brunch](http://brunch.io)** (an ultra-swift web app build tool), it is now used in
+Initially made for **[Brunch](https://brunch.io/)** (an ultra-swift web app build tool), it is now used in
 [Microsoft's Visual Studio Code](https://github.com/microsoft/vscode),
 [gulp](https://github.com/gulpjs/gulp/),
-[karma](http://karma-runner.github.io),
+[karma](https://karma-runner.github.io/),
 [PM2](https://github.com/Unitech/PM2),
 [browserify](http://browserify.org/),
-[webpack](http://webpack.github.io/),
-[BrowserSync](http://www.browsersync.io/),
-and [many others](https://www.npmjs.org/browse/depended/chokidar/).
+[webpack](https://webpack.github.io/),
+[BrowserSync](https://www.browsersync.io/),
+and [many others](https://www.npmjs.com/browse/depended/chokidar).
 It has proven itself in production environments.
 
 ## How?
+
 Chokidar does still rely on the Node.js core `fs` module, but when using
 `fs.watch` and `fs.watchFile` for watching, it normalizes the events it
 receives, often checking for truth by getting file stats and/or dir contents.
@@ -51,6 +53,7 @@ specified, so be judicious about not wasting system resources by watching much
 more than needed.
 
 ## Getting started
+
 Install with npm:
 
 ```sh
@@ -98,7 +101,7 @@ watcher
   });
 
 // 'add', 'addDir' and 'change' events also receive stat() results as second
-// argument when available: http://nodejs.org/api/fs.html#fs_class_fs_stats
+// argument when available: https://nodejs.org/api/fs.html#fs_class_fs_stats
 watcher.on('change', (path, stats) => {
   if (stats) console.log(`File ${path} changed size to ${stats.size}`);
 });
@@ -168,7 +171,7 @@ Defines files/paths to be ignored. The whole relative or absolute path is
 tested, not just filename. If a function with two arguments is provided, it
 gets called twice per path - once with a single argument (the path), second
 time with two arguments (the path and the
-[`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
+[`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
 object of that path).
 * `ignoreInitial` (default: `false`). If set to `false` then `add`/`addDir` events are also emitted for matching paths while
 instantiating the watching as chokidar discovers these file paths (before the `ready` event).
@@ -201,7 +204,7 @@ to true (1) or false (0) in order to override this option.
 and `fsevents` is available this supercedes the `usePolling` setting. When
 set to `false` on MacOS, `usePolling: true` becomes the default.
 * `alwaysStat` (default: `false`). If relying upon the
-[`fs.Stats`](http://nodejs.org/api/fs.html#fs_class_fs_stats)
+[`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
 object that may get passed with `add`, `addDir`, and `change` events, set
 this to `true` to ensure it is provided even in cases where it wasn't
 already available from the underlying watch events.
@@ -226,6 +229,7 @@ Use with caution.
   * `awaitWriteFinish.pollInterval` (default: 100). File size polling interval, in milliseconds.
 
 #### Errors
+
 * `ignorePermissionErrors` (default: `false`). Indicates whether to watch files
 that don't have read permissions if possible. If watching fails due to `EPERM`
 or `EACCES` with this set to `true`, the errors will be suppressed silently.
@@ -291,4 +295,4 @@ For more detailed changelog, see [`full_changelog.md`](.github/full_changelog.md
 
 ## License
 
-MIT (c) Paul Miller (https://paulmillr.com), see LICENSE file.
+MIT (c) Paul Miller <https://paulmillr.com>, see LICENSE file.
