@@ -51,6 +51,7 @@ const {
 
 const stat = promisify(fs.stat);
 const readdir = promisify(fs.readdir);
+const exists = promisify(fs.exists);
 
 /**
  * @typedef {String} Path
@@ -765,14 +766,36 @@ _isntIgnored(path, stat) {
  * Provides a set of common helpers and properties relating to symlink and glob handling.
  * @param {Path} path file, directory, or glob pattern being watched
  * @param {Number=} depth at any depth > 0, this isn't a glob
- * @returns {WatchHelper} object containing helpers for this path
+ * @returns {Promise<WatchHelper>} object containing helpers for this path
  */
-_getWatchHelpers(path, depth) {
-  const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
+async _getWatchHelpers(path, depth)
+{
+  const baseWatchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const follow = this.options.followSymlinks;
+  const existingWatchPath=await this._mostSpecifiedExistingAncestor(baseWatchPath);
 
-  return new WatchHelper(path, watchPath, follow, this);
+  return new WatchHelper(path, existingWatchPath, follow, this);
 }
+
+  /**
+   * Find the most recent (specified ) ancestor path that exists.
+   * @param {Path} path file or directory
+   * @returns {Promise<String>} the most recent ancestor path that exists
+   * @private
+   */
+  async _mostSpecifiedExistingAncestor(path)
+  {
+      const father = globParent(path);
+
+      if (father == path)
+          return path;
+
+      const doesExists = await exists(path);
+      if (doesExists)
+          return path;
+
+      return this._mostSpecifiedExistingAncestor(father);
+  }
 
 // Directory helpers
 // -----------------
