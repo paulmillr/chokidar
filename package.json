@@ -27,7 +27,6 @@
   "devDependencies": {
     "@types/node": "^12",
     "chai": "^4.2",
-    "coveralls": "^3",
     "dtslint": "0.4.1",
     "jshint": "^2.10.2",
     "mocha": "^6.2.1",
@@ -51,11 +50,10 @@
   },
   "license": "MIT",
   "scripts": {
-    "test": "npm run lint && nyc npm run mocha -- --exit",
-    "mocha": "mocha",
+    "dtslint": "dtslint types",
     "lint": "jshint index.js test.js lib",
-    "coveralls": "nyc report --reporter=text-lcov | coveralls",
-    "dtslint": "dtslint types"
+    "mocha": "mocha",
+    "test": "npm run lint && nyc npm run mocha -- --exit"
   },
   "keywords": [
     "fs",
