@@ -1,3 +1,5 @@
+/* eslint-env mocha */
+
 'use strict';
 
 const fs = require('fs');
@@ -1769,16 +1771,17 @@ const runTests = (baseopts) => {
           function isSpyReady(spy) {
             return Array.isArray(spy) ? spy[0].callCount >= spy[1] : spy.callCount;
           }
+          let intrvl, to;
           function finish() {
             clearInterval(intrvl);
             clearTimeout(to);
             fn();
             fn = Function.prototype;
           }
-          var intrvl = setInterval(() => {
+          intrvl = setInterval(() => {
             if (spies.every(isSpyReady)) finish();
           }, 5);
-          var to = setTimeout(finish, 3500);
+          to = setTimeout(finish, 3500);
         }
 
         it('should handle unlink that happens while waiting for stat to return', (done) => {
