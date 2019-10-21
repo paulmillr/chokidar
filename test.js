@@ -1943,7 +1943,7 @@ const runTests = (baseopts) => {
   });
   describe('close', () => {
     it('should ignore further events on close', async () => {
-      return new Promise(async (resolve) => {
+      return new Promise((resolve) => {
         const spy = sinon.spy();
         const watcher = chokidar_watch(currentDir, options);
         watcher.once('add', () => {
@@ -1955,9 +1955,11 @@ const runTests = (baseopts) => {
             resolve();
           });
         });
-        await waitForWatcher(watcher);
-        await write(getFixturePath('add.txt'), 'hello');
-        await fs_unlink(getFixturePath('add.txt'));
+        Promise.all([
+          waitForWatcher(watcher),
+          write(getFixturePath('add.txt'), 'hello'),
+          fs_unlink(getFixturePath('add.txt'))
+        ]);
       });
     });
     it('should not prevent the process from exiting', async () => {
