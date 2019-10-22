@@ -24,9 +24,6 @@ const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
 
-const {sep} = require('path');
-const readdirp = require('readdirp');
-
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
 const allWatchers = [];
