@@ -7,6 +7,7 @@ const sysPath = require('path');
 const {promisify} = require('util');
 const exec = promisify(require('child_process').exec);
 const chai = require('chai');
+const rimraf = promisify(require('rimraf'));
 const {expect} = chai;
 const sinon = require('sinon');
 const upath = require('upath');
@@ -25,37 +26,6 @@ const fs_unlink = promisify(fs.unlink);
 
 const {sep} = require('path');
 const readdirp = require('readdirp');
-
-async function rimraf(path) {
-  function rm(entry) {
-    const {dirent} = entry;
-    const path = entry.fullPath;
-    const promise = dirent.isDirectory() ? fs_rmdir(path) : fs_unlink(path);
-    return promise;
-  }
-
-  const SEP = new RegExp(isWindows ? '\\\\' : sep, 'g');
-  function countSlashes(entry) {
-    const mtch = entry.fullPath.match(SEP);
-    return mtch ? mtch.length : 0;
-  }
-  function compare(a_, b_) {
-    const [b, a] = [countSlashes(a_), countSlashes(b_)];
-    return a === b ? a_.fullPath.localeCompare(b_.fullPath) : (a > b ? 1 : -1);
-  }
-
-  try {
-    await fs.promises.access(path);
-  } catch (error) {
-    return;
-  }
-  const files = await readdirp.promise(path, {type: 'all'});
-  files.sort(compare);
-  for (const entry of files) {
-    await rm(entry);
-  }
-  await fs_rmdir(path);
-}
 
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
