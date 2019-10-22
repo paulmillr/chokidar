@@ -230,7 +230,7 @@ const runTests = (baseopts) => {
         spy.should.have.been.calledWith(path);
       });
     });
-    it('should emit thirtythree `add` events when thirtythree files were added in nine directories', async () => {
+    it.skip('should emit thirtythree `add` events when thirtythree files were added in nine directories', async () => {
       watcher.close();
 
       const test1Path = getFixturePath('add1.txt');
