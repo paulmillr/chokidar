@@ -1,0 +1,23 @@
+name: Lint
+on: [push, pull_request]
+env:
+  CI: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v1
+
+      - name: Set Node.js version
+        uses: actions/setup-node@v1
+        with:
+          node-version: "12"
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Run lint
+        run: npm run lint
