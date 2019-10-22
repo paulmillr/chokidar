@@ -169,8 +169,10 @@ const runTests = (baseopts) => {
     afterEach(async () => {
       await waitFor([readySpy]);
       readySpy.should.have.been.calledOnce;
+      /* eslint-disable require-atomic-updates */
       readySpy = undefined;
       rawSpy = undefined;
+      /* eslint-enable require-atomic-updates */
     });
     it('should produce an instance of chokidar.FSWatcher', () => {
       watcher.should.be.an.instanceof(chokidar.FSWatcher);
@@ -1976,7 +1978,7 @@ const runTests = (baseopts) => {
   });
   describe('close', () => {
     it('should ignore further events on close', async () => {
-      return new Promise(async (resolve) => {
+      return new Promise((resolve) => {
         const spy = sinon.spy();
         const watcher = chokidar_watch(currentDir, options);
         watcher.once('add', () => {
@@ -1988,9 +1990,11 @@ const runTests = (baseopts) => {
             resolve();
           });
         });
-        await waitForWatcher(watcher);
-        await write(getFixturePath('add.txt'), 'hello');
-        await fs_unlink(getFixturePath('add.txt'));
+        (async () => {
+          await waitForWatcher(watcher);
+          await write(getFixturePath('add.txt'), 'hello');
+          await fs_unlink(getFixturePath('add.txt'));
+        })();
       });
     });
     it('should not prevent the process from exiting', async () => {

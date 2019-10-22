@@ -335,7 +335,7 @@ constructor(_opts) {
   }
   const envInterval = process.env.CHOKIDAR_INTERVAL;
   if (envInterval) {
-    opts.interval = parseInt(envInterval, 10);
+    opts.interval = Number.parseInt(envInterval, 10);
   }
 
   // Editor atomic write normalization enabled by default with fs.watch
@@ -802,9 +802,9 @@ _hasReadPermissions(stats) {
   if (this.options.ignorePermissionErrors) return true;
 
   // stats.mode may be bigint
-  const md = stats && Number.parseInt(stats.mode);
+  const md = stats && Number.parseInt(stats.mode, 10);
   const st = md & 0o777;
-  const it = parseInt(st.toString(8)[0], 10);
+  const it = Number.parseInt(st.toString(8)[0], 10);
   return Boolean(4 & it);
 }
 
