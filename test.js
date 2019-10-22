@@ -34,7 +34,7 @@ async function rimraf(path) {
     return promise;
   }
 
-  const SEP = new RegExp(sep, 'g');
+  const SEP = new RegExp(isWindows ? '\\\\' : sep, 'g');
   function countSlashes(entry) {
     const mtch = entry.fullPath.match(SEP);
     return mtch ? mtch.length : 0;
