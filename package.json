@@ -52,9 +52,8 @@
   "scripts": {
     "dtslint": "dtslint types",
     "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
-    "mocha": "mocha",
-    "mocha:ci": "nyc npm run mocha -- --exit",
-    "test": "npm run lint && npm run mocha:ci"
+    "mocha": "mocha --exit",
+    "test": "npm run lint && npm run mocha"
   },
   "keywords": [
     "fs",
