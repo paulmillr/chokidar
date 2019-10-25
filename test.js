@@ -5,24 +5,27 @@
 const fs = require('fs');
 const sysPath = require('path');
 const {promisify} = require('util');
-const exec = promisify(require('child_process').exec);
+const childProcess = require('child_process');
 const chai = require('chai');
-const rimraf = promisify(require('rimraf'));
-const {expect} = chai;
+const rimraf = require('rimraf');
 const sinon = require('sinon');
+const sinonChai = require('sinon-chai');
 const upath = require('upath');
-const chokidar = require('.');
 const {isWindows, isMacos} = require('./lib/constants');
+const chokidar = require('.');
 
-chai.use(require('sinon-chai'));
+const {expect} = chai;
+chai.use(sinonChai);
 chai.should();
 
+const exec = promisify(childProcess.exec);
 const write = promisify(fs.writeFile);
 const fs_symlink = promisify(fs.symlink);
 const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
+const pRimraf = promisify(rimraf);
 
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
@@ -48,7 +51,7 @@ const aspy = (watcher, eventName, spy = null, noStat = false) => {
       (path) => spy(path)) :
       spy;
     watcher.on('error', reject);
-    watcher.on('ready', () => { resolve(spy); });
+    watcher.on('ready', () => resolve(spy));
     watcher.on(eventName, handler);
   });
 };
@@ -395,7 +398,7 @@ const runTests = (baseopts) => {
       fs.mkdirSync(testDir3, PERM_ARR);
       const spy = await aspy(watcher, 'unlinkDir');
       await waitFor([spy]);
-      await rimraf(testDir2); // test removing in one
+      await pRimraf(testDir2); // test removing in one
       await waitFor([spy]);
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
@@ -1755,13 +1758,15 @@ const runTests = (baseopts) => {
         // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
         // uncaught exception. The race condition is likelier to happen when stat() is slow.
         const _fs = require('fs');
-        const _realStat = _fs.stat;
+        const _realStat = fs.stat;
         beforeEach(() => {
           options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
           options.ignoreInitial = true;
 
           // Stub fs.stat() to take a while to return.
-          sinon.stub(_fs, 'stat').callsFake((path, cb) => { _realStat(path, w(cb, 250)); });
+          sinon.stub(_fs, 'stat').callsFake((path, cb) => {
+            _realStat(path, w(cb, 250));
+          });
         });
 
         afterEach(() => {
@@ -2055,7 +2060,7 @@ const runTests = (baseopts) => {
 describe('chokidar', function() {
   this.timeout(60000);
   before(async () => {
-    await rimraf(FIXTURES_PATH);
+    await pRimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
@@ -2070,7 +2075,7 @@ describe('chokidar', function() {
     subdirId = 0;
   });
   after(async () => {
-    await rimraf(FIXTURES_PATH);
+    await pRimraf(FIXTURES_PATH);
   });
 
   beforeEach(() => {
