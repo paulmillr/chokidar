@@ -872,11 +872,10 @@ _remove(directory, item) {
  * @param {Path} path
  */
 _closePath(path) {
-  let closers = this._closers.get(path);
+  const closers = this._closers.get(path);
   if (!closers) return;
   closers.forEach(closer => closer());
   this._closers.delete(path);
-  closers = [];
   const dir = sysPath.dirname(path);
   this._getWatchedDir(dir).remove(sysPath.basename(path));
 }
