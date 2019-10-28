@@ -295,4 +295,4 @@ For more detailed changelog, see [`full_changelog.md`](.github/full_changelog.md
 
 ## License
 
-MIT (c) Paul Miller <https://paulmillr.com>, see LICENSE file.
+MIT (c) Paul Miller (<https://paulmillr.com>), see [LICENSE](LICENSE) file.
