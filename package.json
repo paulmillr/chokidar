@@ -9,7 +9,7 @@
     "Elan Shanker"
   ],
   "engines": {
-    "node": ">=8.10.0"
+    "node": ">= 8.10.0"
   },
   "main": "index.js",
   "dependencies": {

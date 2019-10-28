@@ -1,3 +1,8 @@
+### Chokidar 3.2.3 (Oct 28, 2019)
+- Fix memory leaks for directories, which change a lot for a long time. This existed since 3.0
+- Small code refactoring
+- Bump node requirement from 8.0 to 8.10, since dependencies use features only present in 8.10 and higher.
+
 ### Chokidar 3.2.2 (Oct 16, 2019)
 - Fix "resource starved CPU prevents ready from happening" (#873)
   by fixing fsevents
