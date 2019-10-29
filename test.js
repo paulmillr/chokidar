@@ -1710,14 +1710,13 @@ const runTests = (baseopts) => {
 
         // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
         // uncaught exception. The race condition is likelier to happen when stat() is slow.
-        const _fs = require('fs');
         const _realStat = fs.stat;
         beforeEach(() => {
           options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
           options.ignoreInitial = true;
 
           // Stub fs.stat() to take a while to return.
-          sinon.stub(_fs, 'stat').callsFake((path, cb) => {
+          sinon.stub(fs, 'stat').callsFake((path, cb) => {
             _realStat(path, w(cb, 250));
           });
         });
@@ -1753,13 +1752,13 @@ const runTests = (baseopts) => {
             fs.writeFile(testPath, 'hello', simpleCb);
             _waitFor([spy], () => {
               spy.should.have.been.calledWith('add', testPath);
-              _fs.stat.resetHistory();
+              fs.stat.resetHistory();
               fs.writeFile(testPath, 'edit', simpleCb);
               w(() => {
                 // There will be a stat() call after we notice the change, plus pollInterval.
                 // After waiting a bit less, wait specifically for that stat() call.
-                _fs.stat.resetHistory();
-                _waitFor([_fs.stat], () => {
+                fs.stat.resetHistory();
+                _waitFor([fs.stat], () => {
                   // Once stat call is made, it will take some time to return. Meanwhile, unlink
                   // the file and wait for that to be noticed.
                   fs.unlink(testPath, simpleCb);
