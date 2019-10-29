@@ -1702,53 +1702,6 @@ const runTests = (baseopts) => {
         spy.should.have.been.calledWith('unlink', filename);
         spy.should.not.have.been.calledWith('change', filename);
       });
-      // describe('race2 condition', () => {
-      //   // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
-      //   // uncaught exception. The race condition is likelier to happen when stat() is slow.
-      //   const _fs = require('fs');
-      //   const _realStat = _fs.stat;
-
-      //   beforeEach(() => {
-      //     options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
-      //     options.ignoreInitial = true;
-
-      //     // Stub fs.stat() to take a while to return.
-      //     sinon.stub(_fs, 'stat', function(path, cb) {
-      //       _realStat(path, w(cb, 250));
-      //     });
-      //   });
-
-      //   afterEach(() => {
-      //     // Restore fs.stat() back to normal.
-      //     sinon.restore(_fs.stat);
-      //   });
-
-      //   it('should handle unlink that happens while waiting for stat to return', async () => {
-      //     const testPath = getFixturePath('add.txt');
-      //     const spy = await aspy(chokidar_watch(), 'all');
-      //     await write(testPath, 'hello');
-      //     await waitFor([spy]);
-      //     spy.should.have.been.calledWith('add', testPath);
-      //     _fs.stat.reset();
-      //     await write(testPath, 'edit');
-
-      //     await delay(40);
-      //     // There will be a stat() call after we notice the change, plus pollInterval.
-      //     // After waiting a bit less, wait specifically for that stat() call.
-      //     _fs.stat.reset();
-      //     await waitFor([_fs.stat]);
-      //     // Once stat call is made, it will take some time to return. Meanwhile, unlink
-      //     // the file and wait for that to be noticed.
-      //     await fs_unlink(testPath);
-      //     await waitFor([spy.withArgs('unlink')]);
-
-      //     await delay(400);
-      //     // Wait a while after unlink to ensure stat() had time to return. That's where
-      //     // an uncaught exception used to happen.
-      //     spy.should.have.been.calledWith('unlink', testPath);
-      //     spy.should.not.have.been.calledWith('change');
-      //   });
-      // });
       describe('race condition', () => {
         function w(fn, to) {
           return setTimeout.bind(null, fn, to || slowerDelay || 50);
