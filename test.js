@@ -2010,8 +2010,7 @@ const runTests = (baseopts) => {
   });
 };
 
-describe('chokidar', function() {
-  this.timeout(60000);
+describe('chokidar', () => {
   before(async () => {
     await pRimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
