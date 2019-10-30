@@ -34,8 +34,6 @@ const PERM_ARR = 0o755; // rwe, r+e, r+e
 let subdirId = 0;
 let options;
 let currentDir;
-let macosFswatch;
-let win32Polling;
 let slowerDelay;
 
 // spyOnReady
@@ -86,7 +84,34 @@ const chokidar_watch = (path = currentDir, opts = options) => {
   return wt;
 };
 
+const waitFor = async (spies) => {
+  if (spies.length === 0) throw new TypeError('SPies zero');
+  return new Promise((resolve) => {
+    const isSpyReady = (spy) => {
+      if (Array.isArray(spy)) {
+        return spy[0].callCount >= spy[1];
+      }
+      return spy.callCount >= 1;
+    };
+    let intrvl, timeo;
+    function finish() {
+      clearInterval(intrvl);
+      clearTimeout(timeo);
+      resolve();
+    }
+    intrvl = setInterval(() => {
+      process.nextTick(() => {
+        if (spies.every(isSpyReady)) finish();
+      });
+    }, 20);
+    timeo = setTimeout(finish, 5000);
+  });
+};
+
 const runTests = (baseopts) => {
+  let macosFswatch;
+  let win32Polling;
+
   baseopts.persistent = true;
 
   before(() => {
@@ -102,30 +127,6 @@ const runTests = (baseopts) => {
       options[key] = baseopts[key];
     });
   });
-
-  const waitFor = async (spies) => {
-    if (spies.length === 0) throw new TypeError('SPies zero');
-    return new Promise((resolve) => {
-      const isSpyReady = (spy) => {
-        if (Array.isArray(spy)) {
-          return spy[0].callCount >= spy[1];
-        }
-        return spy.callCount >= 1;
-      };
-      let intrvl, timeo;
-      function finish() {
-        clearInterval(intrvl);
-        clearTimeout(timeo);
-        resolve();
-      }
-      intrvl = setInterval(() => {
-        process.nextTick(() => {
-          if (spies.every(isSpyReady)) finish();
-        });
-      }, 20);
-      timeo = setTimeout(finish, 5000);
-    });
-  };
 
   describe('watch a directory', () => {
     let readySpy, rawSpy, watcher, watcher2;
