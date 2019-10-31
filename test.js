@@ -2078,10 +2078,10 @@ describe('chokidar', function() {
     currentDir = getFixturePath('');
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     let watcher;
     while ((watcher = allWatchers.pop())) {
-      watcher.close();
+      await watcher.close();
     }
   });
 

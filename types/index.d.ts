@@ -38,7 +38,7 @@ export class FSWatcher extends EventEmitter implements fs.FSWatcher {
   /**
    * Removes all listeners from watched files.
    */
-  close(): void;
+  close(): Promise<void>;
 
   on(event: 'add'|'addDir'|'change', listener: (path: string, stats?: fs.Stats) => void): this;
 

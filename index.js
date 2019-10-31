@@ -480,7 +480,7 @@ unwatch(paths_) {
 
 /**
  * Close watchers and remove all listeners from watched paths.
- * @returns {FSWatcher} for chaining.
+ * @returns {Promise<void>}.
 */
 close() {
   if (this.closed) return this;
@@ -488,7 +488,11 @@ close() {
 
   // Memory management.
   this.removeAllListeners();
-  this._closers.forEach(closerList => closerList.forEach(closer => closer()));
+  const closers = [];
+  this._closers.forEach(closerList => closerList.forEach(closer => {
+    const promise = closer();
+    if (promise instanceof Promise) closers.push(promise);
+  }));
   this._streams.forEach(stream => stream.destroy());
   this._userIgnored = undefined;
   this._readyCount = 0;
@@ -497,7 +501,7 @@ close() {
   ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach(key => {
     this[`_${key}`].clear();
   });
-  return this;
+  return closers.length ? Promise.all(closers).then(() => undefined) : Promise.resolve();
 }
 
 /**
