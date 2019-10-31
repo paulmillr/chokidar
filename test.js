@@ -198,7 +198,7 @@ const runTests = (baseopts) => {
       });
     });
     it.skip('should emit thirtythree `add` events when thirtythree files were added in nine directories', async () => {
-      watcher.close();
+      await watcher.close();
 
       const test1Path = getFixturePath('add1.txt');
       const testb1Path = getFixturePath('b/add1.txt');
@@ -1950,7 +1950,7 @@ const runTests = (baseopts) => {
         const watcher = chokidar_watch(currentDir, options);
         watcher.once('add', () => {
           watcher.once('add', async () => {
-            watcher.on('add', spy).close();
+            await watcher.on('add', spy).close();
             await delay(900);
             await write(getFixturePath('add.txt'), Date.now());
             spy.should.not.have.been.called;
