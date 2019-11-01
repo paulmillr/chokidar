@@ -52,7 +52,7 @@
   "scripts": {
     "dtslint": "dtslint types",
     "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
-    "mocha": "mocha --exit",
+    "mocha": "mocha --exit --timeout 60000",
     "test": "npm run lint && npm run mocha"
   },
   "keywords": [
@@ -83,6 +83,8 @@
           "allowEmptyCatch": true
         }
       ],
+      "no-lonely-if": "error",
+      "no-var": "error",
       "object-shorthand": "error",
       "prefer-arrow-callback": [
         "error",
@@ -110,8 +112,7 @@
       "quotes": [
         "error",
         "single"
-      ],
-      "no-var": "error"
+      ]
     }
   },
   "nyc": {

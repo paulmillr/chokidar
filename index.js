@@ -118,7 +118,7 @@ const getAbsolutePath = (path, cwd) => {
     return path;
   }
   if (path.startsWith(BANG)) {
-    return BANG + sysPath.join(cwd, path.substring(1));
+    return BANG + sysPath.join(cwd, path.slice(1));
   }
   return sysPath.join(cwd, path);
 };
@@ -407,7 +407,7 @@ add(paths_, _origAdd, _internal) {
   // set aside negated glob strings
   paths = paths.filter((path) => {
     if (path.startsWith(BANG)) {
-      this._ignoredPaths.add(path.substring(1));
+      this._ignoredPaths.add(path.slice(1));
       return false;
     }
 

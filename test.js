@@ -5,24 +5,27 @@
 const fs = require('fs');
 const sysPath = require('path');
 const {promisify} = require('util');
-const exec = promisify(require('child_process').exec);
+const childProcess = require('child_process');
 const chai = require('chai');
-const rimraf = promisify(require('rimraf'));
-const {expect} = chai;
+const rimraf = require('rimraf');
 const sinon = require('sinon');
+const sinonChai = require('sinon-chai');
 const upath = require('upath');
-const chokidar = require('.');
 const {isWindows, isMacos} = require('./lib/constants');
+const chokidar = require('.');
 
-chai.use(require('sinon-chai'));
+const {expect} = chai;
+chai.use(sinonChai);
 chai.should();
 
+const exec = promisify(childProcess.exec);
 const write = promisify(fs.writeFile);
 const fs_symlink = promisify(fs.symlink);
 const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
+const pRimraf = promisify(rimraf);
 
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
@@ -31,8 +34,6 @@ const PERM_ARR = 0o755; // rwe, r+e, r+e
 let subdirId = 0;
 let options;
 let currentDir;
-let macosFswatch;
-let win32Polling;
 let slowerDelay;
 
 // spyOnReady
@@ -48,7 +49,7 @@ const aspy = (watcher, eventName, spy = null, noStat = false) => {
       (path) => spy(path)) :
       spy;
     watcher.on('error', reject);
-    watcher.on('ready', () => { resolve(spy); });
+    watcher.on('ready', () => resolve(spy));
     watcher.on(eventName, handler);
   });
 };
@@ -83,7 +84,34 @@ const chokidar_watch = (path = currentDir, opts = options) => {
   return wt;
 };
 
+const waitFor = async (spies) => {
+  if (spies.length === 0) throw new TypeError('SPies zero');
+  return new Promise((resolve) => {
+    const isSpyReady = (spy) => {
+      if (Array.isArray(spy)) {
+        return spy[0].callCount >= spy[1];
+      }
+      return spy.callCount >= 1;
+    };
+    let intrvl, timeo;
+    function finish() {
+      clearInterval(intrvl);
+      clearTimeout(timeo);
+      resolve();
+    }
+    intrvl = setInterval(() => {
+      process.nextTick(() => {
+        if (spies.every(isSpyReady)) finish();
+      });
+    }, 20);
+    timeo = setTimeout(finish, 5000);
+  });
+};
+
 const runTests = (baseopts) => {
+  let macosFswatch;
+  let win32Polling;
+
   baseopts.persistent = true;
 
   before(() => {
@@ -99,30 +127,6 @@ const runTests = (baseopts) => {
       options[key] = baseopts[key];
     });
   });
-
-  const waitFor = async (spies) => {
-    if (spies.length === 0) throw new TypeError('SPies zero');
-    return new Promise((resolve) => {
-      const isSpyReady = (spy) => {
-        if (Array.isArray(spy)) {
-          return spy[0].callCount >= spy[1];
-        }
-        return spy.callCount >= 1;
-      };
-      let intrvl, timeo;
-      function finish() {
-        clearInterval(intrvl);
-        clearTimeout(timeo);
-        resolve();
-      }
-      intrvl = setInterval(() => {
-        process.nextTick(() => {
-          if (spies.every(isSpyReady)) finish();
-        });
-      }, 20);
-      timeo = setTimeout(finish, 5000);
-    });
-  };
 
   describe('watch a directory', () => {
     let readySpy, rawSpy, watcher, watcher2;
@@ -395,7 +399,7 @@ const runTests = (baseopts) => {
       fs.mkdirSync(testDir3, PERM_ARR);
       const spy = await aspy(watcher, 'unlinkDir');
       await waitFor([spy]);
-      await rimraf(testDir2); // test removing in one
+      await pRimraf(testDir2); // test removing in one
       await waitFor([spy]);
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
@@ -1699,53 +1703,6 @@ const runTests = (baseopts) => {
         spy.should.have.been.calledWith('unlink', filename);
         spy.should.not.have.been.calledWith('change', filename);
       });
-      // describe('race2 condition', () => {
-      //   // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
-      //   // uncaught exception. The race condition is likelier to happen when stat() is slow.
-      //   const _fs = require('fs');
-      //   const _realStat = _fs.stat;
-
-      //   beforeEach(() => {
-      //     options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
-      //     options.ignoreInitial = true;
-
-      //     // Stub fs.stat() to take a while to return.
-      //     sinon.stub(_fs, 'stat', function(path, cb) {
-      //       _realStat(path, w(cb, 250));
-      //     });
-      //   });
-
-      //   afterEach(() => {
-      //     // Restore fs.stat() back to normal.
-      //     sinon.restore(_fs.stat);
-      //   });
-
-      //   it('should handle unlink that happens while waiting for stat to return', async () => {
-      //     const testPath = getFixturePath('add.txt');
-      //     const spy = await aspy(chokidar_watch(), 'all');
-      //     await write(testPath, 'hello');
-      //     await waitFor([spy]);
-      //     spy.should.have.been.calledWith('add', testPath);
-      //     _fs.stat.reset();
-      //     await write(testPath, 'edit');
-
-      //     await delay(40);
-      //     // There will be a stat() call after we notice the change, plus pollInterval.
-      //     // After waiting a bit less, wait specifically for that stat() call.
-      //     _fs.stat.reset();
-      //     await waitFor([_fs.stat]);
-      //     // Once stat call is made, it will take some time to return. Meanwhile, unlink
-      //     // the file and wait for that to be noticed.
-      //     await fs_unlink(testPath);
-      //     await waitFor([spy.withArgs('unlink')]);
-
-      //     await delay(400);
-      //     // Wait a while after unlink to ensure stat() had time to return. That's where
-      //     // an uncaught exception used to happen.
-      //     spy.should.have.been.calledWith('unlink', testPath);
-      //     spy.should.not.have.been.calledWith('change');
-      //   });
-      // });
       describe('race condition', () => {
         function w(fn, to) {
           return setTimeout.bind(null, fn, to || slowerDelay || 50);
@@ -1754,14 +1711,15 @@ const runTests = (baseopts) => {
 
         // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
         // uncaught exception. The race condition is likelier to happen when stat() is slow.
-        const _fs = require('fs');
-        const _realStat = _fs.stat;
+        const _realStat = fs.stat;
         beforeEach(() => {
           options.awaitWriteFinish = {pollInterval: 50, stabilityThreshold: 50};
           options.ignoreInitial = true;
 
           // Stub fs.stat() to take a while to return.
-          sinon.stub(_fs, 'stat').callsFake((path, cb) => { _realStat(path, w(cb, 250)); });
+          sinon.stub(fs, 'stat').callsFake((path, cb) => {
+            _realStat(path, w(cb, 250));
+          });
         });
 
         afterEach(() => {
@@ -1795,13 +1753,13 @@ const runTests = (baseopts) => {
             fs.writeFile(testPath, 'hello', simpleCb);
             _waitFor([spy], () => {
               spy.should.have.been.calledWith('add', testPath);
-              _fs.stat.resetHistory();
+              fs.stat.resetHistory();
               fs.writeFile(testPath, 'edit', simpleCb);
               w(() => {
                 // There will be a stat() call after we notice the change, plus pollInterval.
                 // After waiting a bit less, wait specifically for that stat() call.
-                _fs.stat.resetHistory();
-                _waitFor([_fs.stat], () => {
+                fs.stat.resetHistory();
+                _waitFor([fs.stat], () => {
                   // Once stat call is made, it will take some time to return. Meanwhile, unlink
                   // the file and wait for that to be noticed.
                   fs.unlink(testPath, simpleCb);
@@ -2052,10 +2010,9 @@ const runTests = (baseopts) => {
   });
 };
 
-describe('chokidar', function() {
-  this.timeout(60000);
+describe('chokidar', () => {
   before(async () => {
-    await rimraf(FIXTURES_PATH);
+    await pRimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
@@ -2070,7 +2027,7 @@ describe('chokidar', function() {
     subdirId = 0;
   });
   after(async () => {
-    await rimraf(FIXTURES_PATH);
+    await pRimraf(FIXTURES_PATH);
   });
 
   beforeEach(() => {
