@@ -117,7 +117,8 @@ var watchedPaths = watcher.getWatched();
 watcher.unwatch('new-file*');
 
 // Stop watching.
-watcher.close();
+// The method is async!
+watcher.close().then(() => console.log('closed'));
 
 // Full list of options. See below for descriptions.
 // Do not use this example!
@@ -254,7 +255,7 @@ Additionally `all` is available which gets emitted with the underlying event
 name and path for every event other than `ready`, `raw`, and `error`.  `raw` is internal, use it carefully.
 * `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
 Takes an array of strings or just one string.
-* `.close()`: Removes all listeners from watched files.
+* `.close()`: Removes all listeners from watched files. Asynchronous, returns Promise.
 * `.getWatched()`: Returns an object representing all the paths on the file
 system being watched by this `FSWatcher` instance. The object's keys are all the
 directories (using absolute paths unless the `cwd` option was used), and the
