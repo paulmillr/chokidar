@@ -1,3 +1,7 @@
+### Chokidar 3.3.0 (Nov 2, 2019)
+* `FSWatcher#close()` method became async. This ensures IO operations
+are finished properly and fixes a few segfaulty crashes.
+
 ### Chokidar 3.2.3 (Oct 28, 2019)
 - Fix memory leaks for directories, which change a lot for a long time. This existed since 3.0
 - Small code refactoring
