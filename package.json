@@ -27,7 +27,7 @@
   "devDependencies": {
     "@types/node": "^13",
     "chai": "^4.2",
-    "dtslint": "^2.0.0",
+    "dtslint": "^3.0.0",
     "eslint": "^6.6.0",
     "mocha": "^7.0.0",
     "nyc": "^15.0.0",
