@@ -114,7 +114,7 @@ watcher.add(['new-file-2', 'new-file-3', '**/other-file*']);
 var watchedPaths = watcher.getWatched();
 
 // Un-watch some files.
-watcher.unwatch('new-file*');
+await watcher.unwatch('new-file*');
 
 // Stop watching.
 // The method is async!
@@ -253,8 +253,8 @@ Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`,
 `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event
 name and path for every event other than `ready`, `raw`, and `error`.  `raw` is internal, use it carefully.
-* `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
-Takes an array of strings or just one string.
+* `.unwatch(path / paths)`: **async** Stop watching files, directories, or glob patterns.
+Takes an array of strings or just one string. Use with `await` to ensure bugs don't happen.
 * `.close()`: Removes all listeners from watched files. Asynchronous, returns Promise.
 * `.getWatched()`: Returns an object representing all the paths on the file
 system being watched by this `FSWatcher` instance. The object's keys are all the
