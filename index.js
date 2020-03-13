@@ -483,7 +483,7 @@ unwatch(paths_) {
  * @returns {Promise<void>}.
 */
 close() {
-  if (this.closed) return this;
+  if (this.closed) return this._closePromise;
   this.closed = true;
 
   // Memory management.
@@ -501,7 +501,9 @@ close() {
   ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach(key => {
     this[`_${key}`].clear();
   });
-  return closers.length ? Promise.all(closers).then(() => undefined) : Promise.resolve();
+
+  this._closePromise = closers.length ? Promise.all(closers).then(() => undefined) : Promise.resolve();
+  return this._closePromise;
 }
 
 /**
