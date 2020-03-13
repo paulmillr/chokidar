@@ -1936,6 +1936,13 @@ const runTests = (baseopts) => {
       const {stdout} = obj;
       expect(stdout.toString()).to.equal('closed');
     });
+    it('should always return the same promise', async () => {
+      const watcher = chokidar_watch(currentDir, options);
+      const closePromise = watcher.close();
+      expect(closePromise).to.be.a('promise');
+      expect(watcher.close()).to.be.equal(closePromise);
+      await closePromise;
+    });
   });
   describe('env variable option override', () => {
     beforeEach(() => {
