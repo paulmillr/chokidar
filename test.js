@@ -506,6 +506,44 @@ const runTests = (baseopts) => {
       addSpy.should.have.been.calledWith(parentPath);
       addSpy.should.have.been.calledWith(subPath);
     });
+    it('should emit `unlinkDir` and `add` when dir is replaced by file', async () => {
+      options.ignoreInitial = true;
+      const unlinkSpy = sinon.spy(function unlinkSpy(){});
+      const addSpy = sinon.spy(function addSpy(){});
+      const testPath = getFixturePath('dirFile');
+      await fs_mkdir(testPath, PERM_ARR);
+      watcher.on(EV_UNLINK_DIR, unlinkSpy).on(EV_ADD, addSpy);
+      await waitForWatcher(watcher);
+
+      await delay();
+      await fs_rmdir(testPath);
+      await delay();
+      await write(testPath, 'file content');
+
+      await waitFor([unlinkSpy]);
+      unlinkSpy.should.have.been.calledWith(testPath);
+      await waitFor([addSpy]);
+      addSpy.should.have.been.calledWith(testPath);
+    });
+    it('should emit `unlink` and `addDir` when file is replaced by dir', async () => {
+      options.ignoreInitial = true;
+      const unlinkSpy = sinon.spy(function unlinkSpy(){});
+      const addSpy = sinon.spy(function addSpy(){});
+      const testPath = getFixturePath('fileDir');
+      await write(testPath, 'file content');
+      watcher.on(EV_UNLINK, unlinkSpy).on(EV_ADD_DIR, addSpy);
+      await waitForWatcher(watcher);
+
+      await delay();
+      await fs_unlink(testPath);
+      await delay();
+      await fs_mkdir(testPath, PERM_ARR);
+
+      await waitFor([unlinkSpy]);
+      unlinkSpy.should.have.been.calledWith(testPath);
+      await waitFor([addSpy]);
+      addSpy.should.have.been.calledWith(testPath);
+    });
   });
   describe('watch individual files', () => {
     it('should detect changes', async () => {
