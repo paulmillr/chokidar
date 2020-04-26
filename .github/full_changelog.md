@@ -1,5 +1,7 @@
 ### Chokidar 3.4.0 (Apr 26, 2020)
 * Support for directory-based symlinks.
+* Fix a case on macos when replacing a file with a dir of the same name
+  emitted invalid events.
 
 ### Chokidar 3.3.0 (Nov 2, 2019)
 * `FSWatcher#close()` method became async. This ensures IO operations
