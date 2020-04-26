@@ -823,13 +823,15 @@ _hasReadPermissions(stats) {
  * @param {String} item      base path of item/directory
  * @returns {void}
 */
-_remove(directory, item) {
+_remove(directory, item, isDirectory) {
   // if what is being deleted is a directory, get that directory's paths
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
   const path = sysPath.join(directory, item);
   const fullPath = sysPath.resolve(path);
-  const isDirectory = this._watched.has(path) || this._watched.has(fullPath);
+  isDirectory = isDirectory != null
+    ? isDirectory
+    : this._watched.has(path) || this._watched.has(fullPath);
 
   // prevent duplicate handling in case of arriving here nearly simultaneously
   // via multiple paths (such as _handleFile and _handleDir)
