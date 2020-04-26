@@ -600,6 +600,27 @@ const runTests = (baseopts) => {
       spy.should.have.always.been.calledWith(EV_ADD, testPath);
     });
 
+    it('should detect safe-edit', async () => {
+      const testPath = getFixturePath('change.txt');
+      const safePath = getFixturePath('tmp.txt');
+      await write(testPath, dateNow());
+      const watcher = chokidar_watch(testPath, options);
+      const spy = await aspy(watcher, EV_ALL);
+
+      await delay();
+      await write(safePath, dateNow());
+      await fs_rename(safePath, testPath);
+      await delay(100);
+      await write(safePath, dateNow());
+      await fs_rename(safePath, testPath);
+      await delay(100);
+      await write(safePath, dateNow());
+      await fs_rename(safePath, testPath);
+      await waitFor([spy]);
+      spy.withArgs(EV_CHANGE, testPath).should.have.been.calledThrice;
+    });
+
+
     // PR 682 is failing.
     describe.skip('Skipping gh-682: should detect unlink', () => {
       it('should detect unlink while watching a non-existent second file in another directory', async () => {
@@ -1007,6 +1028,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch(watchPaths, options);
       const spy = await aspy(watcher, EV_ALL);
 
+      await waitFor([spy.withArgs(EV_ADD_DIR)]);
       spy.should.have.been.calledWith(EV_ADD_DIR, getFixturePath('subdir'));
       spy.withArgs(EV_ADD_DIR).should.have.been.calledOnce;
       fs.mkdirSync(deepDir, PERM_ARR);

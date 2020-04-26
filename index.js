@@ -876,16 +876,24 @@ _remove(directory, item, isDirectory) {
 }
 
 /**
- *
+ * Closes all watchers for a path
  * @param {Path} path
  */
 _closePath(path) {
+  this._closeFile(path)
+  const dir = sysPath.dirname(path);
+  this._getWatchedDir(dir).remove(sysPath.basename(path));
+}
+
+/**
+ * Closes only file-specific watchers
+ * @param {Path} path
+ */
+_closeFile(path) {
   const closers = this._closers.get(path);
   if (!closers) return;
   closers.forEach(closer => closer());
   this._closers.delete(path);
-  const dir = sysPath.dirname(path);
-  this._getWatchedDir(dir).remove(sysPath.basename(path));
 }
 
 /**
