@@ -1,3 +1,6 @@
+### Chokidar 3.4.0 (Apr 26, 2020)
+* Support for directory-based symlinks.
+
 ### Chokidar 3.3.0 (Nov 2, 2019)
 * `FSWatcher#close()` method became async. This ensures IO operations
 are finished properly and fixes a few segfaulty crashes.
