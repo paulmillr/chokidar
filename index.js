@@ -152,12 +152,13 @@ class DirEntry {
     const {items} = this;
     if (!items) return;
     items.delete(item);
+    if (items.size > 0) return;
 
-    if (!items.size) {
-      const dir = this.path;
-      try {
-        await readdir(dir);
-      } catch (err) {
+    const dir = this.path;
+    try {
+      await readdir(dir);
+    } catch (err) {
+      if (this._removeWatcher) {
         this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
       }
     }
