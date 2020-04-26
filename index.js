@@ -605,16 +605,15 @@ async _emit(event, path, val1, val2, val3) {
     (event === EV_ADD || event === EV_ADD_DIR || event === EV_CHANGE)
   ) {
     const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
+    let stats;
     try {
-      const stats = await stat(fullPath);
-      // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
-      if (!stats) return;
-      args.push(stats);
-      this.emitWithAll(event, args);
+      stats = await stat(fullPath);
     } catch (err) {}
-  } else {
-    this.emitWithAll(event, args);
+    // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
+    if (!stats || this.closed) return;
+    args.push(stats);
   }
+  this.emitWithAll(event, args);
 
   return this;
 }

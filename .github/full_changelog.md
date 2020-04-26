@@ -2,6 +2,8 @@
 * Support for directory-based symlinks.
 * Fix a case on macos when replacing a file with a dir of the same name
   emitted invalid events.
+* Fix error swallowing inside `.on()` event handlers
+* Known issue: `followSymlinks: false` on macos still follows symlinked directories
 
 ### Chokidar 3.3.0 (Nov 2, 2019)
 * `FSWatcher#close()` method became async. This ensures IO operations

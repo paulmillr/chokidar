@@ -110,6 +110,8 @@ const waitFor = async (spies) => {
   });
 };
 
+const dateNow = () => Date.now().toString();
+
 const runTests = (baseopts) => {
   let macosFswatch;
   let win32Polling;
@@ -159,7 +161,7 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('add.txt');
       const spy = await aspy(watcher, EV_ADD);
       await delay();
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
@@ -179,19 +181,19 @@ const runTests = (baseopts) => {
 
       await waitForWatcher(watcher);
 
-      write(paths[0], Date.now());
-      write(paths[1], Date.now());
-      write(paths[2], Date.now());
-      write(paths[3], Date.now());
-      write(paths[4], Date.now());
+      write(paths[0], dateNow());
+      write(paths[1], dateNow());
+      write(paths[2], dateNow());
+      write(paths[3], dateNow());
+      write(paths[4], dateNow());
       await delay(100);
 
-      write(paths[5], Date.now());
-      write(paths[6], Date.now());
+      write(paths[5], dateNow());
+      write(paths[6], dateNow());
 
       await delay(150);
-      write(paths[7], Date.now());
-      write(paths[8], Date.now());
+      write(paths[7], dateNow());
+      write(paths[8], dateNow());
 
       await waitFor([[spy, 4]]);
 
@@ -249,51 +251,51 @@ const runTests = (baseopts) => {
       watcher2 = chokidar_watch().on(EV_READY, readySpy).on(EV_RAW, rawSpy);
       const spy = await aspy(watcher2, EV_ADD, null, true);
 
-      await write(test1Path, Date.now());
-      await write(test2Path, Date.now());
-      await write(test3Path, Date.now());
-      await write(test4Path, Date.now());
-      await write(test5Path, Date.now());
+      await write(test1Path, dateNow());
+      await write(test2Path, dateNow());
+      await write(test3Path, dateNow());
+      await write(test4Path, dateNow());
+      await write(test5Path, dateNow());
 
       await delay(200);
-      await write(test6Path, Date.now());
-      await write(test7Path, Date.now());
-      await write(test8Path, Date.now());
-      await write(test9Path, Date.now());
+      await write(test6Path, dateNow());
+      await write(test7Path, dateNow());
+      await write(test8Path, dateNow());
+      await write(test9Path, dateNow());
 
       await delay(200);
-      await write(testb1Path, Date.now());
-      await write(testb2Path, Date.now());
-      await write(testb3Path, Date.now());
-      await write(testb4Path, Date.now());
-      await write(testb5Path, Date.now());
+      await write(testb1Path, dateNow());
+      await write(testb2Path, dateNow());
+      await write(testb3Path, dateNow());
+      await write(testb4Path, dateNow());
+      await write(testb5Path, dateNow());
 
       await delay(200);
-      await write(testb6Path, Date.now());
-      await write(testb7Path, Date.now());
-      await write(testb8Path, Date.now());
-      await write(testb9Path, Date.now());
+      await write(testb6Path, dateNow());
+      await write(testb7Path, dateNow());
+      await write(testb8Path, dateNow());
+      await write(testb9Path, dateNow());
 
       await delay(200);
-      await write(testc1Path, Date.now());
-      await write(testc2Path, Date.now());
-      await write(testc3Path, Date.now());
-      await write(testc4Path, Date.now());
-      await write(testc5Path, Date.now());
+      await write(testc1Path, dateNow());
+      await write(testc2Path, dateNow());
+      await write(testc3Path, dateNow());
+      await write(testc4Path, dateNow());
+      await write(testc5Path, dateNow());
 
       await delay(150);
-      await write(testc6Path, Date.now());
-      await write(testc7Path, Date.now());
-      await write(testc8Path, Date.now());
-      await write(testc9Path, Date.now());
-      await write(testd1Path, Date.now());
-      await write(teste1Path, Date.now());
-      await write(testf1Path, Date.now());
+      await write(testc6Path, dateNow());
+      await write(testc7Path, dateNow());
+      await write(testc8Path, dateNow());
+      await write(testc9Path, dateNow());
+      await write(testd1Path, dateNow());
+      await write(teste1Path, dateNow());
+      await write(testf1Path, dateNow());
 
       await delay(100);
-      await write(testg1Path, Date.now());
-      await write(testh1Path, Date.now());
-      await write(testi1Path, Date.now());
+      await write(testg1Path, dateNow());
+      await write(testh1Path, dateNow());
+      await write(testi1Path, dateNow());
 
       await delay(300);
       await waitFor([[spy, 11]]);
@@ -359,7 +361,7 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('change.txt');
       const spy = await aspy(watcher, EV_CHANGE);
       spy.should.not.have.been.called;
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
       expect(spy.args[0][1]).to.be.ok; // stats
@@ -447,7 +449,7 @@ const runTests = (baseopts) => {
       unlinkSpy.should.have.been.calledWith(testPath);
 
       await delay();
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([addSpy.withArgs(testPath)]);
       addSpy.should.have.been.calledWith(testPath);
       changeSpy.should.not.have.been.called;
@@ -478,7 +480,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ADD);
       spy.should.not.have.been.called;
       await fs_mkdir(testDir, PERM_ARR);
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
@@ -550,7 +552,7 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('change.txt');
       const watcher = chokidar_watch(testPath, options);
       const spy = await aspy(watcher, EV_CHANGE);
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.always.been.calledWith(testPath);
     });
@@ -592,8 +594,8 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ALL);
 
       await delay();
-      await write(siblingPath, Date.now());
-      await write(testPath, Date.now());
+      await write(siblingPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.always.been.calledWith(EV_ADD, testPath);
     });
@@ -751,7 +753,7 @@ const runTests = (baseopts) => {
       const renamedDir = getFixturePath('subdir-renamed');
       const expectedPath = sysPath.join(renamedDir, 'add.txt');
       await fs_mkdir(testDir, PERM_ARR);
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       const watcher = chokidar_watch(currentDir, options);
       const spy = await aspy(watcher, EV_ADD);
 
@@ -768,7 +770,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ADD);
 
       await delay();
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
     });
@@ -798,8 +800,8 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ALL);
       spy.should.have.been.calledWith(EV_ADD, changePath);
 
-      await write(addPath, Date.now());
-      await write(changePath, Date.now());
+      await write(addPath, dateNow());
+      await write(changePath, dateNow());
 
       await delay();
       await waitFor([[spy, 3], spy.withArgs(EV_ADD, addPath)]);
@@ -841,8 +843,8 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, EV_ALL);
       await Promise.all([
-        write(addFile, Date.now()),
-        write(subFile, Date.now()),
+        write(addFile, dateNow()),
+        write(subFile, dateNow()),
         fs_unlink(aFile),
         fs_unlink(bFile)
       ]);
@@ -870,8 +872,8 @@ const runTests = (baseopts) => {
 
       spy.should.have.been.calledWith(EV_ADD);
       await Promise.all([
-        write(addPath, Date.now()),
-        write(changePath, Date.now())
+        write(addPath, dateNow()),
+        write(changePath, dateNow())
       ]);
       await waitFor([[spy, 3], spy.withArgs(EV_ADD, addPath)]);
       spy.should.have.been.calledWith(EV_ADD, addPath);
@@ -893,8 +895,8 @@ const runTests = (baseopts) => {
 
       await delay();
       await fs_unlink(unlinkPath);
-      await write(addPath, Date.now());
-      await write(changePath, Date.now());
+      await write(addPath, dateNow());
+      await write(changePath, dateNow());
 
       await waitFor([[spy, 4], spy.withArgs(EV_UNLINK, unlinkPath)]);
       spy.should.have.been.calledWith(EV_CHANGE, changePath);
@@ -910,7 +912,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV_ADD, changePath);
       spy.should.have.been.calledOnce;
 
-      await write(changePath, Date.now());
+      await write(changePath, dateNow());
       await delay();
       await waitFor([[spy, 2]]);
       spy.should.have.been.calledWith(EV_CHANGE, changePath);
@@ -924,7 +926,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV_ADD, filePath);
 
       await delay();
-      await write(filePath, Date.now());
+      await write(filePath, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV_CHANGE, filePath);
     });
@@ -949,7 +951,7 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.calledWith(EV_ADD, matchingFile);
       spy.should.not.have.been.calledWith(EV_ADD, matchingFile2);
       await delay();
-      await write(filePath, Date.now());
+      await write(filePath, dateNow());
 
       await waitFor([spy.withArgs(EV_CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV_CHANGE, filePath);
@@ -974,7 +976,7 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.calledWith(EV_ADD, matchingFile);
       spy.should.not.have.been.calledWith(EV_ADD, matchingFile2);
       await delay();
-      await write(filePath, Date.now());
+      await write(filePath, dateNow());
 
       await waitFor([spy.withArgs(EV_CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV_CHANGE, filePath);
@@ -990,7 +992,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ALL);
 
       await delay();
-      await write(deepFile, Date.now());
+      await write(deepFile, dateNow());
       await waitFor([[spy, 2]]);
       spy.should.have.been.calledWith(EV_ADD, deepFile);
       spy.should.have.been.calledWith(EV_CHANGE, deepFile);
@@ -1008,7 +1010,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV_ADD_DIR, getFixturePath('subdir'));
       spy.withArgs(EV_ADD_DIR).should.have.been.calledOnce;
       fs.mkdirSync(deepDir, PERM_ARR);
-      fs.writeFileSync(deepFile, Date.now());
+      fs.writeFileSync(deepFile, dateNow());
 
       await waitFor([[spy.withArgs(EV_ADD_DIR), 2], spy.withArgs(EV_ADD, deepFile)]);
       if (win32Polling) return true;
@@ -1030,15 +1032,15 @@ const runTests = (baseopts) => {
       fs.mkdirSync(getFixturePath('subdir1'), PERM_ARR);
       fs.mkdirSync(getFixturePath('subdir1/subsub1'), PERM_ARR);
       fs.mkdirSync(getFixturePath('subdir1/subsub1/subsubsub'), PERM_ARR);
-      fs.writeFileSync(deepFileA, Date.now());
-      fs.writeFileSync(deepFileB, Date.now());
+      fs.writeFileSync(deepFileA, dateNow());
+      fs.writeFileSync(deepFileB, dateNow());
       const watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, EV_ALL);
 
       spy.should.have.been.calledWith(EV_ADD, deepFileA);
       spy.should.have.been.calledWith(EV_ADD, deepFileB);
-      fs.appendFileSync(deepFileA, Date.now());
-      fs.appendFileSync(deepFileB, Date.now());
+      fs.appendFileSync(deepFileA, dateNow());
+      fs.appendFileSync(deepFileB, dateNow());
 
       await waitFor([[spy, 4]]);
       spy.should.have.been.calledWith(EV_CHANGE, deepFileA);
@@ -1079,7 +1081,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch(linkPath, options);
       const spy = await aspy(watcher, EV_ALL);
 
-      await write(changePath, Date.now());
+      await write(changePath, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE)]);
       spy.should.have.been.calledWith(EV_ADD, linkPath);
       spy.should.have.been.calledWith(EV_CHANGE, linkPath);
@@ -1091,7 +1093,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch(getFixturePath('subdir'), options);
       const spy = await aspy(watcher, EV_ALL);
 
-      await write(changePath, Date.now());
+      await write(changePath, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE, linkPath)]);
       spy.should.have.been.calledWith(EV_ADD, linkPath);
       spy.should.have.been.calledWith(EV_CHANGE, linkPath);
@@ -1104,7 +1106,7 @@ const runTests = (baseopts) => {
 
       spy.should.have.been.calledWith(EV_ADD_DIR, testDir);
       spy.should.have.been.calledWith(EV_ADD, testFile);
-      await write(getFixturePath('subdir/add.txt'), Date.now());
+      await write(getFixturePath('subdir/add.txt'), dateNow());
       await waitFor([spy.withArgs(EV_CHANGE)]);
       spy.should.have.been.calledWith(EV_CHANGE, testFile);
     });
@@ -1119,7 +1121,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch(linkedDir, options);
       const spy = await aspy(watcher, EV_CHANGE);
       const wa = spy.withArgs(linkedFilePath);
-      await write(getFixturePath('change.txt'), Date.now());
+      await write(getFixturePath('change.txt'), dateNow());
       await waitFor([wa]);
       spy.should.have.been.calledWith(linkedFilePath);
     });
@@ -1146,13 +1148,13 @@ const runTests = (baseopts) => {
     });
     it('should watch symlinks within a watched dir as files when followSymlinks:false', async () => {
       options.followSymlinks = false;
+      // Create symlink in linkPath
       const linkPath = getFixturePath('link');
       fs.symlinkSync(getFixturePath('subdir'), linkPath);
       const spy = await aspy(chokidar_watch(), EV_ALL);
-
-      // await delay();
+      await delay();
       setTimeout(() => {
-        fs.writeFileSync(getFixturePath('subdir/add.txt'), Date.now());
+        fs.writeFileSync(getFixturePath('subdir/add.txt'), dateNow());
         fs.unlinkSync(linkPath);
         fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
       }, options.usePolling ? 1200 : 300);
@@ -1179,7 +1181,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ALL);
 
       await delay();
-      await write(linkedFilePath, Date.now());
+      await write(linkedFilePath, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE)]);
       spy.should.have.been.calledWith(EV_CHANGE, watchedPath);
     });
@@ -1222,7 +1224,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV_ADD, testPath);
       spy.should.have.been.calledWith(EV_ADD_DIR, testDir);
       spy.should.not.have.been.calledWith(EV_ADD, getFixturePath('unlink.txt'));
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE)]);
       spy.should.have.been.calledWith(EV_CHANGE, testPath);
     });
@@ -1235,7 +1237,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV_ADD, testPath);
       spy.should.have.been.calledWith(EV_ADD_DIR, testDir);
       spy.should.not.have.been.calledWith(EV_ADD, getFixturePath('unlink.txt'));
-      await write(testPath, Date.now());
+      await write(testPath, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE)]);
       spy.should.have.been.calledWith(EV_CHANGE, testPath);
     });
@@ -1291,7 +1293,7 @@ const runTests = (baseopts) => {
           const spy = await aspy(chokidar_watch(), EV_ADD);
           spy.should.not.have.been.called;
           await fs_mkdir(testDir, PERM_ARR);
-          await write(testPath, Date.now());
+          await write(testPath, dateNow());
           await waitFor([spy]);
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
@@ -1300,7 +1302,7 @@ const runTests = (baseopts) => {
           const testPath = getFixturePath('change.txt');
           const spy = await aspy(chokidar_watch(), EV_ALL);
           spy.should.not.have.been.called;
-          await write(testPath, Date.now());
+          await write(testPath, dateNow());
           await waitFor([spy.withArgs(EV_CHANGE, testPath)]);
           spy.should.have.been.calledWith(EV_CHANGE, testPath);
           spy.should.not.have.been.calledWith(EV_ADD);
@@ -1312,7 +1314,7 @@ const runTests = (baseopts) => {
 
           await delay(200);
           const spy = await aspy(chokidar_watch(), EV_ALL);
-          await write(testPath, Date.now());
+          await write(testPath, dateNow());
           await waitFor([spy]);
 
           await delay(200);
@@ -1351,7 +1353,7 @@ const runTests = (baseopts) => {
         const spy = await aspy(watcher, EV_ALL);
 
         await delay();
-        await write(testFile, Date.now());
+        await write(testFile, dateNow());
 
         await delay(300);
         spy.should.not.have.been.calledWith(EV_ADD_DIR, testDir);
@@ -1367,8 +1369,8 @@ const runTests = (baseopts) => {
         const spy = await aspy(watcher, EV_ALL);
 
         await delay();
-        await write(getFixturePath('add.txt'), Date.now());
-        await write(getFixturePath('change.txt'), Date.now());
+        await write(getFixturePath('add.txt'), dateNow());
+        await write(getFixturePath('change.txt'), dateNow());
 
         await waitFor([spy.withArgs(EV_CHANGE, 'change.txt')]);
         spy.should.not.have.been.calledWith(EV_ADD, 'add.txt');
@@ -1390,7 +1392,7 @@ const runTests = (baseopts) => {
         options.depth = 0;
         const watcher = chokidar_watch();
         const spy = await aspy(watcher, EV_ALL);
-        await write(getFixturePath('subdir/add.txt'), Date.now());
+        await write(getFixturePath('subdir/add.txt'), dateNow());
         await waitFor([[spy, 4]]);
         spy.should.have.been.calledWith(EV_ADD_DIR, currentDir);
         spy.should.have.been.calledWith(EV_ADD_DIR, getFixturePath('subdir'));
@@ -1406,9 +1408,9 @@ const runTests = (baseopts) => {
         const ignoredPath = getFixturePath('subdir/subsub/ab.txt');
         const spy = await aspy(chokidar_watch(), EV_ALL);
         await delay();
-        await write(getFixturePath('change.txt'), Date.now());
-        await write(addPath, Date.now());
-        await write(ignoredPath, Date.now());
+        await write(getFixturePath('change.txt'), dateNow());
+        await write(addPath, dateNow());
+        await write(ignoredPath, dateNow());
         await waitFor([spy.withArgs(EV_CHANGE, addPath), spy.withArgs(EV_CHANGE, changePath)]);
         spy.should.have.been.calledWith(EV_ADD_DIR, getFixturePath('subdir/subsub'));
         spy.should.have.been.calledWith(EV_CHANGE, changePath);
@@ -1497,7 +1499,7 @@ const runTests = (baseopts) => {
         const watcher = chokidar_watch('**', options);
         const spy = await aspy(watcher, EV_ALL);
         await fs_unlink(getFixturePath('unlink.txt'));
-        await write(getFixturePath('change.txt'), Date.now());
+        await write(getFixturePath('change.txt'), dateNow());
         await waitFor([spy.withArgs(EV_UNLINK)]);
         spy.should.have.been.calledWith(EV_ADD, 'change.txt');
         spy.should.have.been.calledWith(EV_ADD, 'unlink.txt');
@@ -1540,7 +1542,7 @@ const runTests = (baseopts) => {
         const spy2 = await aspy(watcher2, EV_ALL);
 
         await fs_unlink(getFixturePath('unlink.txt'));
-        await write(getFixturePath('change.txt'), Date.now());
+        await write(getFixturePath('change.txt'), dateNow());
         await waitFor([spy1.withArgs(EV_UNLINK), spy2.withArgs(EV_UNLINK)]);
         spy1.should.have.been.calledWith(EV_CHANGE, 'change.txt');
         spy1.should.have.been.calledWith(EV_UNLINK, 'unlink.txt');
@@ -1562,8 +1564,8 @@ const runTests = (baseopts) => {
         const watcher = chokidar_watch(files, options);
 
         const spy = await aspy(watcher, EV_ALL);
-        fs.writeFileSync(getFixturePath('ignored.txt'), Date.now());
-        fs.writeFileSync(getFixturePath('ignored-option.txt'), Date.now());
+        fs.writeFileSync(getFixturePath('ignored.txt'), dateNow());
+        fs.writeFileSync(getFixturePath('ignored-option.txt'), dateNow());
         await fs_unlink(getFixturePath('ignored.txt'));
         await fs_unlink(getFixturePath('ignored-option.txt'));
         await delay();
@@ -1595,7 +1597,7 @@ const runTests = (baseopts) => {
           if (isWindows) return true;
           const spy = await aspy(chokidar_watch(), EV_ALL);
           spy.should.not.have.been.calledWith(EV_ADD, filePath);
-          await write(filePath, Date.now());
+          await write(filePath, dateNow());
 
           await delay(200);
           spy.should.not.have.been.calledWith(EV_CHANGE, filePath);
@@ -1607,7 +1609,7 @@ const runTests = (baseopts) => {
           const spy = await aspy(chokidar_watch(), EV_ALL);
           spy.should.have.been.calledWith(EV_ADD, filePath);
           if (!options.useFsEvents) return true;
-          await write(filePath, Date.now());
+          await write(filePath, dateNow());
           await waitFor([spy.withArgs(EV_CHANGE)]);
           spy.should.have.been.calledWith(EV_CHANGE, filePath);
         });
@@ -1851,8 +1853,8 @@ const runTests = (baseopts) => {
       watcher.unwatch(getFixturePath('subdir'));
 
       await delay();
-      await write(getFixturePath('subdir/add.txt'), Date.now());
-      await write(getFixturePath('change.txt'), Date.now());
+      await write(getFixturePath('subdir/add.txt'), dateNow());
+      await write(getFixturePath('change.txt'), dateNow());
       await waitFor([spy]);
 
       await delay(300);
@@ -1873,8 +1875,8 @@ const runTests = (baseopts) => {
 
       await delay();
       await fs_unlink(unlinkFile);
-      await write(addFile, Date.now());
-      await write(changedFile, Date.now());
+      await write(addFile, dateNow());
+      await write(changedFile, dateNow());
       await waitFor([spy.withArgs(EV_CHANGE)]);
 
       await delay(300);
@@ -1893,8 +1895,8 @@ const runTests = (baseopts) => {
 
       await delay();
       watcher.unwatch(subdir);
-      await write(getFixturePath('subdir/add.txt'), Date.now());
-      await write(getFixturePath('change.txt'), Date.now());
+      await write(getFixturePath('subdir/add.txt'), dateNow());
+      await write(getFixturePath('change.txt'), dateNow());
       await waitFor([spy]);
 
       await delay(300);
@@ -1915,7 +1917,7 @@ const runTests = (baseopts) => {
       watcher.on(EV_ALL, spy).add(getFixturePath('change.txt'));
 
       await delay();
-      await write(getFixturePath('change.txt'), Date.now());
+      await write(getFixturePath('change.txt'), dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledWith(EV_CHANGE, getFixturePath('change.txt'));
       if (!macosFswatch) spy.should.have.been.calledOnce;
@@ -1928,8 +1930,8 @@ const runTests = (baseopts) => {
 
       await delay();
       await fs_unlink(getFixturePath('unlink.txt'));
-      await write(getFixturePath('subdir/add.txt'), Date.now());
-      await write(getFixturePath('change.txt'), Date.now());
+      await write(getFixturePath('subdir/add.txt'), dateNow());
+      await write(getFixturePath('change.txt'), dateNow());
       await waitFor([spy]);
 
       await delay(300);
@@ -1948,7 +1950,7 @@ const runTests = (baseopts) => {
           watcher.once(EV_ADD, async () => {
             await watcher.on(EV_ADD, spy).close();
             await delay(900);
-            await write(getFixturePath('add.txt'), Date.now());
+            await write(getFixturePath('add.txt'), dateNow());
             spy.should.not.have.been.called;
             resolve();
           });
