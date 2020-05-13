@@ -25,7 +25,7 @@
     "fsevents": "~2.1.2"
   },
   "devDependencies": {
-    "@types/node": "^13",
+    "@types/node": "^14",
     "chai": "^4.2",
     "dtslint": "^3.3.0",
     "eslint": "^7.0.0",
