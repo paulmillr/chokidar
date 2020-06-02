@@ -1168,6 +1168,20 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV_ADD, linkedDir);
       spy.should.have.been.calledOnce;
     });
+    it('should survive ENOENT for missing symlinks when followSymlinks:false', async () => {
+      options.followSymlinks = false;
+      const targetDir = getFixturePath('subdir/nonexistent');
+      await fs_mkdir(targetDir);
+      await fs_symlink(targetDir, getFixturePath('subdir/broken'));
+      await fs_rmdir(targetDir);
+
+      const watcher = chokidar_watch(getFixturePath('subdir'), options);
+      const spy = await aspy(watcher, EV_ALL);
+
+      spy.should.have.been.calledTwice;
+      spy.should.have.been.calledWith(EV_ADD_DIR, getFixturePath('subdir'));
+      spy.should.have.been.calledWith(EV_ADD, getFixturePath('subdir/add.txt'));
+    });
     it('should watch symlinks within a watched dir as files when followSymlinks:false', async () => {
       options.followSymlinks = false;
       // Create symlink in linkPath
