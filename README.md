@@ -295,6 +295,12 @@ For more detailed changelog, see [`full_changelog.md`](.github/full_changelog.md
 - **v1 (Apr 7, 2015):** Glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
 - **v0.1 (Apr 20, 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
 
+## Also
+
+Why was chokidar named this way? What's the meaning behind it?
+
+>Chowkidar is a transliteration of a Hindi word meaning 'watchman, gatekeeper', चौकीदार. This ultimately comes from Sanskrit _ चतुष्क_ (crossway, quadrangle, consisting-of-four).
+
 ## License
 
 MIT (c) Paul Miller (<https://paulmillr.com>), see [LICENSE](LICENSE) file.
