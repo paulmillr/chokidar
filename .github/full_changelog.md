@@ -1,3 +1,6 @@
+### Chokidar 3.4.1 (Jul 16, 2020)
+* Fixes a bug when after a watcher was closed, files were not watched properly on new watch.
+
 ### Chokidar 3.4.0 (Apr 26, 2020)
 * Support for directory-based symlinks.
 * Fix a case on macos when replacing a file with a dir of the same name
