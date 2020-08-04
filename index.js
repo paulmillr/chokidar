@@ -34,6 +34,7 @@ const {
   REPLACER_RE,
 
   SLASH,
+  SLASH_SLASH,
   BRACE_START,
   BANG,
   ONE_DOT,
@@ -96,10 +97,19 @@ const unifyPaths = (paths_) => {
   return paths.map(normalizePathToUnix);
 };
 
+// If SLASH_SLASH occurs at the beginning of path, it is not replaced
+//     because "//StoragePC/DrivePool/Movies" is a valid network path
 const toUnix = (string) => {
   let str = string.replace(BACK_SLASH_RE, SLASH);
+  let prepend = false;
+  if (str.startsWith(SLASH_SLASH)) {
+    prepend = true;
+  }
   while (str.match(DOUBLE_SLASH_RE)) {
     str = str.replace(DOUBLE_SLASH_RE, SLASH);
+  }
+  if (prepend) {
+    str = SLASH + str;
   }
   return str;
 };
