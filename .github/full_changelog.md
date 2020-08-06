@@ -1,3 +1,6 @@
+### Chokidar 3.4.2 (Aug 6, 2020)
+* Fixes an ability to watch network drives on windows.
+
 ### Chokidar 3.4.1 (Jul 16, 2020)
 * Fixes a bug when after a watcher was closed, files were not watched properly on new watch.
 
