@@ -1,3 +1,7 @@
+### Chokidar 3.4.3 (Oct 13, 2020)
+* Circular symlinks that point to some parent directory are no longer watched.
+  This prevents infinite loops.
+
 ### Chokidar 3.4.2 (Aug 6, 2020)
 * Fixes an ability to watch network drives on windows.
 
