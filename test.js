@@ -2131,11 +2131,11 @@ const runTests = (baseopts) => {
         await delay(300);
         
         chai.assert.deepStrictEqual(events, [
-          `[ALL] addDir: test-fixtures/${id}/test`,
-          `[ALL] addDir: test-fixtures/${id}/test/dir`,
-          `[ALL] unlinkDir: test-fixtures/${id}/test/dir`,
-          `[ALL] addDir: test-fixtures/${id}/test/dir`,
-          `[ALL] add: test-fixtures/${id}/test/dir/file`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
+          `[ALL] unlinkDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
+          `[ALL] add: ${sysPath.join('test-fixtures', id, 'test', 'dir', 'file')}`,
         ]);
       } finally {
         watcher.close();
