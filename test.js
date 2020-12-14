@@ -2102,6 +2102,46 @@ const runTests = (baseopts) => {
       });
     }
   });
+  describe('reproduction of bug in issue #1024', () => {
+    it('should detect changes to folders, even if they were deleted before', async () => {
+      const id = subdirId.toString();
+      const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
+      const watcher = chokidar.watch(relativeWatcherDir, {
+        persistent: true,
+      });
+      try {
+        const events = [];
+        watcher.on('all', (event, path) =>
+          events.push(`[ALL] ${event}: ${path}`)
+        );
+        const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
+        const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
+
+        // Command sequence from https://github.com/paulmillr/chokidar/issues/1042.
+        await delay();
+        await fs_mkdir(relativeWatcherDir);
+        await fs_mkdir(testSubDir);
+        // The following delay is essential otherwise the call of mkdir and rmdir will be equalize
+        await delay(300);
+        await fs_rmdir(testSubDir);
+        // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
+        await delay(300);
+        await fs_mkdir(testSubDir);
+        await write(testSubDirFile, '');
+        await delay(300);
+        
+        chai.assert.deepStrictEqual(events, [
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
+          `[ALL] unlinkDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
+          `[ALL] add: ${sysPath.join('test-fixtures', id, 'test', 'dir', 'file')}`,
+        ]);
+      } finally {
+        watcher.close();
+      }
+    });
+  });
 };
 
 describe('chokidar', () => {
