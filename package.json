@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
-  "description": "A neat wrapper around node.js fs.watch / fs.watchFile / fsevents.",
-  "version": "3.4.4",
+  "description": "Minimal and efficient cross-platform file watching library",
+  "version": "3.5.0",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
   "contributors": [
@@ -22,7 +22,7 @@
     "readdirp": "~3.5.0"
   },
   "optionalDependencies": {
-    "fsevents": "~2.2.0"
+    "fsevents": "~2.3.1"
   },
   "devDependencies": {
     "@types/node": "^14",
@@ -65,56 +65,6 @@
     "fsevents"
   ],
   "types": "./types/index.d.ts",
-  "eslintConfig": {
-    "extends": "eslint:recommended",
-    "parserOptions": {
-      "ecmaVersion": 9,
-      "sourceType": "script"
-    },
-    "env": {
-      "node": true,
-      "es6": true
-    },
-    "rules": {
-      "array-callback-return": "error",
-      "no-empty": [
-        "error",
-        {
-          "allowEmptyCatch": true
-        }
-      ],
-      "no-lonely-if": "error",
-      "no-var": "error",
-      "object-shorthand": "error",
-      "prefer-arrow-callback": [
-        "error",
-        {
-          "allowNamedFunctions": true
-        }
-      ],
-      "prefer-const": [
-        "error",
-        {
-          "ignoreReadBeforeAssign": true
-        }
-      ],
-      "prefer-destructuring": [
-        "error",
-        {
-          "object": true,
-          "array": false
-        }
-      ],
-      "prefer-spread": "error",
-      "prefer-template": "error",
-      "radix": "error",
-      "strict": "error",
-      "quotes": [
-        "error",
-        "single"
-      ]
-    }
-  },
   "nyc": {
     "include": [
       "index.js",
