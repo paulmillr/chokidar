@@ -1134,9 +1134,11 @@ const runTests = (baseopts) => {
     });
     it('should not recurse indefinitely on circular symlinks', async () => {
       await fs_symlink(currentDir, getFixturePath('subdir/circular'));
-      const watcher = chokidar_watch();
-      await waitForWatcher(watcher);
-      // return true;
+      return new Promise((resolve, reject) => {
+        const watcher = chokidar_watch();
+        watcher.on(EV_ERROR, resolve());
+        watcher.on(EV_READY, reject('The watcher becomes ready, although he watches a circular symlink.'));
+      })
     });
     it('should recognize changes following symlinked dirs', async () => {
       const linkedFilePath = sysPath.join(linkedDir, 'change.txt');
