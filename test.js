@@ -2143,6 +2143,47 @@ const runTests = (baseopts) => {
         watcher.close();
       }
     });
+
+    it('should detect changes to symlink folders, even if they were deleted before', async () => {
+      const id = subdirId.toString();
+      const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
+      const linkedRelativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test-link');
+      await fs_symlink(sysPath.resolve(relativeWatcherDir), linkedRelativeWatcherDir);
+      const watcher = chokidar.watch(linkedRelativeWatcherDir, {
+        persistent: true,
+      });
+      try {
+        const events = [];
+        watcher.on('all', (event, path) =>
+          events.push(`[ALL] ${event}: ${path}`)
+        );
+        const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
+        const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
+
+        // Command sequence from https://github.com/paulmillr/chokidar/issues/1042.
+        await delay();
+        await fs_mkdir(relativeWatcherDir);
+        await fs_mkdir(testSubDir);
+        // The following delay is essential otherwise the call of mkdir and rmdir will be equalize
+        await delay(300);
+        await fs_rmdir(testSubDir);
+        // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
+        await delay(300);
+        await fs_mkdir(testSubDir);
+        await write(testSubDirFile, '');
+        await delay(300);
+        
+        chai.assert.deepStrictEqual(events, [
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
+          `[ALL] unlinkDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
+          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
+          `[ALL] add: ${sysPath.join('test-fixtures', id, 'test-link', 'dir', 'file')}`,
+        ]);
+      } finally {
+        watcher.close();
+      }
+    });
   });
 };
 
