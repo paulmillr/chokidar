@@ -1,7 +1,7 @@
 {
   "name": "chokidar",
   "description": "Minimal and efficient cross-platform file watching library",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
   "contributors": [
