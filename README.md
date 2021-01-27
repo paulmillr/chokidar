@@ -46,7 +46,7 @@ On MacOS, chokidar by default uses a native extension exposing the Darwin
 implementations like `kqueue` available on most \*nix platforms. Chokidar still
 does have to do some work to normalize the events received that way as well.
 
-On other platforms, the `fs.watch`-based implementation is the default, which
+On most other platforms, the `fs.watch`-based implementation is the default, which
 avoids polling and keeps CPU usage down. Be advised that chokidar will initiate
 watchers recursively for everything within scope of the paths that have been
 specified, so be judicious about not wasting system resources by watching much
