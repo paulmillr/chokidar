@@ -48,7 +48,8 @@ const {
   EMPTY_FN,
 
   isWindows,
-  isMacos
+  isMacos,
+  isIBMi
 } = require('./lib/constants');
 
 const stat = promisify(fs.stat);
@@ -328,6 +329,11 @@ constructor(_opts) {
   // Other platforms use non-polling fs_watch.
   if (undef(opts, 'usePolling') && !opts.useFsEvents) {
     opts.usePolling = isMacos;
+  }
+
+  // Always default to polling on IBM i because fs.watch() is not available on IBM i.
+  if(isIBMi) {
+    opts.usePolling = true;
   }
 
   // Global override (useful for end-developers that need to force polling for all
