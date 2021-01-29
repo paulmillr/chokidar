@@ -12,7 +12,7 @@ const sinon = require('sinon');
 const sinonChai = require('sinon-chai');
 const upath = require('upath');
 
-const {isWindows, isMacos, EV_ALL, EV_READY, EV_ADD, EV_CHANGE, EV_ADD_DIR, EV_UNLINK, EV_UNLINK_DIR, EV_RAW, EV_ERROR}
+const {isWindows, isMacos, isIBMi, EV_ALL, EV_READY, EV_ADD, EV_CHANGE, EV_ADD_DIR, EV_UNLINK, EV_UNLINK_DIR, EV_RAW, EV_ERROR}
     = require('./lib/constants');
 const chokidar = require('.');
 
@@ -2046,7 +2046,6 @@ const runTests = (baseopts) => {
       it('should make options.usePolling `true` when CHOKIDAR_USEPOLLING is set to true', async () => {
         options.usePolling = false;
         process.env.CHOKIDAR_USEPOLLING = 'true';
-
         const watcher = chokidar_watch(currentDir, options);
         await waitForWatcher(watcher);
         watcher.options.usePolling.should.be.true;
@@ -2230,6 +2229,8 @@ describe('chokidar', () => {
       describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
     }
   }
-  describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+  if(!isIBMi) {
+    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+  }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
 });
