@@ -1,6 +1,9 @@
+### Chokidar 3.5.1 (Jan 15, 2021)
+- Fixes for symbolic links
+
 ### Chokidar 3.5.0 (Jan 6, 2021)
 - Support for ARM Macs with Apple Silicon.
-- Fixed missing removal of symlinks when the target path was deleted (#1042)
+- Fixes missing removal of symlinks when the target path was deleted (#1042)
 
 ### Chokidar 3.4.3 (Oct 13, 2020)
 * Circular symlinks that point to some parent directory are no longer watched.
