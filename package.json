@@ -32,6 +32,9 @@
     "lib/",
     "types/index.d.ts"
   ],
+  "engines": {
+    "node": "<=12"
+  },
   "dependencies": {
     "anymatch": "^2.0.0",
     "async-each": "^1.0.1",
