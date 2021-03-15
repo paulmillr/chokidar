@@ -19,7 +19,7 @@
     "is-binary-path": "~2.1.0",
     "is-glob": "~4.0.1",
     "normalize-path": "~3.0.0",
-    "readdirp": "~3.5.0"
+    "readdirp": "~3.6.0"
   },
   "optionalDependencies": {
     "fsevents": "~2.3.1"
