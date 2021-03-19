@@ -2103,6 +2103,45 @@ const runTests = (baseopts) => {
       });
     }
   });
+  describe('reproduction of bug in issue #1040', () => {
+    it('should detect change on symlink folders when consolidateThreshhold is reach', async () => {
+      const id = subdirId.toString();
+
+      const fixturesPathRel = sysPath.join(FIXTURES_PATH_REL, id, 'test-case-1040');
+      const linkPath = sysPath.join(fixturesPathRel, 'symlinkFolder');
+      await fs_mkdir(sysPath.resolve(linkPath), { recursive: true });
+
+      // Init chokidar
+      const watcher = chokidar.watch([]);
+      const events = [];
+
+      // Add more than 10 folders to cap consolidateThreshhold
+      for (let i = 0 ; i < 20 ; i += 1) {
+        const folderPath = sysPath.join(fixturesPathRel, 'packages', `folder${i}`);
+        await fs_mkdir(sysPath.resolve(folderPath), { recursive: true });
+        const filePath = sysPath.join(folderPath, `file${i}.js`);
+        await write(sysPath.resolve(filePath), 'file content');
+        const symlinkPath = sysPath.join(linkPath, `folder${i}`);
+        await fs_symlink(sysPath.resolve(folderPath), symlinkPath);
+        watcher.add(sysPath.resolve(sysPath.join(symlinkPath, `file${i}.js`)));
+      }
+
+      // Wait to be sure that we have no other event than the update file
+      await delay(300);
+      watcher.on('change', (event, path) =>
+        events.push(`[change] ${event}: ${path}`)
+      );
+
+      // Update a random generated file to fire an event
+      const randomFilePath = sysPath.join(fixturesPathRel, 'packages', 'folder17', 'file17.js');
+      await write(sysPath.resolve(randomFilePath), 'file content changer zeri ezhriez');
+
+      // Wait chokidar watch
+      await delay(300);
+
+      expect(events.length).to.equal(1);
+    })
+  });
   describe('reproduction of bug in issue #1024', () => {
     it('should detect changes to folders, even if they were deleted before', async () => {
       const id = subdirId.toString();
