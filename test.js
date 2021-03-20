@@ -519,9 +519,10 @@ const runTests = (baseopts) => {
 
       await delay();
       await fs_rmdir(testPath);
-      await delay();
+      await delay(300);
       await write(testPath, 'file content');
 
+      await delay(300);
       await waitFor([unlinkSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
       await waitFor([addSpy]);
@@ -610,12 +611,13 @@ const runTests = (baseopts) => {
       await delay();
       await write(safePath, dateNow());
       await fs_rename(safePath, testPath);
-      await delay(100);
+      await delay(300);
       await write(safePath, dateNow());
       await fs_rename(safePath, testPath);
-      await delay(100);
+      await delay(300);
       await write(safePath, dateNow());
       await fs_rename(safePath, testPath);
+      await delay(300);
       await waitFor([spy]);
       spy.withArgs(EV_CHANGE, testPath).should.have.been.calledThrice;
     });
@@ -1176,13 +1178,14 @@ const runTests = (baseopts) => {
       const linkPath = getFixturePath('link');
       fs.symlinkSync(getFixturePath('subdir'), linkPath);
       const spy = await aspy(chokidar_watch(), EV_ALL);
-      await delay();
+      await delay(300);
       setTimeout(() => {
         fs.writeFileSync(getFixturePath('subdir/add.txt'), dateNow());
         fs.unlinkSync(linkPath);
         fs.symlinkSync(getFixturePath('subdir/add.txt'), linkPath);
       }, options.usePolling ? 1200 : 300);
 
+      await delay(300);
       await waitFor([spy.withArgs(EV_CHANGE, linkPath)]);
       spy.should.not.have.been.calledWith(EV_ADD_DIR, linkPath);
       spy.should.not.have.been.calledWith(EV_ADD, getFixturePath('link/add.txt'));
@@ -1965,74 +1968,6 @@ const runTests = (baseopts) => {
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
   });
-  describe('close', () => {
-    it('should ignore further events on close', async () => {
-      return new Promise((resolve) => {
-        const spy = sinon.spy();
-        const watcher = chokidar_watch(currentDir, options);
-        watcher.once(EV_ADD, () => {
-          watcher.once(EV_ADD, async () => {
-            await watcher.on(EV_ADD, spy).close();
-            await delay(900);
-            await write(getFixturePath('add.txt'), dateNow());
-            spy.should.not.have.been.called;
-            resolve();
-          });
-        });
-        (async () => {
-          await waitForWatcher(watcher);
-          await write(getFixturePath('add.txt'), 'hello');
-          await fs_unlink(getFixturePath('add.txt'));
-        })();
-      });
-    });
-    it('should not ignore further events on close with existing watchers', async () => {
-      return new Promise((resolve) => {
-        const watcher1 = chokidar_watch(currentDir);
-        const watcher2 = chokidar_watch(currentDir);
-        // The EV_ADD event should be called on the second watcher even if the first watcher is closed
-        watcher2.on(EV_ADD, () => {
-          watcher2.on(EV_ADD, (path) => {
-            if (path.endsWith('add.txt')) {
-              resolve();
-            }
-          })
-        });
-        (async () => {
-          await waitForWatcher(watcher1);
-          await waitForWatcher(watcher2);
-          // Watcher 1 is closed to ensure events only happen on watcher 2
-          await watcher1.close();
-          // Write a new file into the fixtures to test the EV_ADD event
-          await write(getFixturePath('add.txt'), 'hello');
-          // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
-          await delay(200);
-          await fs_unlink(getFixturePath('add.txt'));
-        })()
-      })
-    });
-    it('should not prevent the process from exiting', async () => {
-      const scriptFile = getFixturePath('script.js');
-      const scriptContent = `
-        const chokidar = require("${__dirname.replace(/\\/g, '\\\\')}");
-        const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
-        watcher.on("ready", () => {
-          watcher.close();
-          process.stdout.write("closed");
-        });`;
-      await write(scriptFile, scriptContent);
-      const obj = await exec(`node ${scriptFile}`);
-      const {stdout} = obj;
-      expect(stdout.toString()).to.equal('closed');
-    });
-    it('should always return the same promise', async () => {
-      const watcher = chokidar_watch(currentDir, options);
-      const closePromise = watcher.close();
-      expect(closePromise).to.be.a('promise');
-      expect(watcher.close()).to.be.equal(closePromise);
-      await closePromise;
-    });
-  });
   describe('env variable option override', () => {
     beforeEach(() => {
       // Do not spin up
@@ -2167,6 +2102,7 @@ const runTests = (baseopts) => {
         // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
         await delay(300);
         await fs_mkdir(testSubDir);
+        await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
         
@@ -2221,6 +2157,77 @@ const runTests = (baseopts) => {
       } finally {
         watcher.close();
       }
+    });
+  });
+
+  describe('close', () => {
+    it('should ignore further events on close', async () => {
+      return new Promise((resolve) => {
+        const spy = sinon.spy();
+        const watcher = chokidar_watch(currentDir, options);
+        watcher.once(EV_ADD, () => {
+          watcher.once(EV_ADD, async () => {
+            await watcher.on(EV_ADD, spy).close();
+            await delay(900);
+            await write(getFixturePath('add.txt'), dateNow());
+            spy.should.not.have.been.called;
+            resolve();
+          });
+        });
+        (async () => {
+          await waitForWatcher(watcher);
+          await delay(300);
+          await write(getFixturePath('add.txt'), 'hello');
+          await delay(300);
+          await fs_unlink(getFixturePath('add.txt'));
+        })();
+      });
+    });
+    it('should not ignore further events on close with existing watchers', async () => {
+      return new Promise((resolve) => {
+        const watcher1 = chokidar_watch(currentDir);
+        const watcher2 = chokidar_watch(currentDir);
+        // The EV_ADD event should be called on the second watcher even if the first watcher is closed
+        watcher2.on(EV_ADD, () => {
+          watcher2.on(EV_ADD, (path) => {
+            if (path.endsWith('add.txt')) {
+              resolve();
+            }
+          })
+        });
+        (async () => {
+          await waitForWatcher(watcher1);
+          await waitForWatcher(watcher2);
+          // Watcher 1 is closed to ensure events only happen on watcher 2
+          await watcher1.close();
+          // Write a new file into the fixtures to test the EV_ADD event
+          await write(getFixturePath('add.txt'), 'hello');
+          // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
+          await delay(200);
+          await fs_unlink(getFixturePath('add.txt'));
+        })()
+      })
+    });
+    it('should not prevent the process from exiting', async () => {
+      const scriptFile = getFixturePath('script.js');
+      const scriptContent = `
+        const chokidar = require("${__dirname.replace(/\\/g, '\\\\')}");
+        const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
+        watcher.on("ready", () => {
+          watcher.close();
+          process.stdout.write("closed");
+        });`;
+      await write(scriptFile, scriptContent);
+      const obj = await exec(`node ${scriptFile}`);
+      const {stdout} = obj;
+      expect(stdout.toString()).to.equal('closed');
+    });
+    it('should always return the same promise', async () => {
+      const watcher = chokidar_watch(currentDir, options);
+      const closePromise = watcher.close();
+      expect(closePromise).to.be.a('promise');
+      expect(watcher.close()).to.be.equal(closePromise);
+      await closePromise;
     });
   });
 };
