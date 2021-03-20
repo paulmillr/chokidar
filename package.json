@@ -52,7 +52,7 @@
   "scripts": {
     "dtslint": "dtslint types",
     "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
-    "mocha": "mocha --exit --timeout 60000",
+    "mocha": "mocha --exit --timeout 90000",
     "test": "npm run lint && npm run mocha"
   },
   "keywords": [
