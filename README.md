@@ -13,6 +13,7 @@ Node.js `fs.watch`:
 * Often reports events twice.
 * Emits most changes as `rename`.
 * Does not provide an easy way to recursively watch file trees.
+* Does not support recursive watching on Linux.
 
 Node.js `fs.watchFile`:
 
