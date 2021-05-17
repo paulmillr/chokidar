@@ -8,14 +8,6 @@ updates:
   open-pull-requests-limit: 10
   ignore:
   - dependency-name: dtslint
-    versions:
-    - "> 3.3.0"
   - dependency-name: mocha
-    versions:
-    - "> 7.2.0"
   - dependency-name: "@types/node"
-    versions:
-    - 15.0.0
   - dependency-name: sinon
-    versions:
-    - 10.0.0
