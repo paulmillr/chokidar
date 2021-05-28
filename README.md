@@ -255,8 +255,8 @@ Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`,
 Additionally `all` is available which gets emitted with the underlying event
 name and path for every event other than `ready`, `raw`, and `error`.  `raw` is internal, use it carefully.
 * `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
-Takes an array of strings or just one string. Use with `await` to ensure bugs don't happen.
-* `.close()`: **async** Removes all listeners from watched files. Asynchronous, returns Promise.
+Takes an array of strings or just one string.
+* `.close()`: **async** Removes all listeners from watched files. Asynchronous, returns Promise. Use with `await` to ensure bugs don't happen.
 * `.getWatched()`: Returns an object representing all the paths on the file
 system being watched by this `FSWatcher` instance. The object's keys are all the
 directories (using absolute paths unless the `cwd` option was used), and the
