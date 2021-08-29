@@ -265,7 +265,7 @@ values are arrays of the names of the items contained in each directory.
 ## CLI
 
 If you need a CLI interface for your file watching, check out
-[chokidar-cli](https://github.com/kimmobrunfeldt/chokidar-cli), allowing you to
+[chokidar-cli](https://github.com/open-cli-tools/chokidar-cli), allowing you to
 execute a command on each change, or get a stdio stream of change events.
 
 ## Install Troubleshooting
