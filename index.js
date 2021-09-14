@@ -772,7 +772,7 @@ _isIgnored(path, stats) {
     const paths = arrify(ignored)
       .filter((path) => typeof path === STRING_TYPE && !isGlob(path))
       .map((path) => path + SLASH_GLOBSTAR);
-    const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
+    const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(...[ignored, paths].filter(Boolean));
     this._userIgnored = anymatch(list, undefined, ANYMATCH_OPTS);
   }
 
