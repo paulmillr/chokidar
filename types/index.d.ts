@@ -4,7 +4,7 @@
 
 import * as fs from "fs";
 import { EventEmitter } from "events";
-import { Matcher } from 'anymatch'
+import { Matcher } from 'anymatch';
 
 export class FSWatcher extends EventEmitter implements fs.FSWatcher {
   options: WatchOptions;
