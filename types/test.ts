@@ -9,6 +9,8 @@ const watcher = chokidar.watch("file, dir, or glob", {
 const log = console.log.bind(console);
 
 watcher
+  .add('./foo.js')
+  .unwatch('./bar.js')
   .on("add", (path: string) => {
     log("File", path, "has been added");
   })
