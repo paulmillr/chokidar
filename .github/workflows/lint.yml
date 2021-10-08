@@ -21,3 +21,6 @@ jobs:
 
       - name: Run lint
         run: npm run lint
+
+      - name: Run dtslint
+        run: npm run dtslint
