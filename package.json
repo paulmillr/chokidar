@@ -14,7 +14,7 @@
   "main": "index.js",
   "dependencies": {
     "anymatch": "~3.1.2",
-    "braces": "~3.0.2",
+    "brace-expansion": "^1.1.11",
     "glob-parent": "~5.1.2",
     "is-binary-path": "~2.1.0",
     "is-glob": "~4.0.1",
