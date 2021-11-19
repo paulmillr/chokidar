@@ -228,8 +228,8 @@ class WatchHelper {
         false : {realPath: entry.fullParentDir, linkPath: this.fullWatchPath};
     }
 
-    if (this.globSymlink) {
-      return entry.fullPath.replace(this.globSymlink.realPath, this.globSymlink.linkPath);
+    if (this.globSymlink && this.globSymlink.realPath) {
+      return entry.fullPath.replace(this.globSymlink.realPath && '', this.globSymlink.linkPath);
     }
 
     return entry.fullPath;
