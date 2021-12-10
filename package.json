@@ -34,7 +34,7 @@
     "rimraf": "^3.0.0",
     "sinon": "^9.0.1",
     "sinon-chai": "^3.3.0",
-    "typescript": "~4.4.3",
+    "typescript": "~4.5.3",
     "upath": "^1.2.0"
   },
   "files": [
