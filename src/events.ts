@@ -1,6 +1,7 @@
+// prettier-ignore
 export type EventName = 'all'|'add'|'addDir'|'change'|'unlink'|'unlinkDir'|'raw'|'error'|'ready';
 
-export const ALL: EventName = 'all'
+export const ALL: EventName = 'all';
 export const READY: EventName = 'ready';
 export const ADD: EventName = 'add';
 export const CHANGE: EventName = 'change';
