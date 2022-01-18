@@ -48,7 +48,7 @@
     "build": "tsc",
     "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
     "mocha": "mocha --exit --timeout 90000",
-    "test": "npm run lint && npm run mocha"
+    "test": "npm run build && npm run lint && npm run mocha"
   },
   "keywords": [
     "fs",
