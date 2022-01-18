@@ -5,34 +5,24 @@ import { EventEmitter } from 'events';
 import sysPath from 'path';
 import { promisify } from 'util';
 import readdirp from 'readdirp';
-import anymatch from 'anymatch';
-import globParent from 'glob-parent';
-import isGlob from 'is-glob';
-import braces from 'braces';
-import normalizePath from 'normalize-path';
 
 import NodeFsHandler from './nodefs-handler';
 import FsEventsHandler from './fsevents-handler';
+import anymatch from './anymatch';
 import {
   Path,
   STR_CLOSE,
   STR_END,
   BACK_SLASH_RE,
   DOUBLE_SLASH_RE,
-  SLASH_OR_BACK_SLASH_RE,
   DOT_RE,
   REPLACER_RE,
   SLASH,
   SLASH_SLASH,
-  BRACE_START,
   BANG,
   ONE_DOT,
   TWO_DOTS,
-  GLOBSTAR,
-  SLASH_GLOBSTAR,
-  ANYMATCH_OPTS,
   STRING_TYPE,
-  FUNCTION_TYPE,
   EMPTY_STR,
   EMPTY_FN,
   isWindows,
@@ -183,25 +173,18 @@ class WatchHelper {
   path: string;
   watchPath: string;
   fullWatchPath: string;
-  hasGlob: boolean;
-  globSymlink: false | undefined | any;
-  globFilter: any;
   dirParts: string[][];
   followSymlinks: boolean;
-  unmatchedGlob: any;
   statMethod: 'stat' | 'lstat';
 
-  constructor(path, watchPath, follow, fsw) {
+  constructor(path, follow, fsw) {
     this.fsw = fsw;
+    const watchPath = path;
     this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath.resolve(watchPath);
-    this.hasGlob = watchPath !== path;
     /** @type {object|boolean} */
-    if (path === EMPTY_STR) this.hasGlob = false;
-    this.globSymlink = this.hasGlob && follow ? undefined : false;
-    this.globFilter = this.hasGlob ? anymatch(path, undefined, ANYMATCH_OPTS) : false;
-    this.dirParts = this.getDirParts(path);
+    this.dirParts = [];
     this.dirParts.forEach((parts) => {
       if (parts.length > 1) parts.pop();
     });
@@ -209,27 +192,10 @@ class WatchHelper {
     this.statMethod = follow ? STAT_METHOD_F : STAT_METHOD_L;
   }
 
-  checkGlobSymlink(entry) {
-    // only need to resolve once
-    // first entry should always have entry.parentDir === EMPTY_STR
-    if (this.globSymlink === undefined) {
-      this.globSymlink =
-        entry.fullParentDir === this.fullWatchPath
-          ? false
-          : { realPath: entry.fullParentDir, linkPath: this.fullWatchPath };
-    }
-
-    if (this.globSymlink) {
-      return entry.fullPath.replace(this.globSymlink.realPath, this.globSymlink.linkPath);
-    }
-
-    return entry.fullPath;
-  }
-
   entryPath(entry) {
     return sysPath.join(
       this.watchPath,
-      sysPath.relative(this.watchPath, this.checkGlobSymlink(entry))
+      sysPath.relative(this.watchPath, entry.fullPath)
     );
   }
 
@@ -237,39 +203,18 @@ class WatchHelper {
     const { stats } = entry;
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
     const resolvedPath = this.entryPath(entry);
-    const matchesGlob =
-      this.hasGlob && typeof this.globFilter === FUNCTION_TYPE
-        ? this.globFilter(resolvedPath)
-        : true;
     return (
-      matchesGlob &&
       this.fsw._isntIgnored(resolvedPath, stats) &&
       this.fsw._hasReadPermissions(stats)
     );
   }
 
   getDirParts(path) {
-    if (!this.hasGlob) return [];
-    const parts = [];
-    const expandedPath = path.includes(BRACE_START) ? braces.expand(path) : [path];
-    expandedPath.forEach((path) => {
-      parts.push(sysPath.relative(this.watchPath, path).split(SLASH_OR_BACK_SLASH_RE));
-    });
-    return parts;
+    return []
   }
 
   filterDir(entry) {
-    if (this.hasGlob) {
-      const entryParts = this.getDirParts(this.checkGlobSymlink(entry));
-      let globstar = false;
-      this.unmatchedGlob = !this.dirParts.some((parts) => {
-        return parts.every((part, i) => {
-          if (part === GLOBSTAR) globstar = true;
-          return globstar || !entryParts[0][i] || anymatch(part, entryParts[0][i], ANYMATCH_OPTS);
-        });
-      });
-    }
-    return !this.unmatchedGlob && this.fsw._isntIgnored(this.entryPath(entry), entry.stats);
+    return this.fsw._isntIgnored(this.entryPath(entry), entry.stats);
   }
 }
 
@@ -280,7 +225,6 @@ export type ChokidarOptions = Partial<{
   ignoreInitial: boolean;
   followSymlinks: boolean;
   cwd: string;
-  disableGlobbing: boolean;
 
   usePolling: boolean;
   useFsEvents: boolean;
@@ -307,7 +251,6 @@ interface FSWInstanceOptions {
   ignoreInitial: boolean;
   followSymlinks: boolean;
   cwd: string;
-  disableGlobbing: boolean;
 
   usePolling: boolean;
   useFsEvents: boolean;
@@ -378,7 +321,6 @@ export class FSWatcher extends EventEmitter {
     if (undef(opts, 'ignorePermissionErrors')) opts.ignorePermissionErrors = false;
     if (undef(opts, 'interval')) opts.interval = 100;
     if (undef(opts, 'binaryInterval')) opts.binaryInterval = 300;
-    if (undef(opts, 'disableGlobbing')) opts.disableGlobbing = false;
     opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
     // Enable fsevents on OS X when polling isn't explicitly enabled.
@@ -475,7 +417,7 @@ export class FSWatcher extends EventEmitter {
    * @returns {FSWatcher} for chaining
    */
   add(paths_: Path | Path[], _origAdd?: string, _internal?: boolean) {
-    const { cwd, disableGlobbing } = this.options;
+    const { cwd } = this.options;
     this.closed = false;
     let paths = unifyPaths(paths_);
     if (cwd) {
@@ -483,30 +425,9 @@ export class FSWatcher extends EventEmitter {
         const absPath = getAbsolutePath(path, cwd);
 
         // Check `path` instead of `absPath` because the cwd portion can't be a glob
-        if (disableGlobbing || !isGlob(path)) {
-          return absPath;
-        }
-        return normalizePath(absPath);
+        return absPath;
       });
     }
-
-    // set aside negated glob strings
-    paths = paths.filter((path) => {
-      if (path.startsWith(BANG)) {
-        this._ignoredPaths.add(path.slice(1));
-        return false;
-      }
-
-      // if a path is being added that was previously ignored, stop ignoring it
-      this._ignoredPaths.delete(path);
-      this._ignoredPaths.delete(path + SLASH_GLOBSTAR);
-
-      // reset the cached userIgnored anymatch fn
-      // to make ignoredPaths changes effective
-      this._userIgnored = undefined;
-
-      return true;
-    });
 
     if (this.options.useFsEvents && this._fsEventsHandler) {
       if (!this._readyCount) this._readyCount = paths.length;
@@ -536,10 +457,10 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Close watchers or start ignoring events from specified paths.
-   * @param {Path|Array<Path>} paths_ - string or array of strings, file/directory paths and/or globs
+   * @param {Path|Array<Path>} paths_ - string or array of strings, file/directory paths
    * @returns {FSWatcher} for chaining
    */
-  unwatch(paths_) {
+  unwatch(paths_: Path|Path[]) {
     if (this.closed) return this;
     const paths = unifyPaths(paths_);
     const { cwd } = this.options;
@@ -555,7 +476,8 @@ export class FSWatcher extends EventEmitter {
 
       this._ignoredPaths.add(path);
       if (this._watched.has(path)) {
-        this._ignoredPaths.add(path + SLASH_GLOBSTAR);
+        // TODO
+        // this._ignoredPaths.add(path + SLASH_GLOBSTAR);
       }
 
       // reset the cached userIgnored anymatch fn
@@ -830,9 +752,9 @@ export class FSWatcher extends EventEmitter {
     }
   }
 
-  _getGlobIgnored() {
-    return [...this._ignoredPaths.values()];
-  }
+  // _getGlobIgnored() {
+  //   return [...this._ignoredPaths.values()];
+  // }
 
   /**
    * Determines whether user has asked to ignore this path.
@@ -846,12 +768,14 @@ export class FSWatcher extends EventEmitter {
       const { cwd } = this.options;
       const ign = this.options.ignored;
 
+      // TODO
       const ignored = ign && ign.map(normalizeIgnored(cwd));
-      const paths = arrify(ignored)
-        .filter((path) => typeof path === STRING_TYPE && !isGlob(path))
-        .map((path) => path + SLASH_GLOBSTAR);
-      const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
-      this._userIgnored = anymatch(list, undefined, ANYMATCH_OPTS);
+      // const paths = arrify(ignored)
+      //   .filter((path) => typeof path === STRING_TYPE)
+      //   .map((path) => path + SLASH_GLOBSTAR);
+      // TODO
+      // const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
+      this._userIgnored = anymatch(ignored || [], undefined);
     }
 
     return this._userIgnored([path, stats]);
@@ -868,11 +792,7 @@ export class FSWatcher extends EventEmitter {
    * @returns {WatchHelper} object containing helpers for this path
    */
   _getWatchHelpers(path, depth?: number) {
-    const watchPath =
-      depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
-    const follow = this.options.followSymlinks;
-
-    return new WatchHelper(path, watchPath, follow, this);
+    return new WatchHelper(path, this.options.followSymlinks, this);
   }
 
   // Directory helpers

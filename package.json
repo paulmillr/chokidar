@@ -46,6 +46,7 @@
   },
   "license": "MIT",
   "scripts": {
+    "build": "tsc",
     "dtslint": "dtslint types",
     "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
     "mocha": "mocha --exit --timeout 90000",

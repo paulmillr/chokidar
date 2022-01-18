@@ -815,133 +815,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.ADD, testPath);
     });
   });
-  describe('watch glob patterns', () => {
-    it('should correctly watch and emit based on glob input', async () => {
-      const watchPath = getGlobPath('*a*.txt');
-      const addPath = getFixturePath('add.txt');
-      const changePath = getFixturePath('change.txt');
-      const watcher = chokidar_watch(watchPath, options);
-      const spy = await aspy(watcher, EV.ALL);
-      spy.should.have.been.calledWith(EV.ADD, changePath);
-
-      await write(addPath, dateNow());
-      await write(changePath, dateNow());
-
-      await delay();
-      await waitFor([[spy, 3], spy.withArgs(EV.ADD, addPath)]);
-      spy.should.have.been.calledWith(EV.ADD, addPath);
-      spy.should.have.been.calledWith(EV.CHANGE, changePath);
-      spy.should.not.have.been.calledWith(EV.ADD, getFixturePath('unlink.txt'));
-      spy.should.not.have.been.calledWith(EV.ADD_DIR);
-    });
-    it('should respect negated glob patterns', async () => {
-      const watchPath = getGlobPath('*');
-      const negatedWatchPath = `!${getGlobPath('*a*.txt')}`;
-      const unlinkPath = getFixturePath('unlink.txt');
-      const watcher = chokidar_watch([watchPath, negatedWatchPath], options);
-      const spy = await aspy(watcher, EV.ALL);
-      spy.should.have.been.calledOnce;
-      spy.should.have.been.calledWith(EV.ADD, unlinkPath);
-
-      await delay();
-      await fs_unlink(unlinkPath);
-      await waitFor([[spy, 2], spy.withArgs(EV.UNLINK)]);
-      spy.should.have.been.calledTwice;
-      spy.should.have.been.calledWith(EV.UNLINK, unlinkPath);
-    });
-    it('should traverse subdirs to match globstar patterns', async () => {
-      const watchPath = getGlobPath(`../../test-*/${subdirId}/**/a*.txt`);
-      const addFile = getFixturePath('add.txt');
-      const subdir = getFixturePath('subdir');
-      const subsubdir = getFixturePath('subdir/subsub');
-      const aFile = getFixturePath('subdir/a.txt');
-      const bFile = getFixturePath('subdir/b.txt');
-      const subFile = getFixturePath('subdir/subsub/ab.txt');
-      fs.mkdirSync(subdir, PERM_ARR);
-      fs.mkdirSync(subsubdir, PERM_ARR);
-      fs.writeFileSync(aFile, 'b');
-      fs.writeFileSync(bFile, 'b');
-      fs.writeFileSync(subFile, 'b');
-
-      await delay();
-      const watcher = chokidar_watch(watchPath, options);
-      const spy = await aspy(watcher, EV.ALL);
-      await Promise.all([
-        write(addFile, dateNow()),
-        write(subFile, dateNow()),
-        fs_unlink(aFile),
-        fs_unlink(bFile)
-      ]);
-
-      await waitFor([spy.withArgs(EV.CHANGE)]);
-      spy.withArgs(EV.CHANGE).should.have.been.calledOnce;
-      spy.should.have.been.calledWith(EV.CHANGE, subFile);
-
-      await waitFor([spy.withArgs(EV.UNLINK)]);
-      spy.withArgs(EV.UNLINK).should.have.been.calledOnce;
-      spy.should.have.been.calledWith(EV.UNLINK, aFile);
-
-      await waitFor([[spy.withArgs(EV.ADD), 3]]);
-      spy.withArgs(EV.ADD).should.have.been.calledThrice;
-    });
-    it('should resolve relative paths with glob patterns', async () => {
-      const id = subdirId.toString();
-      const watchPath = `test-*/${id}/*a*.txt`;
-      // getFixturePath() returns absolute paths, so use sysPath.join() instead
-      const addPath = sysPath.join(FIXTURES_PATH_REL, id, 'add.txt');
-      const changePath = sysPath.join(FIXTURES_PATH_REL, id, 'change.txt');
-      const unlinkPath = getFixturePath('unlink.txt');
-      const watcher = chokidar_watch(watchPath, options);
-      const spy = await aspy(watcher, EV.ALL);
-
-      spy.should.have.been.calledWith(EV.ADD);
-      await Promise.all([
-        write(addPath, dateNow()),
-        write(changePath, dateNow())
-      ]);
-      await waitFor([[spy, 3], spy.withArgs(EV.ADD, addPath)]);
-      spy.should.have.been.calledWith(EV.ADD, addPath);
-      spy.should.have.been.calledWith(EV.CHANGE, changePath);
-      spy.should.not.have.been.calledWith(EV.ADD, unlinkPath);
-      spy.should.not.have.been.calledWith(EV.ADD_DIR);
-      if (!macosFswatch) spy.should.have.been.calledThrice;
-    });
-    it('should correctly handle conflicting glob patterns', async () => {
-      const changePath = getFixturePath('change.txt');
-      const unlinkPath = getFixturePath('unlink.txt');
-      const addPath = getFixturePath('add.txt');
-      const watchPaths = [getGlobPath('change*'), getGlobPath('unlink*')];
-      const watcher = chokidar_watch(watchPaths, options);
-      const spy = await aspy(watcher, EV.ALL);
-      spy.should.have.been.calledWith(EV.ADD, changePath);
-      spy.should.have.been.calledWith(EV.ADD, unlinkPath);
-      spy.should.have.been.calledTwice;
-
-      await delay();
-      await fs_unlink(unlinkPath);
-      await write(addPath, dateNow());
-      await write(changePath, dateNow());
-
-      await waitFor([[spy, 4], spy.withArgs(EV.UNLINK, unlinkPath)]);
-      spy.should.have.been.calledWith(EV.CHANGE, changePath);
-      spy.should.have.been.calledWith(EV.UNLINK, unlinkPath);
-      spy.should.not.have.been.calledWith(EV.ADD, addPath);
-      spy.callCount.should.equal(4);
-    });
-    it('should correctly handle intersecting glob patterns', async () => {
-      const changePath = getFixturePath('change.txt');
-      const watchPaths = [getGlobPath('cha*'), getGlobPath('*nge.*')];
-      const watcher = chokidar_watch(watchPaths, options);
-      const spy = await aspy(watcher, EV.ALL);
-      spy.should.have.been.calledWith(EV.ADD, changePath);
-      spy.should.have.been.calledOnce;
-
-      await write(changePath, dateNow());
-      await delay();
-      await waitFor([[spy, 2]]);
-      spy.should.have.been.calledWith(EV.CHANGE, changePath);
-      spy.should.have.been.calledTwice;
-    });
+  describe('not watch glob patterns', () => {
     it('should not confuse glob-like filenames with globs', async () => {
       const filePath = getFixturePath('nota[glob].txt');
       await write(filePath, 'b');
@@ -980,7 +854,7 @@ const runTests = (baseopts) => {
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV.CHANGE, filePath);
     });
-    it('should treat glob-like filenames as literal filenames when globbing is disabled', async () => {
+    it('should treat glob-like filenames as literal filenames', async () => {
       options.disableGlobbing = true;
       const filePath = getFixturePath('nota[glob]');
       // This isn't using getGlobPath because it isn't treated as a glob
@@ -1004,72 +878,6 @@ const runTests = (baseopts) => {
 
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV.CHANGE, filePath);
-    });
-    it('should not prematurely filter dirs against complex globstar patterns', async () => {
-      const deepFile = getFixturePath('subdir/subsub/subsubsub/a.txt');
-      const watchPath = getGlobPath(`../../test-*/${subdirId}/**/subsubsub/*.txt`);
-      fs.mkdirSync(getFixturePath('subdir'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir/subsub'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), PERM_ARR);
-      fs.writeFileSync(deepFile, 'b');
-      const watcher = chokidar_watch(watchPath, options);
-      const spy = await aspy(watcher, EV.ALL);
-
-      await delay();
-      await write(deepFile, dateNow());
-      await waitFor([[spy, 2]]);
-      spy.should.have.been.calledWith(EV.ADD, deepFile);
-      spy.should.have.been.calledWith(EV.CHANGE, deepFile);
-    });
-    it('should emit matching dir events', async () => {
-      // test with and without globstar matches
-      const watchPaths = [getGlobPath('*'), getGlobPath('subdir/subsub/**/*')];
-      const deepDir = getFixturePath('subdir/subsub/subsubsub');
-      const deepFile = sysPath.join(deepDir, 'a.txt');
-      fs.mkdirSync(getFixturePath('subdir'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir/subsub'), PERM_ARR);
-      const watcher = chokidar_watch(watchPaths, options);
-      const spy = await aspy(watcher, EV.ALL);
-
-      await waitFor([spy.withArgs(EV.ADD_DIR)]);
-      spy.should.have.been.calledWith(EV.ADD_DIR, getFixturePath('subdir'));
-      spy.withArgs(EV.ADD_DIR).should.have.been.calledOnce;
-      fs.mkdirSync(deepDir, PERM_ARR);
-      fs.writeFileSync(deepFile, dateNow());
-
-      await waitFor([[spy.withArgs(EV.ADD_DIR), 2], spy.withArgs(EV.ADD, deepFile)]);
-      if (win32Polling) return true;
-
-      spy.should.have.been.calledWith(EV.ADD_DIR, deepDir);
-      fs.unlinkSync(deepFile);
-      fs.rmdirSync(deepDir);
-
-      await waitFor([spy.withArgs(EV.UNLINK_DIR)]);
-      spy.should.have.been.calledWith(EV.UNLINK_DIR, deepDir);
-    });
-    it('should correctly handle glob with braces', async () => {
-      const watchPath = upath.normalizeSafe(getGlobPath('{subdir/*,subdir1/subsub1}/subsubsub/*.txt'));
-      const deepFileA = getFixturePath('subdir/subsub/subsubsub/a.txt');
-      const deepFileB = getFixturePath('subdir1/subsub1/subsubsub/a.txt');
-      fs.mkdirSync(getFixturePath('subdir'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir/subsub'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir/subsub/subsubsub'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir1'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir1/subsub1'), PERM_ARR);
-      fs.mkdirSync(getFixturePath('subdir1/subsub1/subsubsub'), PERM_ARR);
-      fs.writeFileSync(deepFileA, dateNow());
-      fs.writeFileSync(deepFileB, dateNow());
-      const watcher = chokidar_watch(watchPath, options);
-      const spy = await aspy(watcher, EV.ALL);
-
-      spy.should.have.been.calledWith(EV.ADD, deepFileA);
-      spy.should.have.been.calledWith(EV.ADD, deepFileB);
-      fs.appendFileSync(deepFileA, dateNow());
-      fs.appendFileSync(deepFileB, dateNow());
-
-      await waitFor([[spy, 4]]);
-      spy.should.have.been.calledWith(EV.CHANGE, deepFileA);
-      spy.should.have.been.calledWith(EV.CHANGE, deepFileB);
     });
   });
   describe('watch symlinks', () => {
@@ -1226,23 +1034,6 @@ const runTests = (baseopts) => {
       await write(linkedFilePath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.CHANGE, watchedPath);
-    });
-    it('should properly match glob patterns that include a symlinked dir', async () => {
-      const dirSpy = sinon.spy(function dirSpy(){});
-      const addSpy = sinon.spy(function addSpy(){});
-      // test with relative path to ensure proper resolution
-      const watchDir = upath.relative(process.cwd(), linkedDir);
-      const watcher = chokidar_watch(upath.join(watchDir, '**/*'), options)
-        .on(EV.ADD_DIR, dirSpy)
-        .on(EV.ADD, addSpy);
-      await waitForWatcher(watcher);
-      // only the children are matched by the glob pattern, not the link itself
-      addSpy.should.have.been.calledThrice; // also unlink.txt & subdir/add.txt
-      addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'change.txt'));
-      dirSpy.should.have.been.calledWith(sysPath.join(watchDir, 'subdir'));
-      await write(sysPath.join(watchDir, 'add.txt'), '');
-      await waitFor([[addSpy, 4]]);
-      addSpy.should.have.been.calledWith(sysPath.join(watchDir, 'add.txt'));
     });
     it('should emit ready event even when broken symlinks are encountered', async () => {
       const targetDir = getFixturePath('subdir/nonexistent');
@@ -1538,7 +1329,7 @@ const runTests = (baseopts) => {
     describe('cwd', () => {
       it('should emit relative paths based on cwd', async () => {
         options.cwd = currentDir;
-        const watcher = chokidar_watch('**', options);
+        const watcher = chokidar_watch('.', options);
         const spy = await aspy(watcher, EV.ALL);
         await fs_unlink(getFixturePath('unlink.txt'));
         await write(getFixturePath('change.txt'), dateNow());
@@ -1576,7 +1367,7 @@ const runTests = (baseopts) => {
           options2[key] = options[key];
         });
         options2.cwd = getFixturePath('subdir');
-        const watcher = chokidar_watch(getGlobPath('**'), options);
+        const watcher = chokidar_watch(getGlobPath('.'), options);
         const spy1 = await aspy(watcher, EV.ALL);
 
         await delay();
@@ -1595,10 +1386,9 @@ const runTests = (baseopts) => {
       });
       it('should ignore files even with cwd', async () => {
         options.cwd = currentDir;
-        options.ignored = 'ignored-option.txt';
+        options.ignored = ['ignored-option.txt', 'ignored.txt'];
         const files = [
-          '*.txt',
-          '!ignored.txt'
+          '.'
         ];
         fs.writeFileSync(getFixturePath('change.txt'), 'hello');
         fs.writeFileSync(getFixturePath('ignored.txt'), 'ignored');
@@ -1913,7 +1703,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV.ALL);
 
       // test with both relative and absolute paths
-      watcher.unwatch([subdirRel, getGlobPath('unl*')]);
+      watcher.unwatch([subdirRel, getGlobPath('unlink.txt')]);
 
       await delay();
       await fs_unlink(unlinkFile);

@@ -295,17 +295,15 @@ export default class FsEventsHandler {
    * @param {String} watchPath  - file/dir path to be watched with fsevents
    * @param {String} realPath   - real path (in case of symlinks)
    * @param {Function} transform  - path transformer
-   * @param {Function} globFilter - path filter in case a glob pattern was provided
    * @returns {Function} closer for the watcher instance
    */
-  _watchWithFsEvents(watchPath, realPath, transform, globFilter) {
+  _watchWithFsEvents(watchPath, realPath, transform) {
     if (this.fsw.closed || this.fsw._isIgnored(watchPath)) return;
     const opts = this.fsw.options;
     const watchCallback = async (fullPath, flags, info) => {
       if (this.fsw.closed) return;
       if (opts.depth !== undefined && calcDepth(fullPath, realPath) > opts.depth) return;
       const path = transform(sysPath.join(watchPath, sysPath.relative(watchPath, fullPath)));
-      if (globFilter && !globFilter(path)) return;
       // ensure directories are tracked
       const parent = sysPath.dirname(path);
       const item = sysPath.basename(path);
@@ -431,8 +429,7 @@ export default class FsEventsHandler {
     const closer = this._watchWithFsEvents(
       wh.watchPath,
       sysPath.resolve(realPath || wh.watchPath),
-      processPath,
-      wh.globFilter
+      processPath
     );
     this.fsw._addPathCloser(path, closer);
   }
@@ -463,7 +460,7 @@ export default class FsEventsHandler {
       }
       if (stats.isDirectory()) {
         // emit addDir unless this is a glob parent
-        if (!wh.globFilter) this.emitAdd(processPath(path), stats, processPath, opts, forceAdd);
+        this.emitAdd(processPath(path), stats, processPath, opts, forceAdd);
 
         // don't recurse further if it would exceed depth setting
         if (priorDepth && priorDepth > opts.depth) return;

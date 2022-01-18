@@ -600,9 +600,7 @@ export default class NodeFsHandler {
     }
 
     const wh = this.fsw._getWatchHelpers(path, depth);
-    if (!wh.hasGlob && priorWh) {
-      wh.hasGlob = priorWh.hasGlob;
-      wh.globFilter = priorWh.globFilter;
+    if (priorWh) {
       wh.filterPath = (entry) => priorWh.filterPath(entry);
       wh.filterDir = (entry) => priorWh.filterDir(entry);
     }
