@@ -1,10 +1,11 @@
 'use strict';
 
-const fs = require('fs');
-const sysPath = require('path');
-const { promisify } = require('util');
-const isBinaryPath = require('is-binary-path');
-const {
+import fs from 'fs';
+import sysPath from 'path';
+import { promisify } from 'util';
+import isBinaryPath from 'is-binary-path';
+import {
+  Path,
   isWindows,
   isLinux,
   EMPTY_FN,
@@ -13,15 +14,13 @@ const {
   KEY_ERR,
   KEY_RAW,
   HANDLER_KEYS,
-  EV_CHANGE,
-  EV_ADD,
-  EV_ADD_DIR,
-  EV_ERROR,
   STR_DATA,
   STR_END,
   BRACE_START,
   STAR
-} = require('./constants');
+} from './constants';
+import * as EV from './events';
+import { FSWatcher } from './index';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
@@ -130,7 +129,7 @@ function createFsWatchInstance(path, options, listener, errHandler, emitRaw) {
  * @param {*=} val2
  * @param {*=} val3
  */
-const fsWatchBroadcast = (fullPath, type, val1, val2, val3) => {
+const fsWatchBroadcast = (fullPath: Path, type: string, val1?: any, val2?: any, val3?: any) => {
   const cont = FsWatchInstances.get(fullPath);
   if (!cont) return;
   foreach(cont[type], (listener) => {
@@ -171,7 +170,7 @@ const setFsWatchListener = (path, fullPath, options, handlers) => {
       fsWatchBroadcast.bind(null, fullPath, KEY_RAW)
     );
     if (!watcher) return;
-    watcher.on(EV_ERROR, async (error) => {
+    watcher.on(EV.ERROR, async (error) => {
       const broadcastErr = fsWatchBroadcast.bind(null, fullPath, KEY_ERR);
       cont.watcherUnusable = true; // documented since Node 10.4.1
       // Workaround for https://github.com/joyent/node/issues/4337
@@ -234,8 +233,8 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
   let cont = FsWatchFileInstances.get(fullPath);
 
   /* eslint-disable no-unused-vars, prefer-destructuring */
-  let listeners = new Set();
-  let rawEmitters = new Set();
+  // let listeners = new Set();
+  // let rawEmitters = new Set();
 
   const copts = cont && cont.options;
   if (copts && (copts.persistent < options.persistent || copts.interval > options.interval)) {
@@ -243,8 +242,8 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
     // This creates some unlikely edge case issues if the user mixes
     // settings in a very weird way, but solving for those cases
     // doesn't seem worthwhile for the added complexity.
-    listeners = cont.listeners;
-    rawEmitters = cont.rawEmitters;
+    // listeners = cont.listeners;
+    // rawEmitters = cont.rawEmitters;
     fs.unwatchFile(fullPath);
     cont = undefined;
   }
@@ -264,7 +263,7 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
       options,
       watcher: fs.watchFile(fullPath, options, (curr, prev) => {
         foreach(cont.rawEmitters, (rawEmitter) => {
-          rawEmitter(EV_CHANGE, fullPath, {curr, prev});
+          rawEmitter(EV.CHANGE, fullPath, {curr, prev});
         });
         const currmtime = curr.mtimeMs;
         if (curr.size !== prev.size || currmtime > prev.mtimeMs || currmtime === 0) {
@@ -293,8 +292,9 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
 /**
  * @mixin
  */
-class NodeFsHandler {
-
+export default class NodeFsHandler {
+fsw: FSWatcher;
+_boundHandleError: any;
 /**
  * @param {import("../index").FSWatcher} fsW
  */
@@ -316,7 +316,7 @@ _watchWithNodeFs(path, listener) {
   const parent = this.fsw._getWatchedDir(directory);
   parent.add(basename);
   const absolutePath = sysPath.resolve(path);
-  const options = {persistent: opts.persistent};
+  const options = {persistent: opts.persistent, interval: 0};
   if (!listener) listener = EMPTY_FN;
 
   let closer;
@@ -367,7 +367,7 @@ _handleFile(file, stats, initialAdd) {
         const at = newStats.atimeMs;
         const mt = newStats.mtimeMs;
         if (!at || at <= mt || mt !== prevStats.mtimeMs) {
-          this.fsw._emit(EV_CHANGE, file, newStats);
+          this.fsw._emit(EV.CHANGE, file, newStats);
         }
         if (isLinux && prevStats.ino !== newStats.ino) {
           this.fsw._closeFile(path)
@@ -386,7 +386,7 @@ _handleFile(file, stats, initialAdd) {
       const at = newStats.atimeMs;
       const mt = newStats.mtimeMs;
       if (!at || at <= mt || mt !== prevStats.mtimeMs) {
-        this.fsw._emit(EV_CHANGE, file, newStats);
+        this.fsw._emit(EV.CHANGE, file, newStats);
       }
       prevStats = newStats;
     }
@@ -396,8 +396,8 @@ _handleFile(file, stats, initialAdd) {
 
   // emit an add event if we're supposed to
   if (!(initialAdd && this.fsw.options.ignoreInitial) && this.fsw._isntIgnored(file)) {
-    if (!this.fsw._throttle(EV_ADD, file, 0)) return;
-    this.fsw._emit(EV_ADD, file, stats);
+    if (!this.fsw._throttle(EV.ADD, file, 0)) return;
+    this.fsw._emit(EV.ADD, file, stats);
   }
 
   return closer;
@@ -434,12 +434,12 @@ async _handleSymlink(entry, directory, path, item) {
     if (dir.has(item)) {
       if (this.fsw._symlinkPaths.get(full) !== linkPath) {
         this.fsw._symlinkPaths.set(full, linkPath);
-        this.fsw._emit(EV_CHANGE, path, entry.stats);
+        this.fsw._emit(EV.CHANGE, path, entry.stats);
       }
     } else {
       dir.add(item);
       this.fsw._symlinkPaths.set(full, linkPath);
-      this.fsw._emit(EV_ADD, path, entry.stats);
+      this.fsw._emit(EV.ADD, path, entry.stats);
     }
     this.fsw._emitReady();
     return true;
@@ -497,7 +497,7 @@ _handleRead(directory, initialAdd, wh, target, dir, depth, throttler) {
 
       this._addToNodeFs(path, initialAdd, wh, depth + 1);
     }
-  }).on(EV_ERROR, this._boundHandleError);
+  }).on(EV.ERROR, this._boundHandleError);
 
   return new Promise(resolve =>
     stream.once(STR_END, () => {
@@ -507,7 +507,7 @@ _handleRead(directory, initialAdd, wh, target, dir, depth, throttler) {
       }
       const wasThrottled = throttler ? throttler.clear() : false;
 
-      resolve();
+      resolve(undefined);
 
       // Files that absent in current directory snapshot
       // but present in previous emit `remove` event
@@ -548,7 +548,7 @@ async _handleDir(dir, stats, initialAdd, depth, target, wh, realpath) {
   const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
   const tracked = parentDir.has(sysPath.basename(dir));
   if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
-    if (!wh.hasGlob || wh.globFilter(dir)) this.fsw._emit(EV_ADD_DIR, dir, stats);
+    if (!wh.hasGlob || wh.globFilter(dir)) this.fsw._emit(EV.ADD_DIR, dir, stats);
   }
 
   // ensure dir is tracked (harmless if redundant)
@@ -584,7 +584,7 @@ async _handleDir(dir, stats, initialAdd, depth, target, wh, realpath) {
  * @param {String=} target Child path actually targeted for watch
  * @returns {Promise}
  */
-async _addToNodeFs(path, initialAdd, priorWh, depth, target) {
+async _addToNodeFs(path, initialAdd, priorWh, depth, target?: string) {
   const ready = this.fsw._emitReady;
   if (this.fsw._isIgnored(path) || this.fsw.closed) {
     ready();
@@ -625,7 +625,7 @@ async _addToNodeFs(path, initialAdd, priorWh, depth, target) {
       if (this.fsw.closed) return;
       const parent = sysPath.dirname(wh.watchPath);
       this.fsw._getWatchedDir(parent).add(wh.watchPath);
-      this.fsw._emit(EV_ADD, wh.watchPath, stats);
+      this.fsw._emit(EV.ADD, wh.watchPath, stats);
       closer = await this._handleDir(parent, stats, initialAdd, depth, path, wh, targetPath);
       if (this.fsw.closed) return;
 
@@ -650,5 +650,3 @@ async _addToNodeFs(path, initialAdd, priorWh, depth, target) {
 }
 
 }
-
-module.exports = NodeFsHandler;

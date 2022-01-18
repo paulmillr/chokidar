@@ -1,8 +1,9 @@
 'use strict';
 
-const fs = require('fs');
-const sysPath = require('path');
-const { promisify } = require('util');
+import { FSWatcher } from '.'
+import fs from 'fs';
+import * as sysPath from 'path';
+import { promisify } from 'util';
 
 let fsevents;
 try {
@@ -24,11 +25,6 @@ if (fsevents) {
 }
 
 const {
-  EV_ADD,
-  EV_CHANGE,
-  EV_ADD_DIR,
-  EV_UNLINK,
-  EV_ERROR,
   STR_DATA,
   STR_END,
   FSEVENT_CREATED,
@@ -48,6 +44,8 @@ const {
   EMPTY_FN,
   IDENTITY_FN
 } = require('./constants');
+import * as EV from './events';
+import { Path } from './constants';
 
 const Depth = (value) => isNaN(value) ? {} : {depth: value};
 
@@ -191,9 +189,6 @@ const couldConsolidate = (path) => {
   return false;
 };
 
-// returns boolean indicating whether fsevents can be used
-const canUse = () => fsevents && FSEventsWatchers.size < 128;
-
 // determines subdirectory traversal levels from root to path
 const calcDepth = (path, root) => {
   let i = 0;
@@ -212,7 +207,16 @@ const sameTypes = (info, stats) => (
 /**
  * @mixin
  */
-class FsEventsHandler {
+export default class FsEventsHandler {
+fsw: FSWatcher;
+
+/**
+ *
+ * @returns boolean indicating whether fsevents can be used
+ */
+static canUse() {
+  return fsevents && FSEventsWatchers.size < 128;
+}
 
 /**
  * @param {import('../index').FSWatcher} fsw
@@ -220,7 +224,7 @@ class FsEventsHandler {
 constructor(fsw) {
   this.fsw = fsw;
 }
-checkIgnored(path, stats) {
+checkIgnored(path: Path, stats?: fs.Stats) {
   const ipaths = this.fsw._ignoredPaths;
   if (this.fsw._isIgnored(path, stats)) {
     ipaths.add(path);
@@ -235,7 +239,7 @@ checkIgnored(path, stats) {
 }
 
 addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts) {
-  const event = watchedDir.has(item) ? EV_CHANGE : EV_ADD;
+  const event = watchedDir.has(item) ? EV.CHANGE : EV.ADD;
   this.handleEvent(event, path, fullPath, realPath, parent, watchedDir, item, info, opts);
 }
 
@@ -246,13 +250,13 @@ async checkExists(path, fullPath, realPath, parent, watchedDir, item, info, opts
     if (sameTypes(info, stats)) {
       this.addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts);
     } else {
-      this.handleEvent(EV_UNLINK, path, fullPath, realPath, parent, watchedDir, item, info, opts);
+      this.handleEvent(EV.UNLINK, path, fullPath, realPath, parent, watchedDir, item, info, opts);
     }
   } catch (error) {
     if (error.code === 'EACCES') {
       this.addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts);
     } else {
-      this.handleEvent(EV_UNLINK, path, fullPath, realPath, parent, watchedDir, item, info, opts);
+      this.handleEvent(EV.UNLINK, path, fullPath, realPath, parent, watchedDir, item, info, opts);
     }
   }
 }
@@ -260,14 +264,14 @@ async checkExists(path, fullPath, realPath, parent, watchedDir, item, info, opts
 handleEvent(event, path, fullPath, realPath, parent, watchedDir, item, info, opts) {
   if (this.fsw.closed || this.checkIgnored(path)) return;
 
-  if (event === EV_UNLINK) {
+  if (event === EV.UNLINK) {
     const isDirectory = info.type === FSEVENT_TYPE_DIRECTORY
     // suppress unlink events on never before seen files
     if (isDirectory || watchedDir.has(item)) {
       this.fsw._remove(parent, item, isDirectory);
     }
   } else {
-    if (event === EV_ADD) {
+    if (event === EV.ADD) {
       // track new directories
       if (info.type === FSEVENT_TYPE_DIRECTORY) this.fsw._getWatchedDir(path);
 
@@ -287,7 +291,7 @@ handleEvent(event, path, fullPath, realPath, parent, watchedDir, item, info, opt
      */
     const eventName = info.type === FSEVENT_TYPE_DIRECTORY ? event + DIR_SUFFIX : event;
     this.fsw._emit(eventName, path);
-    if (eventName === EV_ADD_DIR) this._addToFsEvents(path, false, true);
+    if (eventName === EV.ADD_DIR) this._addToFsEvents(path, false, true);
   }
 }
 
@@ -331,7 +335,7 @@ _watchWithFsEvents(watchPath, realPath, transform, globFilter) {
         if (sameTypes(info, stats)) {
           this.addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts);
         } else {
-          this.handleEvent(EV_UNLINK, path, fullPath, realPath, parent, watchedDir, item, info, opts);
+          this.handleEvent(EV.UNLINK, path, fullPath, realPath, parent, watchedDir, item, info, opts);
         }
       } else {
         this.checkExists(path, fullPath, realPath, parent, watchedDir, item, info, opts);
@@ -418,7 +422,7 @@ emitAdd(newPath, stats, processPath, opts, forceAdd) {
   dirObj.add(base);
 
   if (!opts.ignoreInitial || forceAdd === true) {
-    this.fsw._emit(isDir ? EV_ADD_DIR : EV_ADD, pp, stats);
+    this.fsw._emit(isDir ? EV.ADD_DIR : EV.ADD, pp, stats);
   }
 }
 
@@ -441,7 +445,7 @@ initWatch(realPath, path, wh, processPath) {
  * @param {Number=} priorDepth Level of subdirectories already traversed.
  * @returns {Promise<void>}
  */
-async _addToFsEvents(path, transform, forceAdd, priorDepth) {
+async _addToFsEvents(path, transform?: any, forceAdd?: boolean, priorDepth?: number) {
   if (this.fsw.closed) {
     return;
   }
@@ -489,7 +493,7 @@ async _addToFsEvents(path, transform, forceAdd, priorDepth) {
         } else {
           this.emitAdd(joinedPath, entry.stats, processPath, opts, forceAdd);
         }
-      }).on(EV_ERROR, EMPTY_FN).on(STR_END, () => {
+      }).on(EV.ERROR, EMPTY_FN).on(STR_END, () => {
         this.fsw._emitReady();
       });
     } else {
@@ -519,6 +523,3 @@ async _addToFsEvents(path, transform, forceAdd, priorDepth) {
 }
 
 }
-
-module.exports = FsEventsHandler;
-module.exports.canUse = canUse;

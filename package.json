@@ -11,7 +11,7 @@
   "engines": {
     "node": ">= 14.10.0"
   },
-  "main": "index.js",
+  "main": "lib/index.js",
   "dependencies": {
     "anymatch": "~3.1.2",
     "braces": "~3.0.2",
@@ -38,9 +38,8 @@
     "upath": "^1.2.0"
   },
   "files": [
-    "index.js",
     "lib/*.js",
-    "types/index.d.ts"
+    "lib/*.d.ts"
   ],
   "repository": {
     "type": "git",
@@ -65,10 +64,8 @@
     "file",
     "fsevents"
   ],
-  "types": "./types/index.d.ts",
   "nyc": {
     "include": [
-      "index.js",
       "lib/*.js"
     ],
     "reporter": [
