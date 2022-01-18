@@ -1,4 +1,4 @@
-const normalizePath = require('normalize-path');
+import normalizePath from 'normalize-path';
 
 /**
  * @typedef {(testString: string) => boolean} AnymatchFn

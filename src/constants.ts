@@ -41,7 +41,6 @@ export const GLOBSTAR = '**';
 export const ROOT_GLOBSTAR = '/**/*';
 export const SLASH_GLOBSTAR = '/**';
 export const DIR_SUFFIX = 'Dir';
-export const ANYMATCH_OPTS = { dot: true };
 export const STRING_TYPE = 'string';
 export const FUNCTION_TYPE = 'function';
 export const EMPTY_STR = '';

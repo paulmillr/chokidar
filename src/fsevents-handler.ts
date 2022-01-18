@@ -1,30 +1,16 @@
 'use strict';
 
-import { FSWatcher } from '.';
-import fs from 'fs';
-import * as sysPath from 'path';
-import { promisify } from 'util';
+import fs from 'node:fs';
+import sysPath from 'node:path';
+import { promisify } from 'node:util';
+import { FSWatcher } from './index.js';
 
-let fsevents;
-try {
-  fsevents = require('fsevents');
-} catch (error) {
-  if (process.env.CHOKIDAR_PRINT_FSEVENTS_REQUIRE_ERROR) console.error(error);
-}
+let fsevents = await import('fsevents');
+// import('fsevents').then(fse => fsevents = fse).catch(error => {
+//   if (process.env.CHOKIDAR_PRINT_FSEVENTS_REQUIRE_ERROR) console.error(error);
+// });
 
-if (fsevents) {
-  // TODO: real check
-  const mtch = process.version.match(/v(\d+)\.(\d+)/);
-  if (mtch && mtch[1] && mtch[2]) {
-    const maj = Number.parseInt(mtch[1], 10);
-    const min = Number.parseInt(mtch[2], 10);
-    if (maj === 8 && min < 16) {
-      fsevents = undefined;
-    }
-  }
-}
-
-const {
+import  {
   STR_DATA,
   STR_END,
   FSEVENT_CREATED,
@@ -43,9 +29,9 @@ const {
   FUNCTION_TYPE,
   EMPTY_FN,
   IDENTITY_FN,
-} = require('./constants');
-import * as EV from './events';
-import { Path } from './constants';
+} from './constants.js';
+import * as EV from './events.js';
+import { Path } from './constants.js';
 
 const Depth = (value) => (isNaN(value) ? {} : { depth: value });
 
@@ -211,7 +197,7 @@ export default class FsEventsHandler {
    * @returns boolean indicating whether fsevents can be used
    */
   static canUse() {
-    return fsevents && FSEventsWatchers.size < 128;
+    return !!(fsevents && FSEventsWatchers.size < 128);
   }
 
   /**

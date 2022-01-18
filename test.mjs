@@ -2,20 +2,25 @@
 
 'use strict';
 
-const fs = require('fs');
-const sysPath = require('path');
-const {promisify} = require('util');
-const childProcess = require('child_process');
-const chai = require('chai');
-const rimraf = require('rimraf');
-const sinon = require('sinon');
-const sinonChai = require('sinon-chai');
-const upath = require('upath');
+import fs from 'node:fs';
+import sysPath from 'node:path';
+import {promisify} from 'node:util';
+import childProcess from 'node:child_process';
+import chai from 'chai';
+import rimraf from 'rimraf';
+import sinon from 'sinon';
+import sinonChai from 'sinon-chai';
+import upath from 'upath';
 
-const {isWindows, isMacos, isIBMi}
-    = require('./lib/constants');
-const EV = require('./lib/events');
-const chokidar = require('.');
+import chokidar from './lib/index.js';
+import * as EV from './lib/events.js';
+import { isWindows, isMacos, isIBMi } from './lib/constants.js';
+
+import { URL } from 'url'; // in Browser, the URL in native accessible on window
+
+const __filename = new URL('', import.meta.url).pathname;
+// Will contain trailing slash
+const __dirname = new URL('.', import.meta.url).pathname;
 
 const {expect} = chai;
 chai.use(sinonChai);
@@ -2075,12 +2080,14 @@ describe('chokidar', () => {
   });
 
   if (isMacos) {
-    const FsEventsHandler = require('./lib/fsevents-handler').default;
-    if (FsEventsHandler.canUse()) {
-      describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
-    }
+    describe('fsevents (native extension)', async () => {
+      const FsEventsHandler = await import('./lib/fsevents-handler.js')
+      if (FsEventsHandler.default.canUse()) {
+        runTests({useFsEvents: true})
+      }
+    });
   }
-  if(!isIBMi) {
+  if (!isIBMi) {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));

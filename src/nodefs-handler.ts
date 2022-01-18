@@ -18,9 +18,9 @@ import {
   STR_END,
   BRACE_START,
   STAR,
-} from './constants';
-import * as EV from './events';
-import { FSWatcher } from './index';
+} from './constants.js';
+import * as EV from './events.js';
+import { FSWatcher } from './index.js';
 
 const THROTTLE_MODE_WATCH = 'watch';
 

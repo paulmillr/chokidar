@@ -1,14 +1,14 @@
 'use strict';
 
-import fs from 'fs';
-import { EventEmitter } from 'events';
-import sysPath from 'path';
-import { promisify } from 'util';
+import fs from 'node:fs';
+import { EventEmitter } from 'node:events';
+import sysPath from 'node:path';
+import { promisify } from 'node:util';
 import readdirp from 'readdirp';
 
-import NodeFsHandler from './nodefs-handler';
-import FsEventsHandler from './fsevents-handler';
-import anymatch from './anymatch';
+import NodeFsHandler from './nodefs-handler.js';
+import FsEventsHandler from './fsevents-handler.js';
+import anymatch from './anymatch.js';
 import {
   Path,
   STR_CLOSE,
@@ -28,9 +28,9 @@ import {
   isWindows,
   isMacos,
   isIBMi,
-} from './constants';
-import * as EV from './events';
-import { EventName } from './events';
+} from './constants.js';
+import * as EV from './events.js';
+import { EventName } from './events.js';
 
 const stat = promisify(fs.stat);
 const readdir = promisify(fs.readdir);
@@ -961,10 +961,10 @@ export class FSWatcher extends EventEmitter {
  * @param {Object=} options chokidar opts
  * @returns an instance of FSWatcher for chaining.
  */
-const watch = (paths, options) => {
+export const watch = (paths, options) => {
   const watcher = new FSWatcher(options);
   watcher.add(paths);
   return watcher;
 };
 
-exports.watch = watch;
+export default {watch, FSWatcher};

@@ -11,6 +11,7 @@
   "engines": {
     "node": ">= 14.10.0"
   },
+  "type": "module",
   "main": "lib/index.js",
   "dependencies": {
     "is-binary-path": "2.1.0",
