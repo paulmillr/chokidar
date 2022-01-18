@@ -2042,7 +2042,7 @@ const runTests = (baseopts) => {
   });
 };
 
-describe('chokidar', () => {
+describe('chokidar', async () => {
   before(async () => {
     await pRimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
@@ -2080,12 +2080,10 @@ describe('chokidar', () => {
   });
 
   if (isMacos) {
-    describe('fsevents (native extension)', async () => {
-      const FsEventsHandler = await import('./lib/fsevents-handler.js')
-      if (FsEventsHandler.default.canUse()) {
-        runTests({useFsEvents: true})
-      }
-    });
+    const FsEventsHandler = await import('./lib/fsevents-handler.js')
+    if (FsEventsHandler.default.canUse()) {
+      describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
+    }
   }
   if (!isIBMi) {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
