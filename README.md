@@ -78,7 +78,7 @@ chokidar.watch('.').on('all', (event, path) => {
 // Example of a more typical implementation structure
 
 // Initialize watcher.
-const watcher = chokidar.watch('file, dir, glob, or array', {
+const watcher = chokidar.watch('file, dir, or array', {
   ignored: /(^|[\/\\])\../, // ignore dotfiles
   persistent: true
 });
@@ -130,7 +130,6 @@ chokidar.watch('file', {
   ignoreInitial: false,
   followSymlinks: true,
   cwd: '.',
-  disableGlobbing: false,
 
   usePolling: false,
   interval: 100,
@@ -151,12 +150,7 @@ chokidar.watch('file', {
 `chokidar.watch(paths, [options])`
 
 * `paths` (string or array of strings). Paths to files, dirs to be watched
-recursively, or glob patterns.
-    - Note: globs must not contain windows separators (`\`),
-    because that's how they work by the standard —
-    you'll need to replace them with forward slashes (`/`).
-    - Note 2: for additional glob documentation, check out low-level
-    library: [picomatch](https://github.com/micromatch/picomatch).
+recursively.
 * `options` (object) Options object as defined below:
 
 #### Persistence
@@ -182,8 +176,6 @@ symlinks themselves will be watched for changes instead of following
 the link references and bubbling events through the link's path.
 * `cwd` (no default). The base directory from which watch `paths` are to be
 derived. Paths emitted with events will be relative to this.
-* `disableGlobbing` (default: `false`). If set to `true` then the strings passed to `.watch()` and `.add()` are treated as
-literal path names, even if they look like globs.
 
 #### Performance
 
@@ -247,14 +239,14 @@ milliseconds.
 
 `chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
 
-* `.add(path / paths)`: Add files, directories, or glob patterns for tracking.
+* `.add(path / paths)`: Add files, directories for tracking.
 Takes an array of strings or just one string.
 * `.on(event, callback)`: Listen for an FS event.
 Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`,
 `raw`, `error`.
 Additionally `all` is available which gets emitted with the underlying event
 name and path for every event other than `ready`, `raw`, and `error`.  `raw` is internal, use it carefully.
-* `.unwatch(path / paths)`: Stop watching files, directories, or glob patterns.
+* `.unwatch(path / paths)`: Stop watching files or directories.
 Takes an array of strings or just one string.
 * `.close()`: **async** Removes all listeners from watched files. Asynchronous, returns Promise. Use with `await` to ensure bugs don't happen.
 * `.getWatched()`: Returns an object representing all the paths on the file
