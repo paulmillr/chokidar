@@ -67,8 +67,8 @@ Then `require` and use it in your code:
 const chokidar = require('chokidar');
 
 // One-liner for current directory
-chokidar.watch('.').on('all', (event, path) => {
-  console.log(event, path);
+chokidar.watch('.').on('all', (path, event) => {
+  console.log(path, event);
 });
 ```
 
