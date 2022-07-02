@@ -301,7 +301,7 @@ For more detailed changelog, see [`full_changelog.md`](.github/full_changelog.md
 
 Why was chokidar named this way? What's the meaning behind it?
 
->Chowkidar is a transliteration of a Hindi word meaning 'watchman, gatekeeper', चौकीदार. This ultimately comes from Sanskrit _ चतुष्क_ (crossway, quadrangle, consisting-of-four).
+>Chowkidar is a transliteration of a Hindi word meaning 'watchman, gatekeeper', चौकीदार. This ultimately comes from Sanskrit _ चतुष्क_ (crossway, quadrangle, consisting-of-four). This word is also used in other languages like Urdu as (چوکیدار) which is widely used in Pakistan and India. 
 
 ## License
 
