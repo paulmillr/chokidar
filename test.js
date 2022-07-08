@@ -2192,8 +2192,6 @@ const runTests = (baseopts) => {
           await waitForWatcher(watcher);
           await delay(300);
           await write(getFixturePath('add.txt'), 'hello');
-          await delay(300);
-          await fs_unlink(getFixturePath('add.txt'));
         })();
       });
     });
@@ -2216,9 +2214,6 @@ const runTests = (baseopts) => {
           await watcher1.close();
           // Write a new file into the fixtures to test the EV_ADD event
           await write(getFixturePath('add.txt'), 'hello');
-          // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
-          await delay(200);
-          await fs_unlink(getFixturePath('add.txt'));
         })()
       })
     });
