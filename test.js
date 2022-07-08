@@ -487,6 +487,29 @@ const runTests = (baseopts) => {
       expect(spy.args[0][1]).to.be.ok; // stats
       rawSpy.should.have.been.called;
     });
+    if (!(baseopts.usePolling || baseopts.useFsEvents)) context('when a race happens', () => {
+      beforeEach(() => {
+        const stub = sinon.stub(fs, 'watch');
+        stub.callsFake((filename, ...rest) => {
+          // pretend a sneaky process creates a file just as we're about to set up the watch
+          if (filename.endsWith('subdir')) fs.writeFileSync(getFixturePath('subdir/add.txt'), dateNow());
+          return stub.wrappedMethod(filename, ...rest);
+        });
+      });
+      afterEach(() => fs.watch.restore());
+      it('should notice when a file appears in a new directory anyway', async () => {
+        const testDir = getFixturePath('subdir');
+        const testPath = getFixturePath('subdir/add.txt');
+        const spy = await aspy(watcher, EV_ADD);
+        spy.should.not.have.been.called;
+        await fs_mkdir(testDir, PERM_ARR);
+        await waitFor([spy]);
+        spy.should.have.been.calledOnce;
+        spy.should.have.been.calledWith(testPath);
+        expect(spy.args[0][1]).to.be.ok; // stats
+        rawSpy.should.have.been.called;
+      });
+    });
     it('should watch removed and re-added directories', async () => {
       const unlinkSpy = sinon.spy(function unlinkSpy(){});
       const addSpy = sinon.spy(function addSpy(){});
