@@ -136,6 +136,8 @@ const getAbsolutePath = (path, cwd) => {
 
 const undef = (opts, key) => opts[key] === undefined;
 
+const NODE_MAJOR_VERSION = Number(process.versions.node.split('.')[0]);
+
 /**
  * Directory entry.
  * @property {Path} path
@@ -950,6 +952,17 @@ _readdirp(root, opts) {
       stream = undefined;
     }
   });
+
+  if (NODE_MAJOR_VERSION < 10) {
+    // On Node 8 Readable.push() throws when the stream is destroyed
+    // even though the documentation says it should be silently ignored.
+    const superPush = stream.push.bind(stream);
+    stream.push = function (...args) {
+      if (this.destroyed) return false;
+      return superPush(...args);
+    }
+  }
+
   return stream;
 }
 
