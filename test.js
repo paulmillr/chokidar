@@ -2058,7 +2058,10 @@ const runTests = (baseopts) => {
 
       const fixturesPathRel = sysPath.join(FIXTURES_PATH_REL, id, 'test-case-1040');
       const linkPath = sysPath.join(fixturesPathRel, 'symlinkFolder');
-      await fs_mkdir(sysPath.resolve(linkPath), { recursive: true });
+      const packagesPath = sysPath.join(fixturesPathRel, 'packages');
+      await fs_mkdir(fixturesPathRel);
+      await fs_mkdir(linkPath);
+      await fs_mkdir(packagesPath);
 
       // Init chokidar
       const watcher = chokidar.watch([]);
@@ -2066,8 +2069,8 @@ const runTests = (baseopts) => {
 
       // Add more than 10 folders to cap consolidateThreshhold
       for (let i = 0 ; i < 20 ; i += 1) {
-        const folderPath = sysPath.join(fixturesPathRel, 'packages', `folder${i}`);
-        await fs_mkdir(sysPath.resolve(folderPath), { recursive: true });
+        const folderPath = sysPath.join(packagesPath, `folder${i}`);
+        await fs_mkdir(folderPath);
         const filePath = sysPath.join(folderPath, `file${i}.js`);
         await write(sysPath.resolve(filePath), 'file content');
         const symlinkPath = sysPath.join(linkPath, `folder${i}`);
