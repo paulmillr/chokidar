@@ -363,7 +363,7 @@ constructor(_opts) {
     } else {
       opts.usePolling = !!envLower;
     }
-  }
+  }FSWatcher
   const envInterval = process.env.CHOKIDAR_INTERVAL;
   if (envInterval) {
     opts.interval = Number.parseInt(envInterval, 10);
@@ -803,10 +803,11 @@ _isntIgnored(path, stat) {
  * @param {Number=} depth at any depth > 0, this isn't a glob
  * @returns {WatchHelper} object containing helpers for this path
  */
+
+//TODO: PLEASE UNDERSTAND ME :)
 _getWatchHelpers(path, depth) {
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const follow = this.options.followSymlinks;
-
   return new WatchHelper(path, watchPath, follow, this);
 }
 
@@ -821,6 +822,7 @@ _getWatchHelpers(path, depth) {
 _getWatchedDir(directory) {
   if (!this._boundRemove) this._boundRemove = this._remove.bind(this);
   const dir = sysPath.resolve(directory);
+  // console.log("runnin a new instance");
   if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
   return this._watched.get(dir);
 }
@@ -857,6 +859,7 @@ _remove(directory, item, isDirectory) {
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
   const path = sysPath.join(directory, item);
+  console.log('path: ', path);
   const fullPath = sysPath.resolve(path);
   isDirectory = isDirectory != null
     ? isDirectory
