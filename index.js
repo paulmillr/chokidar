@@ -1,9 +1,15 @@
 'use strict';
 
+
+// NODE JS
 const { EventEmitter } = require('events');
 const fs = require('fs');
 const sysPath = require('path');
 const { promisify } = require('util');
+
+
+
+// DEPENDENCIES
 const readdirp = require('readdirp');
 const anymatch = require('anymatch').default;
 const globParent = require('glob-parent');
@@ -11,8 +17,14 @@ const isGlob = require('is-glob');
 const braces = require('braces');
 const normalizePath = require('normalize-path');
 
+
+
+// UTILITY FUNCTIONS
 const NodeFsHandler = require('./lib/nodefs-handler');
 const FsEventsHandler = require('./lib/fsevents-handler');
+
+
+// CONSTANTS
 const {
   EV_ALL,
   EV_READY,
@@ -52,6 +64,8 @@ const {
   isIBMi
 } = require('./lib/constants');
 
+
+// promisifying
 const stat = promisify(fs.stat);
 const readdir = promisify(fs.readdir);
 
