@@ -221,7 +221,19 @@ class DirEntry {
 const STAT_METHOD_F = 'stat';
 const STAT_METHOD_L = 'lstat';
 class WatchHelper {
+
+
+  //FIXME:ibr4qr changed this
+  // static counter = 0;
   constructor(path, watchPath, follow, fsw) {
+    // console.log({
+    //   path,
+    //   watchPath,
+    //   follow,
+    //   fsw
+    // });
+    // this.counter++;
+    // console.log("counter: ", this.counter);
     this.fsw = fsw;
     this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
     this.watchPath = watchPath;
@@ -811,6 +823,13 @@ _isntIgnored(path, stat) {
 
 //TODO: PLEASE UNDERSTAND ME :)
 _getWatchHelpers(path, depth) {
+  // for every file / directory on the directory tree
+  // we run _getWatchHelpers
+  // console.log({
+  //   path,
+  //   depth
+  // });
+
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const follow = this.options.followSymlinks;
   return new WatchHelper(path, watchPath, follow, this);
