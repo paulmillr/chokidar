@@ -9,4 +9,3 @@ global.watcher = require('.').watch('.', {
 })
 .on('all', (event, path) => { console.log(event, path); })
 .on('ready', () => { console.log('Ready'); })
-//.on('raw', console.log.bind(console, 'Raw event:'))

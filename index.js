@@ -855,6 +855,11 @@ _hasReadPermissions(stats) {
  * @returns {void}
 */
 _remove(directory, item, isDirectory) {
+  // console.log({
+  //   directory,
+  //   item,
+  //   isDirectory
+  // });
   // if what is being deleted is a directory, get that directory's paths
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
