@@ -489,13 +489,12 @@ add(paths_, _origAdd, _internal) {
       })
     ).then(results => {
       if (this.closed) return;
-      console.log(results);
       results.filter(item => item).forEach(item => {
         this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
       });
     });
   }
-
+  
   return this;
 }
 
