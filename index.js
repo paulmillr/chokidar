@@ -174,6 +174,8 @@ class DirEntry {
   }
 
   async remove(item) {
+    // console.log("calling the remove method of the DirEntry class");
+    // console.log("item argumetn: ", item);
     const {items} = this;
     if (!items) return;
     items.delete(item);
@@ -864,8 +866,10 @@ _remove(directory, item, isDirectory) {
   // for recursive deleting and cleaning of watched object
   // if it is not a directory, nestedDirectoryChildren will be empty array
   const path = sysPath.join(directory, item);
-  console.log('path: ', path);
   const fullPath = sysPath.resolve(path);
+
+
+  // isDirectory 
   isDirectory = isDirectory != null
     ? isDirectory
     : this._watched.has(path) || this._watched.has(fullPath);
@@ -993,3 +997,7 @@ const watch = (paths, options) => {
 };
 
 exports.watch = watch;
+
+
+
+// FSWatcher extends NodeJs EventEmitter Class
