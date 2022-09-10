@@ -1013,7 +1013,13 @@ exports.FSWatcher = FSWatcher;
  * @returns an instance of FSWatcher for chaining.
  */
 const watch = (paths, options) => {
+
+  console.log({
+    paths,
+    options
+  })
   const watcher = new FSWatcher(options);
+  // constructor & add method
   watcher.add(paths);
   return watcher;
 };
