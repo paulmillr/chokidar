@@ -164,7 +164,8 @@ class DirEntry {
     this.path = dir;
     this._removeWatcher = removeWatcher;
     /** @type {Set<Path>} */
-    this.items = new Set();
+    this.items = new Set(); // 
+    // console.log(this.items);
   }
 
   add(item) {
@@ -179,6 +180,8 @@ class DirEntry {
     const {items} = this;
     if (!items) return;
     items.delete(item);
+    
+  
     if (items.size > 0) return;
 
     const dir = this.path;
