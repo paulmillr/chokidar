@@ -472,6 +472,8 @@ add(paths_, _origAdd, _internal) {
     return true;
   });
 
+
+  // STUDY ME PLEASE 
   if (this.options.useFsEvents && this._fsEventsHandler) {
     if (!this._readyCount) this._readyCount = paths.length;
     if (this.options.persistent) this._readyCount *= 2;
@@ -487,6 +489,7 @@ add(paths_, _origAdd, _internal) {
       })
     ).then(results => {
       if (this.closed) return;
+      console.log(results);
       results.filter(item => item).forEach(item => {
         this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
       });
