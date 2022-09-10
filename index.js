@@ -418,8 +418,10 @@ constructor(_opts) {
 
   // Initialize with proper watcher.
   if (opts.useFsEvents) {
+    console.log("FsEventsHandler");
     this._fsEventsHandler = new FsEventsHandler(this);
   } else {
+    console.log("NodeFsHandler");
     this._nodeFsHandler = new NodeFsHandler(this);
   }
 
