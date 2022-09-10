@@ -20,7 +20,7 @@ const chokidar = require('.');
 // TODO:
 // EXAMPLE 2
 
-chokidar.watch('example.js');
+chokidar.watch('example.js').on('all', () => console.log("hello world"));
 
 // Promise.all([1,2,3].map(async n => {
 //   const res = await Promise.resolve(n % 2 === 0);
