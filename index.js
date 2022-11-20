@@ -318,6 +318,9 @@ constructor(_opts) {
   if (undef(opts, 'disableGlobbing')) opts.disableGlobbing = false;
   opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
 
+  // Keep track if fsevents was explicitly set
+  const fsEventsOptionUnset = undef(opts, 'useFsEvents');
+
   // Enable fsevents on OS X when polling isn't explicitly enabled.
   if (undef(opts, 'useFsEvents')) opts.useFsEvents = !opts.usePolling;
 
@@ -349,6 +352,9 @@ constructor(_opts) {
     } else {
       opts.usePolling = !!envLower;
     }
+
+    // Disable fsevents on OS X if it isn't explicitly enabled and polling is enabled
+    if (isMacos && opts.usePolling && fsEventsOptionUnset) opts.useFsEvents = false;
   }
   const envInterval = process.env.CHOKIDAR_INTERVAL;
   if (envInterval) {
