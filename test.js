@@ -2174,7 +2174,7 @@ const runTests = (baseopts) => {
         await fs_mkdir(testSubDir);
         await write(testSubDirFile, '');
         await delay(300);
-
+        
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
