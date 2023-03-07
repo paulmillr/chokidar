@@ -107,6 +107,11 @@ export interface WatchOptions {
   disableGlobbing?: boolean;
 
   /**
+   * The list of extensions of files to watch.
+   */
+  ext?: string[];
+
+  /**
    * Whether to use fs.watchFile (backed by polling), or fs.watch. If polling leads to high CPU
    * utilization, consider setting this to `false`. It is typically necessary to **set this to
    * `true` to successfully watch files over a network**, and it may be necessary to successfully

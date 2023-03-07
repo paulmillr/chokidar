@@ -136,6 +136,8 @@ const getAbsolutePath = (path, cwd) => {
 
 const undef = (opts, key) => opts[key] === undefined;
 
+const composeSome = (...fns) => (...args) => fns.some((f) => f(...args));
+
 /**
  * Directory entry.
  * @property {Path} path
@@ -756,6 +758,16 @@ _getGlobIgnored() {
   return [...this._ignoredPaths.values()];
 }
 
+_buildIsExtIgnored() {
+  const {ext} = this.options;
+  if (!ext || ext.length === 0) {
+    return () => false;
+  }
+  const isFileRegex = new RegExp( `^.*\\${sysPath.sep}.+\\.+\\w+$`);
+  const extRegex = new RegExp(`^.+(?<!${ext.join('|')})$`);
+  return ([path]) => isFileRegex.test(path) && extRegex.test(path);
+}
+
 /**
  * Determines whether user has asked to ignore this path.
  * @param {Path} path filepath or dir
@@ -773,7 +785,9 @@ _isIgnored(path, stats) {
       .filter((path) => typeof path === STRING_TYPE && !isGlob(path))
       .map((path) => path + SLASH_GLOBSTAR);
     const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
-    this._userIgnored = anymatch(list, undefined, ANYMATCH_OPTS);
+    const userIgnored = anymatch(list, undefined, ANYMATCH_OPTS);
+    const isExtIgnored = this._buildIsExtIgnored();
+    this._userIgnored = composeSome(userIgnored, isExtIgnored);
   }
 
   return this._userIgnored([path, stats]);
