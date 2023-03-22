@@ -622,6 +622,19 @@ const runTests = (baseopts) => {
       spy.withArgs(EV_CHANGE, testPath).should.have.been.calledThrice;
     });
 
+    it('should detect add if multiple files watched in the same directory', async () => {
+      const test1Path = getFixturePath('add1.txt');
+      const test2Path = getFixturePath('add2.txt');
+      const watcher = chokidar_watch([test1Path, test2Path], options);
+      const spy = await aspy(watcher, EV_ALL);
+
+      await delay(300);
+      await write(test2Path, dateNow());
+      await write(test1Path, dateNow());
+      await waitFor([[spy, 2]]);
+      spy.withArgs(EV_ADD, test2Path).should.have.been.calledOnce;
+      spy.withArgs(EV_ADD, test1Path).should.have.been.calledOnce;
+    });
 
     // PR 682 is failing.
     describe.skip('Skipping gh-682: should detect unlink', () => {
@@ -2122,7 +2135,7 @@ const runTests = (baseopts) => {
         await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
-        
+
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
@@ -2163,7 +2176,7 @@ const runTests = (baseopts) => {
         await fs_mkdir(testSubDir);
         await write(testSubDirFile, '');
         await delay(300);
-        
+
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
