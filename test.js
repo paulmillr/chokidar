@@ -469,6 +469,17 @@ const runTests = (baseopts) => {
       unlinkSpy.withArgs(newPath1).should.have.been.calledOnce;
       unlinkSpy.withArgs(newPath2).should.not.have.been.called;
     });
+    it('should emit `ready` when three files were added', async () => {
+      const path1 = getFixturePath('add1.txt');
+      const path2 = getFixturePath('add2.txt');
+      const path3 = getFixturePath('add3.txt');
+
+      watcher.add(path1);
+      watcher.add(path2);
+      watcher.add(path3);
+
+      await waitForWatcher(watcher);
+    });
     it('should survive ENOENT for missing subdirectories', async () => {
       const testDir = getFixturePath('notadir');
       await waitForWatcher(watcher);
