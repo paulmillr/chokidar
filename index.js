@@ -441,7 +441,7 @@ add(paths_, _origAdd, _internal) {
 
   if (this.options.useFsEvents && this._fsEventsHandler) {
     if (!this._readyCount) this._readyCount = paths.length;
-    if (this.options.persistent) this._readyCount *= 2;
+    if (this.options.persistent) this._readyCount += paths.length;
     paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
   } else {
     if (!this._readyCount) this._readyCount = 0;
