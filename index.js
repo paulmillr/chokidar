@@ -447,11 +447,7 @@ add(paths_, _origAdd, _internal) {
     if (!this._readyCount) this._readyCount = 0;
     this._readyCount += paths.length;
     Promise.all(
-      paths.map(async path => {
-        const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd);
-        if (res) this._emitReady();
-        return res;
-      })
+      paths.map(async path => await this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd))
     ).then(results => {
       if (this.closed) return;
       results.filter(item => item).forEach(item => {
