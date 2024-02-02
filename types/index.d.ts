@@ -60,7 +60,7 @@ export class FSWatcher extends EventEmitter implements fs.FSWatcher {
    */
   on(event: 'ready', listener: () => void): this;
 
-  on(event: 'unlink' | 'unlinkDir', listener: (path: string) => void): this;
+  on(event: 'unlink'|'unlinkDir', listener: (path: string) => void): this;
 
   on(event: string, listener: (...args: any[]) => void): this;
 
