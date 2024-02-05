@@ -4,10 +4,11 @@
 
 import fs from 'node:fs';
 import sysPath from 'node:path';
+import {fileURLToPath} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
 import chai from 'chai';
-import rimraf from 'rimraf';
+import {rimraf} from 'rimraf';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import upath from 'upath';
@@ -18,9 +19,9 @@ import { isWindows, isMacos, isIBMi } from './lib/constants.js';
 
 import { URL } from 'url'; // in Browser, the URL in native accessible on window
 
-const __filename = new URL('', import.meta.url).pathname;
+const __filename = fileURLToPath(new URL('', import.meta.url));
 // Will contain trailing slash
-const __dirname = new URL('.', import.meta.url).pathname;
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 const {expect} = chai;
 chai.use(sinonChai);
@@ -33,7 +34,6 @@ const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
-const pRimraf = promisify(rimraf);
 
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
@@ -407,7 +407,7 @@ const runTests = (baseopts) => {
       fs.mkdirSync(testDir3, PERM_ARR);
       const spy = await aspy(watcher, EV.UNLINK_DIR);
       await waitFor([spy]);
-      await pRimraf(testDir2); // test removing in one
+      await rimraf(testDir2); // test removing in one
       await waitFor([spy]);
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
@@ -2021,12 +2021,14 @@ const runTests = (baseopts) => {
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
       const scriptContent = `
-        const chokidar = require("${__dirname.replace(/\\/g, '\\\\')}");
+      (async () => {
+        const chokidar = await import("${__dirname.replace(/\\/g, '\\\\')}");
         const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
         watcher.on("ready", () => {
           watcher.close();
           process.stdout.write("closed");
-        });`;
+        });
+      })();`;
       await write(scriptFile, scriptContent);
       const obj = await exec(`node ${scriptFile}`);
       const {stdout} = obj;
@@ -2043,8 +2045,15 @@ const runTests = (baseopts) => {
 };
 
 describe('chokidar', async () => {
+  let canUseFsEvents = undefined;
+
   before(async () => {
-    await pRimraf(FIXTURES_PATH);
+    if (isMacos) {
+      const {default: FSEventsHandler} = await import('./lib/fsevents-handler.js')
+      canUseFsEvents = FSEventsHandler.canUse();
+    }
+
+    await rimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
@@ -2058,8 +2067,9 @@ describe('chokidar', async () => {
     }
     subdirId = 0;
   });
+
   after(async () => {
-    await pRimraf(FIXTURES_PATH);
+    await rimraf(FIXTURES_PATH);
   });
 
   beforeEach(() => {
@@ -2079,11 +2089,8 @@ describe('chokidar', async () => {
     chokidar.watch.should.be.a('function');
   });
 
-  if (isMacos) {
-    const FsEventsHandler = await import('./lib/fsevents-handler.js')
-    if (FsEventsHandler.default.canUse()) {
-      describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
-    }
+  if (canUseFsEvents) {
+    describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
   }
   if (!isIBMi) {
     describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
