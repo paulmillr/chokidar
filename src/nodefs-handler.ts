@@ -1,5 +1,3 @@
-'use strict';
-
 import fs from 'fs';
 import sysPath from 'path';
 import { promisify } from 'util';
@@ -228,7 +226,6 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
   const { listener, rawEmitter } = handlers;
   let cont = FsWatchFileInstances.get(fullPath);
 
-  /* eslint-disable no-unused-vars, prefer-destructuring */
   // let listeners = new Set();
   // let rawEmitters = new Set();
 
@@ -243,8 +240,6 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
     fs.unwatchFile(fullPath);
     cont = undefined;
   }
-
-  /* eslint-enable no-unused-vars, prefer-destructuring */
 
   if (cont) {
     addAndConvert(cont, KEY_LISTENERS, listener);

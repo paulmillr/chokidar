@@ -70,7 +70,7 @@ function matchPatterns(
   }
 
   return false;
-};
+}
 
 /**
  * @param {AnymatchMatcher} matchers
@@ -106,6 +106,6 @@ function anymatch(
   }
 
   return matchPatterns(patterns, testString);
-};
+}
 
 export {anymatch};

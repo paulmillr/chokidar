@@ -1,11 +1,9 @@
-'use strict';
-
 import fs from 'node:fs';
 import sysPath from 'node:path';
 import { promisify } from 'node:util';
 import { FSWatcher } from './index.js';
 
-let fsevents = await import('fsevents');
+const fsevents = await import('fsevents');
 // import('fsevents').then(fse => fsevents = fse).catch(error => {
 //   if (process.env.CHOKIDAR_PRINT_FSEVENTS_REQUIRE_ERROR) console.error(error);
 // });

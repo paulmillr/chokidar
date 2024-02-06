@@ -23,6 +23,7 @@
   },
   "devDependencies": {
     "@types/node": "^16.11.7",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
     "chai": "4.3.4",
     "eslint": "^8.7.0",
     "mocha": "^9.1.4",
@@ -47,7 +48,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
+    "lint": "eslint --ext=ts --report-unused-disable-directives --ignore-path .gitignore .",
     "mocha": "mocha --exit --timeout 90000",
     "test": "npm run build && npm run lint && npm run mocha"
   },

@@ -1,5 +1,3 @@
-'use strict';
-
 import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import sysPath from 'node:path';
