@@ -2015,9 +2015,10 @@ const runTests = (baseopts) => {
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
+      const chokidarPath = upath.join(__dirname, 'lib/index.js').replace(/\\/g, '\\\\');
       const scriptContent = `
       (async () => {
-        const chokidar = await import("${__dirname.replace(/\\/g, '\\\\')}");
+        const chokidar = await import("${chokidarPath}");
         const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
         watcher.on("ready", () => {
           watcher.close();
