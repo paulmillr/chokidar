@@ -8,7 +8,11 @@ import readdirp from 'readdirp';
 
 import NodeFsHandler from './nodefs-handler.js';
 import FsEventsHandler from './fsevents-handler.js';
-import anymatch from './anymatch.js';
+import {
+  anymatch,
+  MatchFunction,
+  Matcher
+} from './anymatch.js';
 import {
   Path,
   STR_CLOSE,
@@ -247,7 +251,7 @@ export type ChokidarOptions = Partial<{
 interface FSWInstanceOptions {
   persistent: boolean;
 
-  ignored: string[];
+  ignored: Matcher[];
   ignoreInitial: boolean;
   followSymlinks: boolean;
   cwd: string;
@@ -282,7 +286,7 @@ export class FSWatcher extends EventEmitter {
   options: FSWInstanceOptions;
   _watched: Map<string, DirEntry>;
   _closers: Map<string, Array<any>>;
-  _ignoredPaths: Set<string>;
+  _ignoredPaths: Set<Matcher>;
   _throttled: Map<ThrottleType, Map<any, any>>;
   _symlinkPaths: Map<Path, string | boolean>;
   _streams: Set<any>;
@@ -293,7 +297,7 @@ export class FSWatcher extends EventEmitter {
   _readyCount: number;
   _emitReady: () => void;
   _closePromise: Promise<void>;
-  _userIgnored: any;
+  _userIgnored?: MatchFunction;
   _readyEmitted: boolean;
   _emitRaw: () => void;
   _boundRemove: () => void;
@@ -309,7 +313,7 @@ export class FSWatcher extends EventEmitter {
     if (_opts) Object.assign(opts, _opts); // for frozen objects
     this._watched = new Map();
     this._closers = new Map();
-    this._ignoredPaths = new Set();
+    this._ignoredPaths = new Set<Matcher>();
     this._throttled = new Map();
     this._symlinkPaths = new Map();
     this._streams = new Set();
@@ -429,6 +433,26 @@ export class FSWatcher extends EventEmitter {
       });
     }
 
+    paths.forEach((path) => {
+      this._ignoredPaths.delete(path);
+
+      for (const ignored of this._ignoredPaths) {
+        // TODO (43081j): make this more efficient.
+        // probably just make a `this._ignoredDirectories` or some
+        // such thing.
+        if (
+          !(ignored instanceof RegExp) &&
+          typeof ignored === 'object' &&
+          ignored !== null &&
+          ignored.path === path
+        ) {
+          this._ignoredPaths.delete(ignored);
+        }
+      }
+    });
+
+    this._userIgnored = undefined;
+
     if (this.options.useFsEvents && this._fsEventsHandler) {
       if (!this._readyCount) this._readyCount = paths.length;
       if (this.options.persistent) this._readyCount *= 2;
@@ -476,8 +500,10 @@ export class FSWatcher extends EventEmitter {
 
       this._ignoredPaths.add(path);
       if (this._watched.has(path)) {
-        // TODO
-        // this._ignoredPaths.add(path + SLASH_GLOBSTAR);
+        this._ignoredPaths.add({
+          path,
+          recursive: true
+        });
       }
 
       // reset the cached userIgnored anymatch fn
@@ -752,10 +778,6 @@ export class FSWatcher extends EventEmitter {
     }
   }
 
-  // _getGlobIgnored() {
-  //   return [...this._ignoredPaths.values()];
-  // }
-
   /**
    * Determines whether user has asked to ignore this path.
    * @param {Path} path filepath or dir
@@ -768,17 +790,16 @@ export class FSWatcher extends EventEmitter {
       const { cwd } = this.options;
       const ign = this.options.ignored;
 
-      // TODO
-      const ignored = ign && ign.map(normalizeIgnored(cwd));
-      // const paths = arrify(ignored)
-      //   .filter((path) => typeof path === STRING_TYPE)
-      //   .map((path) => path + SLASH_GLOBSTAR);
-      // TODO
-      // const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
-      this._userIgnored = anymatch(ignored || [], undefined);
+      const ignored = (ign || []).map(normalizeIgnored(cwd));
+      const ignoredPaths = [...this._ignoredPaths];
+      const list: Matcher[] = [
+        ...ignoredPaths.map(normalizeIgnored(cwd)),
+        ...ignored
+      ];
+      this._userIgnored = anymatch(list, undefined);
     }
 
-    return this._userIgnored([path, stats]);
+    return this._userIgnored(path, stats);
   }
 
   _isntIgnored(path, stat?: fs.Stats) {
