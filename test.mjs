@@ -1972,26 +1972,19 @@ const runTests = (baseopts) => {
 
   describe('close', () => {
     it('should ignore further events on close', async () => {
-      return new Promise((resolve) => {
-        const spy = sinon.spy();
-        const watcher = chokidar_watch(currentDir, options);
-        watcher.once(EV.ADD, () => {
-          watcher.once(EV.ADD, async () => {
-            await watcher.on(EV.ADD, spy).close();
-            await delay(900);
-            await write(getFixturePath('add.txt'), dateNow());
-            spy.should.not.have.been.called;
-            resolve();
-          });
-        });
-        (async () => {
-          await waitForWatcher(watcher);
-          await delay(300);
-          await write(getFixturePath('add.txt'), 'hello');
-          await delay(300);
-          await fs_unlink(getFixturePath('add.txt'));
-        })();
-      });
+      const spy = sinon.spy();
+      const watcher = chokidar_watch(currentDir, options);
+      await waitForWatcher(watcher);
+
+      watcher.on(EV.ALL, spy);
+      await watcher.close();
+
+      await write(getFixturePath('add.txt'), dateNow());
+      await write(getFixturePath('add.txt'), 'hello');
+      await delay(300);
+      await fs_unlink(getFixturePath('add.txt'));
+
+      spy.should.not.have.been.called;
     });
     it('should not ignore further events on close with existing watchers', async () => {
       const spy = sinon.spy();
