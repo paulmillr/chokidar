@@ -1994,29 +1994,24 @@ const runTests = (baseopts) => {
       });
     });
     it('should not ignore further events on close with existing watchers', async () => {
-      return new Promise((resolve) => {
-        const watcher1 = chokidar_watch(currentDir);
-        const watcher2 = chokidar_watch(currentDir);
-        // The EV.ADD event should be called on the second watcher even if the first watcher is closed
-        watcher2.on(EV.ADD, () => {
-          watcher2.on(EV.ADD, (path) => {
-            if (path.endsWith('add.txt')) {
-              resolve();
-            }
-          })
-        });
-        (async () => {
-          await waitForWatcher(watcher1);
-          await waitForWatcher(watcher2);
-          // Watcher 1 is closed to ensure events only happen on watcher 2
-          await watcher1.close();
-          // Write a new file into the fixtures to test the EV.ADD event
-          await write(getFixturePath('add.txt'), 'hello');
-          // Ensures EV.ADD is called. Immediately removing the file causes it to be skipped
-          await delay(200);
-          await fs_unlink(getFixturePath('add.txt'));
-        })()
-      })
+      const spy = sinon.spy();
+      const watcher1 = chokidar_watch(currentDir);
+      const watcher2 = chokidar_watch(currentDir);
+      await Promise.all([
+        waitForWatcher(watcher1),
+        waitForWatcher(watcher2)
+      ]);
+
+      // The EV_ADD event should be called on the second watcher even if the first watcher is closed
+      watcher2.on(EV.ADD, spy);
+      await watcher1.close();
+
+      await write(getFixturePath('add.txt'), 'hello');
+      // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
+      await delay(200);
+      await fs_unlink(getFixturePath('add.txt'));
+
+      spy.should.have.been.calledWith(sinon.match('add.txt'));
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
