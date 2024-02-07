@@ -1089,9 +1089,12 @@ const runTests = (baseopts) => {
   describe('watch symlinks', () => {
     if (isWindows) return true;
     let linkedDir;
+    let linkToNonExistent;
     beforeEach(async () => {
       linkedDir = sysPath.resolve(currentDir, '..', `${subdirId}-link`);
       await fs_symlink(currentDir, linkedDir);
+      linkToNonExistent = sysPath.join(linkedDir, 'link-to-nonexistent');
+      await fs_symlink('does-not-exist', linkToNonExistent);
       await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
       await write(getFixturePath('subdir/add.txt'), 'b');
       return true;
@@ -1185,7 +1188,15 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV_ALL);
       spy.should.not.have.been.calledWith(EV_ADD_DIR);
       spy.should.have.been.calledWith(EV_ADD, linkedDir);
-      spy.should.have.been.calledOnce;
+      spy.should.have.been.calledTwice;
+    });
+    it('should watch symlinks with invalid target as files when followSymlinks:false', async () => {
+      options.followSymlinks = false;
+      const watcher = chokidar_watch(linkedDir, options);
+      const spy = await aspy(watcher, EV_ALL);
+      spy.should.not.have.been.calledWith(EV_ADD_DIR);
+      spy.should.have.been.calledWith(EV_ADD, linkToNonExistent);
+      spy.should.have.been.calledTwice;
     });
     it('should survive ENOENT for missing symlinks when followSymlinks:false', async () => {
       options.followSymlinks = false;
@@ -1197,7 +1208,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch(getFixturePath('subdir'), options);
       const spy = await aspy(watcher, EV_ALL);
 
-      spy.should.have.been.calledTwice;
+      spy.should.have.been.calledThrice;
       spy.should.have.been.calledWith(EV_ADD_DIR, getFixturePath('subdir'));
       spy.should.have.been.calledWith(EV_ADD, getFixturePath('subdir/add.txt'));
     });
