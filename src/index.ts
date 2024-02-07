@@ -9,6 +9,7 @@ import FsEventsHandler from './fsevents-handler.js';
 import {
   anymatch,
   MatchFunction,
+  isMatcherObject,
   Matcher
 } from './anymatch.js';
 import {
@@ -170,7 +171,7 @@ class DirEntry {
 
 const STAT_METHOD_F = 'stat';
 const STAT_METHOD_L = 'lstat';
-class WatchHelper {
+export class WatchHelper {
   fsw: any;
   path: string;
   watchPath: string;
@@ -179,7 +180,7 @@ class WatchHelper {
   followSymlinks: boolean;
   statMethod: 'stat' | 'lstat';
 
-  constructor(path, follow, fsw) {
+  constructor(path: string, follow: boolean, fsw: any) {
     this.fsw = fsw;
     const watchPath = path;
     this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
@@ -409,6 +410,37 @@ export class FSWatcher extends EventEmitter {
     Object.freeze(opts);
   }
 
+  _addIgnoredPath(matcher: Matcher): void {
+    if (isMatcherObject(matcher)) {
+      // return early if we already have a deeply equal matcher object
+      for (const ignored of this._ignoredPaths) {
+        if (isMatcherObject(ignored) &&
+          ignored.path === matcher.path &&
+          ignored.recursive === matcher.recursive) {
+          return;
+        }
+      }
+    }
+
+    this._ignoredPaths.add(matcher);
+  }
+
+  _removeIgnoredPath(matcher: Matcher): void {
+    this._ignoredPaths.delete(matcher);
+
+    // now find any matcher objects with the matcher as path
+    if (typeof matcher === 'string') {
+      for (const ignored of this._ignoredPaths) {
+        // TODO (43081j): make this more efficient.
+        // probably just make a `this._ignoredDirectories` or some
+        // such thing.
+        if (isMatcherObject(ignored) && ignored.path === matcher) {
+          this._ignoredPaths.delete(ignored);
+        }
+      }
+    }
+  }
+
   // Public methods
 
   /**
@@ -432,21 +464,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     paths.forEach((path) => {
-      this._ignoredPaths.delete(path);
-
-      for (const ignored of this._ignoredPaths) {
-        // TODO (43081j): make this more efficient.
-        // probably just make a `this._ignoredDirectories` or some
-        // such thing.
-        if (
-          !(ignored instanceof RegExp) &&
-          typeof ignored === 'object' &&
-          ignored !== null &&
-          ignored.path === path
-        ) {
-          this._ignoredPaths.delete(ignored);
-        }
-      }
+      this._removeIgnoredPath(path);
     });
 
     this._userIgnored = undefined;
@@ -460,7 +478,7 @@ export class FSWatcher extends EventEmitter {
       this._readyCount += paths.length;
       Promise.all(
         paths.map(async (path) => {
-          const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd);
+          const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, undefined, 0, _origAdd);
           if (res) this._emitReady();
           return res;
         })
@@ -496,9 +514,9 @@ export class FSWatcher extends EventEmitter {
 
       this._closePath(path);
 
-      this._ignoredPaths.add(path);
+      this._addIgnoredPath(path);
       if (this._watched.has(path)) {
-        this._ignoredPaths.add({
+        this._addIgnoredPath({
           path,
           recursive: true
         });
@@ -810,7 +828,7 @@ export class FSWatcher extends EventEmitter {
    * @param {Number=} depth at any depth > 0, this isn't a glob
    * @returns {WatchHelper} object containing helpers for this path
    */
-  _getWatchHelpers(path, depth?: number) {
+  _getWatchHelpers(path: string, depth?: number): WatchHelper {
     return new WatchHelper(path, this.options.followSymlinks, this);
   }
 

@@ -21,7 +21,6 @@ import  {
   FSEVENT_TYPE_DIRECTORY,
   FSEVENT_TYPE_SYMLINK,
 
-  ROOT_GLOBSTAR,
   DIR_SUFFIX,
   DOT_SLASH,
   FUNCTION_TYPE,
@@ -205,17 +204,15 @@ export default class FsEventsHandler {
     this.fsw = fsw;
   }
   checkIgnored(path: Path, stats?: fs.Stats) {
-    const ipaths = this.fsw._ignoredPaths;
     if (this.fsw._isIgnored(path, stats)) {
-      ipaths.add(path);
+      this.fsw._addIgnoredPath(path);
       if (stats && stats.isDirectory()) {
-        ipaths.add(path + ROOT_GLOBSTAR);
+        this.fsw._addIgnoredPath({path, recursive: true});
       }
       return true;
     }
 
-    ipaths.delete(path);
-    ipaths.delete(path + ROOT_GLOBSTAR);
+    this.fsw._removeIgnoredPath(path);
   }
 
   addOrChange(path, fullPath, realPath, parent, watchedDir, item, info, opts) {

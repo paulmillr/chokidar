@@ -18,7 +18,7 @@ import {
   STAR,
 } from './constants.js';
 import * as EV from './events.js';
-import { FSWatcher } from './index.js';
+import type { FSWatcher, WatchHelper } from './index.js';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
@@ -444,14 +444,12 @@ export default class NodeFsHandler {
     this.fsw._symlinkPaths.set(full, true);
   }
 
-  _handleRead(directory, initialAdd, wh, target, dir, depth, throttler) {
+  _handleRead(directory, initialAdd, wh: WatchHelper, target, dir, depth, throttler) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, EMPTY_STR);
 
-    if (!wh.hasGlob) {
-      throttler = this.fsw._throttle('readdir', directory, 1000);
-      if (!throttler) return;
-    }
+    throttler = this.fsw._throttle('readdir', directory, 1000);
+    if (!throttler) return;
 
     const previous = this.fsw._getWatchedDir(wh.path);
     const current = new Set();
@@ -514,14 +512,7 @@ export default class NodeFsHandler {
           .filter((item) => {
             return (
               item !== directory &&
-              !current.has(item) &&
-              // in case of intersecting globs;
-              // a path may have been filtered out of this readdir, but
-              // shouldn't be removed because it matches a different glob
-              (!wh.hasGlob ||
-                wh.filterPath({
-                  fullPath: sysPath.resolve(directory, item),
-                }))
+              !current.has(item)
             );
           })
           .forEach((item) => {
@@ -547,11 +538,11 @@ export default class NodeFsHandler {
    * @param {String} realpath
    * @returns {Promise<Function>} closer for the watcher instance.
    */
-  async _handleDir(dir, stats, initialAdd, depth, target, wh, realpath) {
+  async _handleDir(dir, stats, initialAdd, depth, target, wh: WatchHelper, realpath) {
     const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
     const tracked = parentDir.has(sysPath.basename(dir));
     if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
-      if (!wh.hasGlob || wh.globFilter(dir)) this.fsw._emit(EV.ADD_DIR, dir, stats);
+      this.fsw._emit(EV.ADD_DIR, dir, stats);
     }
 
     // ensure dir is tracked (harmless if redundant)
@@ -587,7 +578,7 @@ export default class NodeFsHandler {
    * @param {String=} target Child path actually targeted for watch
    * @returns {Promise}
    */
-  async _addToNodeFs(path, initialAdd, priorWh, depth, target?: string) {
+  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper|undefined, depth, target?: string) {
     const ready = this.fsw._emitReady;
     if (this.fsw._isIgnored(path) || this.fsw.closed) {
       ready();

@@ -17,6 +17,11 @@ function arrify<T>(item: T | T[]): T[] {
   return Array.isArray(item) ? item : [item];
 }
 
+export const isMatcherObject = (matcher: Matcher): matcher is MatcherObject =>
+    typeof matcher === 'object' &&
+      matcher !== null &&
+      !(matcher instanceof RegExp);
+
 /**
  * @param {AnymatchPattern} matcher
  * @returns {MatchFunction}
