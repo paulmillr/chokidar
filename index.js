@@ -8,7 +8,7 @@ const readdirp = require('readdirp');
 const anymatch = require('anymatch').default;
 const globParent = require('glob-parent');
 const isGlob = require('is-glob');
-const braces = require('braces');
+const braces = require('brace-expansion');
 const normalizePath = require('normalize-path');
 
 const NodeFsHandler = require('./lib/nodefs-handler');
@@ -255,7 +255,7 @@ class WatchHelper {
   getDirParts(path) {
     if (!this.hasGlob) return [];
     const parts = [];
-    const expandedPath = path.includes(BRACE_START) ? braces.expand(path) : [path];
+    const expandedPath = path.includes(BRACE_START) ? braces(path) : [path];
     expandedPath.forEach((path) => {
       parts.push(sysPath.relative(this.watchPath, path).split(SLASH_OR_BACK_SLASH_RE));
     });
