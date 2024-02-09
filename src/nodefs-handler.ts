@@ -6,6 +6,7 @@ import {
   Path,
   isWindows,
   isLinux,
+  isMacos,
   EMPTY_FN,
   EMPTY_STR,
   KEY_LISTENERS,
@@ -360,7 +361,7 @@ export default class NodeFsHandler {
           if (!at || at <= mt || mt !== prevStats.mtimeMs) {
             this.fsw._emit(EV.CHANGE, file, newStats);
           }
-          if (isLinux && prevStats.ino !== newStats.ino) {
+          if ((isMacos || isLinux) && prevStats.ino !== newStats.ino) {
             this.fsw._closeFile(path);
             prevStats = newStats;
             this.fsw._addPathCloser(path, this._watchWithNodeFs(file, listener));
