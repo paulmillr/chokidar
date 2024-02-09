@@ -247,7 +247,7 @@ export type ChokidarOptions = Partial<{
   atomic: boolean | number; // or a custom 'atomicity delay', in milliseconds (default 100)
 }>;
 
-interface FSWInstanceOptions {
+export interface FSWInstanceOptions {
   persistent: boolean;
 
   ignored: Matcher[];

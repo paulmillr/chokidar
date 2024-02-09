@@ -18,7 +18,7 @@ import {
   STAR,
 } from './constants.js';
 import * as EV from './events.js';
-import type { FSWatcher, WatchHelper } from './index.js';
+import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
@@ -307,7 +307,7 @@ export default class NodeFsHandler {
     const parent = this.fsw._getWatchedDir(directory);
     parent.add(basename);
     const absolutePath = sysPath.resolve(path);
-    const options = { persistent: opts.persistent, interval: 0 };
+    const options: Partial<FSWInstanceOptions> = { persistent: opts.persistent };
     if (!listener) listener = EMPTY_FN;
 
     let closer;
