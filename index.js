@@ -252,7 +252,6 @@ class WatchHelper {
     const resolvedPath = this.entryPath(entry);
     const matchesGlob = this.hasGlob && typeof this.globFilter === FUNCTION_TYPE ?
       this.globFilter(resolvedPath) : true;
-
     return matchesGlob &&
       this.fsw._isntIgnored(resolvedPath, stats) &&
       this.fsw._hasReadPermissions(stats);

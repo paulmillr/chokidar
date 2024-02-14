@@ -15,8 +15,6 @@ const upath = require('upath');
 const {isWindows, isMacos, isIBMi, EV_ALL, EV_READY, EV_ADD, EV_CHANGE, EV_ADD_DIR, EV_UNLINK, EV_UNLINK_DIR, EV_RAW, EV_ERROR}
     = require('./lib/constants');
 const chokidar = require('.');
-const { cpuUsage } = require('process');
-const api = require('sinon');
 
 const {expect} = chai;
 chai.use(sinonChai);
@@ -71,6 +69,7 @@ const delay = async (time) => {
     setTimeout(resolve, timer);
   });
 };
+
 const getFixturePath = (subPath) => {
   const subd = subdirId && subdirId.toString() || '';
   return sysPath.join(FIXTURES_PATH, subd, subPath);
