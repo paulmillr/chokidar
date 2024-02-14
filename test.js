@@ -1270,6 +1270,45 @@ const runTests = (baseopts) => {
       readySpy.should.have.been.calledOnce;
     });
   });
+  describe('watch directory with symlink subdirectory', () => {
+    if (isWindows) return true;
+    let realDir;
+    let watchDir;
+    let linkDir;
+
+    beforeEach(async () => {
+      realDir = sysPath.join(currentDir, 'realSubdir');
+      watchDir = sysPath.join(currentDir, 'watchDir');
+      linkDir = sysPath.join(watchDir, 'linkSubdir');
+
+      await fs_mkdir(realDir, PERM_ARR);
+      await fs_mkdir(watchDir, PERM_ARR);
+      await fs_symlink(realDir, linkDir);
+
+      await write(sysPath.join(realDir, 'a.a'), 'aaa');
+      await write(sysPath.join(realDir, 'b.b'), 'bbb');
+      return true;
+    });
+    afterEach(async () => {
+      await fs_unlink(linkDir);
+      return true;
+    });
+    it('should properly match glob patterns that include a symlinked subdir', async () => {
+      const dirSpy = sinon.spy(function dirSpy() {});
+      const addSpy = sinon.spy(function addSpy() {});
+      const watchPattern = upath.join(watchDir, '**/*.a');
+      const watcher = chokidar_watch(watchPattern, options)
+        .on(EV_ADD_DIR, dirSpy)
+        .on(EV_ADD, addSpy);
+      await waitForWatcher(watcher);
+      addSpy.should.have.been.calledOnce;
+      addSpy.should.have.been.calledWith(sysPath.join(linkDir, 'a.a'));
+      await write(sysPath.join(realDir, 'b2.b'), 'b2');
+      await write(sysPath.join(realDir, 'a2.a'), 'a2');
+      await waitFor([[addSpy, 2]]);
+      addSpy.should.have.been.calledWith(sysPath.join(linkDir, 'a2.a'));
+    });
+  });
   describe('watch arrays of paths/globs', () => {
     it('should watch all paths in an array', async () => {
       const testPath = getFixturePath('change.txt');
@@ -2137,7 +2176,7 @@ const runTests = (baseopts) => {
         await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
-        
+
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
@@ -2178,7 +2217,7 @@ const runTests = (baseopts) => {
         await fs_mkdir(testSubDir);
         await write(testSubDirFile, '');
         await delay(300);
-        
+
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
