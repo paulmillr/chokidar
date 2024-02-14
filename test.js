@@ -1276,23 +1276,18 @@ const runTests = (baseopts) => {
     let realDir;
     let watchDir;
     let linkDir;
-    let aPath;
-    let bPath;
 
     beforeEach(async () => {
       realDir = sysPath.join(currentDir, 'realSubdir');
       watchDir = sysPath.join(currentDir, 'watchDir');
       linkDir = sysPath.join(watchDir, 'linkSubdir');
 
-      aPath = sysPath.join(realDir, 'a.a');
-      bPath = sysPath.join(realDir, 'b.b');
-
       await fs_mkdir(realDir, PERM_ARR);
       await fs_mkdir(watchDir, PERM_ARR);
       await fs_symlink(realDir, linkDir);
 
-      await write(aPath, 'aaa');
-      await write(bPath, 'bbb');
+      await write(sysPath.join(realDir, 'a.a'), 'aaa');
+      await write(sysPath.join(realDir, 'b.b'), 'bbb');
       return true;
     });
     afterEach(async () => {
@@ -1300,18 +1295,18 @@ const runTests = (baseopts) => {
       return true;
     });
     it('should properly match glob patterns that include a symlinked subdir', async () => {
-      const dirSpy = sinon.spy(function dirSpy() { });
-      const addSpy = sinon.spy(function addSpy() { });
+      const dirSpy = sinon.spy(function dirSpy() {});
+      const addSpy = sinon.spy(function addSpy() {});
       const watchPattern = upath.join(watchDir, '**/*.a');
       const watcher = chokidar_watch(watchPattern, options)
         .on(EV_ADD_DIR, dirSpy)
         .on(EV_ADD, addSpy);
       await waitForWatcher(watcher);
       addSpy.should.have.been.calledOnce;
-      addSpy.should.have.been.calledWith(aPath);
-      await write(sysPath.join(realDir, 'a2.a'), 'a2');
+      addSpy.should.have.been.calledWith(sysPath.join(linkDir, 'a.a'));
       await write(sysPath.join(realDir, 'b2.b'), 'b2');
-      await waitFor([[addSpy, 4]]);
+      await write(sysPath.join(realDir, 'a2.a'), 'a2');
+      await waitFor([[addSpy, 2]]);
       addSpy.should.have.been.calledWith(sysPath.join(linkDir, 'a2.a'));
     });
   });

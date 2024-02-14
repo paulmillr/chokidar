@@ -202,16 +202,21 @@ class DirEntry {
 const STAT_METHOD_F = 'stat';
 const STAT_METHOD_L = 'lstat';
 class WatchHelper {
-  constructor(path, watchPath, follow, fsw) {
+  constructor(path, watchPath, follow, fsw, parentWatchHelpers) {
     this.fsw = fsw;
     this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
     this.watchPath = watchPath;
+    this.parentWatchHelpers = parentWatchHelpers || (parentWatchHelpers = {});
     this.fullWatchPath = sysPath.resolve(watchPath);
-    this.hasGlob = watchPath !== path;
+    this.hasOwnGlob = watchPath !== path;
+    this.hasGlob = this.hasOwnGlob || !!parentWatchHelpers.hasGlob;
     /** @type {object|boolean} */
     if (path === EMPTY_STR) this.hasGlob = false;
     this.globSymlink = this.hasGlob && follow ? undefined : false;
-    this.globFilter = this.hasGlob ? anymatch(path, undefined, ANYMATCH_OPTS) : false;
+    this.ownGlobFilter = this.hasOwnGlob ? anymatch(path, undefined, ANYMATCH_OPTS) : false;
+    this.globFilter = this.hasOwnGlob && parentWatchHelpers.hasGlob
+      ? (path) => this.ownGlobFilter(path) && parentWatchHelpers.globFilter(path)
+      : this.ownGlobFilter || parentWatchHelpers.globFilter;
     this.dirParts = this.getDirParts(path);
     this.dirParts.forEach((parts) => {
       if (parts.length > 1) parts.pop();
@@ -247,6 +252,7 @@ class WatchHelper {
     const resolvedPath = this.entryPath(entry);
     const matchesGlob = this.hasGlob && typeof this.globFilter === FUNCTION_TYPE ?
       this.globFilter(resolvedPath) : true;
+
     return matchesGlob &&
       this.fsw._isntIgnored(resolvedPath, stats) &&
       this.fsw._hasReadPermissions(stats);
@@ -787,13 +793,20 @@ _isntIgnored(path, stat) {
  * Provides a set of common helpers and properties relating to symlink and glob handling.
  * @param {Path} path file, directory, or glob pattern being watched
  * @param {Number=} depth at any depth > 0, this isn't a glob
+ * @param {WatchHelpers=} parentWatchHelpers Parent helpers for glob filtering through symlinks
  * @returns {WatchHelper} object containing helpers for this path
  */
-_getWatchHelpers(path, depth) {
+  _getWatchHelpers(path, depth, parentWatchHelpers) {
   const watchPath = depth || this.options.disableGlobbing || !isGlob(path) ? path : globParent(path);
   const follow = this.options.followSymlinks;
 
-  return new WatchHelper(path, watchPath, follow, this);
+  return new WatchHelper(
+    path,
+    watchPath,
+    follow,
+    this,
+    parentWatchHelpers
+  );
 }
 
 // Directory helpers
