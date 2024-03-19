@@ -12,6 +12,6 @@
     "esModuleInterop": true,
     "baseUrl": ".",
   },
-  "include": ["src"],
+  "include": ["src", "types"],
   "exclude": ["node_modules", "lib"]
 }
