@@ -100,8 +100,14 @@ const FsWatchInstances = new Map();
  * @param {Function} emitRaw emits raw event data
  * @returns {fs.FSWatcher} new fsevents instance
  */
-function createFsWatchInstance(path, options, listener, errHandler, emitRaw) {
-  const handleEvent = (rawEvent, evPath) => {
+function createFsWatchInstance(
+  path: string,
+  options: Partial<FSWInstanceOptions>,
+  listener: WatchHandlers['listener'],
+  errHandler: WatchHandlers['errHandler'],
+  emitRaw: WatchHandlers['rawEmitter']
+) {
+  const handleEvent: fs.WatchListener<string> = (rawEvent, evPath) => {
     listener(path);
     emitRaw(rawEvent, evPath, { watchedPath: path });
 
@@ -112,7 +118,9 @@ function createFsWatchInstance(path, options, listener, errHandler, emitRaw) {
     }
   };
   try {
-    return fs.watch(path, options, handleEvent);
+    return fs.watch(path, {
+      persistent: options.persistent
+    }, handleEvent);
   } catch (error) {
     errHandler(error);
   }
@@ -134,6 +142,12 @@ const fsWatchBroadcast = (fullPath: Path, type: string, val1?: any, val2?: any, 
   });
 };
 
+interface WatchHandlers {
+  listener: (path: string) => void;
+  errHandler: (err: unknown) => void;
+  rawEmitter: (ev: fs.WatchEventType, path: string, opts: unknown) => void;
+}
+
 /**
  * Instantiates the fs_watch interface or binds listeners
  * to an existing one covering the same file system entry
@@ -142,12 +156,17 @@ const fsWatchBroadcast = (fullPath: Path, type: string, val1?: any, val2?: any, 
  * @param {Object} options to be passed to fs_watch
  * @param {Object} handlers container for event listener functions
  */
-const setFsWatchListener = (path, fullPath, options, handlers) => {
+const setFsWatchListener = (
+  path: string,
+  fullPath: string,
+  options: Partial<FSWInstanceOptions>,
+  handlers: WatchHandlers
+) => {
   const { listener, errHandler, rawEmitter } = handlers;
   let cont = FsWatchInstances.get(fullPath);
 
   /** @type {fs.FSWatcher=} */
-  let watcher;
+  let watcher: fs.FSWatcher;
   if (!options.persistent) {
     watcher = createFsWatchInstance(path, options, listener, errHandler, rawEmitter);
     return watcher.close.bind(watcher);
@@ -308,7 +327,9 @@ export default class NodeFsHandler {
     const parent = this.fsw._getWatchedDir(directory);
     parent.add(basename);
     const absolutePath = sysPath.resolve(path);
-    const options: Partial<FSWInstanceOptions> = { persistent: opts.persistent };
+    const options: Partial<FSWInstanceOptions> = {
+      persistent: opts.persistent
+    };
     if (!listener) listener = EMPTY_FN;
 
     let closer;
