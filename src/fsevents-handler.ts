@@ -18,6 +18,7 @@ import  {
   FSEVENT_MOVED,
   // FSEVENT_CLONED,
   FSEVENT_UNKNOWN,
+  FSEVENT_FLAG_MUST_SCAN_SUBDIRS,
   FSEVENT_TYPE_FILE,
   FSEVENT_TYPE_DIRECTORY,
   FSEVENT_TYPE_SYMLINK,
@@ -126,6 +127,7 @@ function setFSEventsListener(path, realPath, listener, rawEmitter) {
       rawEmitter,
       watcher: createFSEventsInstance(watchPath, (fullPath, flags) => {
         if (!cont.listeners.size) return;
+        if (flags & FSEVENT_FLAG_MUST_SCAN_SUBDIRS) return;
         const info = fsevents.getInfo(fullPath, flags);
         cont.listeners.forEach((list) => {
           list(fullPath, flags, info);

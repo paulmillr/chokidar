@@ -13,6 +13,7 @@ export const FSEVENT_DELETED = 'deleted';
 export const FSEVENT_MOVED = 'moved';
 export const FSEVENT_CLONED = 'cloned';
 export const FSEVENT_UNKNOWN = 'unknown';
+export const FSEVENT_FLAG_MUST_SCAN_SUBDIRS = 1;
 export const FSEVENT_TYPE_FILE = 'file';
 export const FSEVENT_TYPE_DIRECTORY = 'directory';
 export const FSEVENT_TYPE_SYMLINK = 'symlink';
