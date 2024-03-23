@@ -4,7 +4,7 @@
 
 import fs from 'node:fs';
 import sysPath from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
 import chai from 'chai';
@@ -262,34 +262,24 @@ const runTests = (baseopts) => {
       await write(test3Path, dateNow());
       await write(test4Path, dateNow());
       await write(test5Path, dateNow());
-
-      await delay(200);
       await write(test6Path, dateNow());
       await write(test7Path, dateNow());
       await write(test8Path, dateNow());
       await write(test9Path, dateNow());
-
-      await delay(200);
       await write(testb1Path, dateNow());
       await write(testb2Path, dateNow());
       await write(testb3Path, dateNow());
       await write(testb4Path, dateNow());
       await write(testb5Path, dateNow());
-
-      await delay(200);
       await write(testb6Path, dateNow());
       await write(testb7Path, dateNow());
       await write(testb8Path, dateNow());
       await write(testb9Path, dateNow());
-
-      await delay(200);
       await write(testc1Path, dateNow());
       await write(testc2Path, dateNow());
       await write(testc3Path, dateNow());
       await write(testc4Path, dateNow());
       await write(testc5Path, dateNow());
-
-      await delay(150);
       await write(testc6Path, dateNow());
       await write(testc7Path, dateNow());
       await write(testc8Path, dateNow());
@@ -297,17 +287,10 @@ const runTests = (baseopts) => {
       await write(testd1Path, dateNow());
       await write(teste1Path, dateNow());
       await write(testf1Path, dateNow());
-
-      await delay(100);
       await write(testg1Path, dateNow());
       await write(testh1Path, dateNow());
       await write(testi1Path, dateNow());
 
-      await delay(300);
-      await waitFor([[spy, 11]]);
-      await waitFor([[spy, 22]]);
-
-      await delay(1000);
       await waitFor([[spy, 33]]);
 
       spy.should.have.been.calledWith(test1Path);
@@ -316,8 +299,6 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(test4Path);
       spy.should.have.been.calledWith(test5Path);
       spy.should.have.been.calledWith(test6Path);
-
-      await delay(100);
       spy.should.have.been.calledWith(test7Path);
       spy.should.have.been.calledWith(test8Path);
       spy.should.have.been.calledWith(test9Path);
@@ -327,8 +308,6 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(testb4Path);
       spy.should.have.been.calledWith(testb5Path);
       spy.should.have.been.calledWith(testb6Path);
-      await delay(100);
-
       spy.should.have.been.calledWith(testb7Path);
       spy.should.have.been.calledWith(testb8Path);
       spy.should.have.been.calledWith(testb9Path);
@@ -336,15 +315,11 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(testc2Path);
       spy.should.have.been.calledWith(testc3Path);
       spy.should.have.been.calledWith(testc4Path);
-
-      await delay(100);
       spy.should.have.been.calledWith(testc5Path);
       spy.should.have.been.calledWith(testc6Path);
       spy.should.have.been.calledWith(testc7Path);
       spy.should.have.been.calledWith(testc8Path);
       spy.should.have.been.calledWith(testc9Path);
-
-      await delay(100);
       spy.should.have.been.calledWith(testd1Path);
       spy.should.have.been.calledWith(teste1Path);
       spy.should.have.been.calledWith(testf1Path);
@@ -543,14 +518,13 @@ const runTests = (baseopts) => {
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD_DIR, addSpy);
       await waitForWatcher(watcher);
 
-      await delay();
+      await delay(300);
       await fs_unlink(testPath);
-      await delay();
+      await delay(300);
       await fs_mkdir(testPath, PERM_ARR);
 
-      await waitFor([unlinkSpy]);
+      await waitFor([addSpy, unlinkSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
-      await waitFor([addSpy]);
       addSpy.should.have.been.calledWith(testPath);
     });
   });
@@ -2026,7 +2000,9 @@ const runTests = (baseopts) => {
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
-      const chokidarPath = upath.join(__dirname, 'lib/index.js').replace(/\\/g, '\\\\');
+      const chokidarPath = pathToFileURL(sysPath.join(__dirname, 'lib/index.js'))
+        .href
+        .replace(/\\/g, '\\\\');
       const scriptContent = `
       (async () => {
         const chokidar = await import("${chokidarPath}");
