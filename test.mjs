@@ -1,7 +1,5 @@
 /* eslint-env mocha */
 
-'use strict';
-
 import fs from 'node:fs';
 import sysPath from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
@@ -101,18 +99,14 @@ const waitFor = async (spies) => {
       }
       return spy.callCount >= 1;
     };
-    let intrvl, timeo;
-    function finish() {
-      clearInterval(intrvl);
-      clearTimeout(timeo);
-      resolve();
-    }
-    intrvl = setInterval(() => {
-      process.nextTick(() => {
-        if (spies.every(isSpyReady)) finish();
-      });
-    }, 20);
-    timeo = setTimeout(finish, 5000);
+    const checkSpiesReady = () => {
+      if (spies.every(isSpyReady)) {
+        resolve();
+      } else {
+        setTimeout(checkSpiesReady, 20);
+      }
+    };
+    checkSpiesReady();
   });
 };
 
@@ -262,24 +256,39 @@ const runTests = (baseopts) => {
       await write(test3Path, dateNow());
       await write(test4Path, dateNow());
       await write(test5Path, dateNow());
+
+      await waitFor([[spy, 5]]);
+
       await write(test6Path, dateNow());
       await write(test7Path, dateNow());
       await write(test8Path, dateNow());
       await write(test9Path, dateNow());
+
+      await waitFor([[spy, 9]]);
+
       await write(testb1Path, dateNow());
       await write(testb2Path, dateNow());
       await write(testb3Path, dateNow());
       await write(testb4Path, dateNow());
       await write(testb5Path, dateNow());
+
+      await waitFor([[spy, 14]]);
+
       await write(testb6Path, dateNow());
       await write(testb7Path, dateNow());
       await write(testb8Path, dateNow());
       await write(testb9Path, dateNow());
+
+      await waitFor([[spy, 18]]);
+
       await write(testc1Path, dateNow());
       await write(testc2Path, dateNow());
       await write(testc3Path, dateNow());
       await write(testc4Path, dateNow());
       await write(testc5Path, dateNow());
+
+      await waitFor([[spy, 23]]);
+
       await write(testc6Path, dateNow());
       await write(testc7Path, dateNow());
       await write(testc8Path, dateNow());
@@ -287,6 +296,9 @@ const runTests = (baseopts) => {
       await write(testd1Path, dateNow());
       await write(teste1Path, dateNow());
       await write(testf1Path, dateNow());
+
+      await waitFor([[spy, 30]]);
+
       await write(testg1Path, dateNow());
       await write(testh1Path, dateNow());
       await write(testi1Path, dateNow());
@@ -381,9 +393,10 @@ const runTests = (baseopts) => {
       fs.mkdirSync(testDir2, PERM_ARR);
       fs.mkdirSync(testDir3, PERM_ARR);
       const spy = await aspy(watcher, EV.UNLINK_DIR);
-      await waitFor([spy]);
-      await rimraf(testDir2); // test removing in one
-      await waitFor([spy]);
+      await Promise.all([
+        waitFor([[spy, 2]]),
+        rimraf(testDir2) // test removing in one
+      ]);
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
