@@ -19,7 +19,6 @@
     "readdirp": "github:paulmillr/readdirp"
   },
   "optionalDependencies": {
-    "fsevents": "~2.3.2"
   },
   "devDependencies": {
     "@types/node": "^16.11.7",

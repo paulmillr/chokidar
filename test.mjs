@@ -110,6 +110,22 @@ const waitFor = async (spies) => {
   });
 };
 
+const waitForEvents = (watcher, count) => {
+  return new Promise((resolve) => {
+    const events = [];
+    const handler = (event, path) => {
+      events.push(`[ALL] ${event}: ${path}`)
+
+      if (events.length === count) {
+        watcher.off('all', handler);
+        resolve(events);
+      }
+    };
+
+    watcher.on('all', handler);
+  });
+};
+
 const dateNow = () => Date.now().toString();
 
 const runTests = (baseopts) => {
@@ -120,7 +136,7 @@ const runTests = (baseopts) => {
 
   before(() => {
     // flags for bypassing special-case test failures on CI
-    macosFswatch = isMacos && !baseopts.usePolling && !baseopts.useFsEvents;
+    macosFswatch = isMacos && !baseopts.usePolling;
     win32Polling = isWindows && baseopts.usePolling;
     slowerDelay = macosFswatch ? 100 : undefined;
   });
@@ -247,6 +263,8 @@ const runTests = (baseopts) => {
       fs.mkdirSync(getFixturePath('g'), PERM_ARR);
       fs.mkdirSync(getFixturePath('h'), PERM_ARR);
       fs.mkdirSync(getFixturePath('i'), PERM_ARR);
+
+      await delay();
 
       watcher2 = chokidar_watch().on(EV.READY, readySpy).on(EV.RAW, rawSpy);
       const spy = await aspy(watcher2, EV.ADD, null, true);
@@ -994,6 +1012,7 @@ const runTests = (baseopts) => {
       await fs_mkdir(targetDir);
       await fs_symlink(targetDir, getFixturePath('subdir/broken'));
       await fs_rmdir(targetDir);
+      await delay();
 
       const watcher = chokidar_watch(getFixturePath('subdir'), options);
       const spy = await aspy(watcher, EV.ALL);
@@ -1223,10 +1242,10 @@ const runTests = (baseopts) => {
       beforeEach(async () => {
         await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
         await write(getFixturePath('subdir/add.txt'), 'b');
-        await delay(options.useFsEvents && 200);
+        await delay();
         await fs_mkdir(getFixturePath('subdir/subsub'), PERM_ARR);
         await write(getFixturePath('subdir/subsub/ab.txt'), 'b');
-        await delay(options.useFsEvents && 200);
+        await delay();
       });
       it('should not recurse if depth is 0', async () => {
         options.depth = 0;
@@ -1447,10 +1466,6 @@ const runTests = (baseopts) => {
         it('should watch unreadable files if possible', async () => {
           const spy = await aspy(chokidar_watch(), EV.ALL);
           spy.should.have.been.calledWith(EV.ADD, filePath);
-          if (!options.useFsEvents) return true;
-          await write(filePath, dateNow());
-          await waitFor([spy.withArgs(EV.CHANGE)]);
-          spy.should.have.been.calledWith(EV.CHANGE, filePath);
         });
         it('should not choke on non-existent files', async () => {
           const watcher = chokidar_watch(getFixturePath('nope.txt'), options);
@@ -1781,10 +1796,6 @@ const runTests = (baseopts) => {
     });
   });
   describe('env variable option override', () => {
-    beforeEach(() => {
-      // Do not spin up
-      options.useFsEvents = false;
-    });
     describe('CHOKIDAR_USEPOLLING', () => {
       afterEach(() => {
         delete process.env.CHOKIDAR_USEPOLLING;
@@ -1834,7 +1845,7 @@ const runTests = (baseopts) => {
         watcher.options.usePolling.should.be.true;
       });
     });
-    if (options && options.usePolling && !options.useFsEvents) {
+    if (options && options.usePolling) {
       describe('CHOKIDAR_INTERVAL', () => {
         afterEach(() => {
           delete process.env.CHOKIDAR_INTERVAL;
@@ -1863,7 +1874,6 @@ const runTests = (baseopts) => {
 
       // Init chokidar
       const watcher = chokidar.watch([]);
-      const events = [];
 
       // Add more than 10 folders to cap consolidateThreshhold
       for (let i = 0 ; i < 20 ; i += 1) {
@@ -1878,9 +1888,8 @@ const runTests = (baseopts) => {
 
       // Wait to be sure that we have no other event than the update file
       await delay(300);
-      watcher.on('change', (event, path) =>
-        events.push(`[change] ${event}: ${path}`)
-      );
+
+      const eventsWaiter = waitForEvents(watcher, 1);
 
       // Update a random generated file to fire an event
       const randomFilePath = sysPath.join(fixturesPathRel, 'packages', 'folder17', 'file17.js');
@@ -1888,6 +1897,8 @@ const runTests = (baseopts) => {
 
       // Wait chokidar watch
       await delay(300);
+
+      const events = await eventsWaiter;
 
       expect(events.length).to.equal(1);
     })
@@ -1900,10 +1911,7 @@ const runTests = (baseopts) => {
         persistent: true,
       });
       try {
-        const events = [];
-        watcher.on('all', (event, path) =>
-          events.push(`[ALL] ${event}: ${path}`)
-        );
+        const eventsWaiter = waitForEvents(watcher, 5);
         const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
         const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
 
@@ -1920,6 +1928,8 @@ const runTests = (baseopts) => {
         await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
+
+        const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
@@ -1938,14 +1948,12 @@ const runTests = (baseopts) => {
       const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
       const linkedRelativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test-link');
       await fs_symlink(sysPath.resolve(relativeWatcherDir), linkedRelativeWatcherDir);
+      await delay();
       const watcher = chokidar.watch(linkedRelativeWatcherDir, {
         persistent: true,
       });
       try {
-        const events = [];
-        watcher.on('all', (event, path) =>
-          events.push(`[ALL] ${event}: ${path}`)
-        );
+        const eventsWaiter = waitForEvents(watcher, 5);
         const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
         const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
 
@@ -1961,6 +1969,8 @@ const runTests = (baseopts) => {
         await fs_mkdir(testSubDir);
         await write(testSubDirFile, '');
         await delay(300);
+
+        const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
@@ -2041,14 +2051,7 @@ const runTests = (baseopts) => {
 };
 
 describe('chokidar', async () => {
-  let canUseFsEvents = undefined;
-
   before(async () => {
-    if (isMacos) {
-      const {default: FSEventsHandler} = await import('./lib/fsevents-handler.js')
-      canUseFsEvents = FSEventsHandler.canUse();
-    }
-
     await rimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
@@ -2085,11 +2088,8 @@ describe('chokidar', async () => {
     chokidar.watch.should.be.a('function');
   });
 
-  if (canUseFsEvents) {
-    describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
-  }
   if (!isIBMi) {
-    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
 });
