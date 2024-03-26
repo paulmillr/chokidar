@@ -910,7 +910,7 @@ const runTests = (baseopts) => {
     let linkedDir;
     beforeEach(async () => {
       linkedDir = sysPath.resolve(currentDir, '..', `${subdirId}-link`);
-      await fs_symlink(currentDir, linkedDir);
+      await fs_symlink(currentDir, linkedDir, isWindows ? 'dir' : null);
       await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
       await write(getFixturePath('subdir/add.txt'), 'b');
       return true;
@@ -969,7 +969,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.CHANGE, testFile);
     });
     it('should not recurse indefinitely on circular symlinks', async () => {
-      await fs_symlink(currentDir, getFixturePath('subdir/circular'));
+      await fs_symlink(currentDir, getFixturePath('subdir/circular'), isWindows ? 'dir' : null);
       return new Promise((resolve, reject) => {
         const watcher = chokidar_watch();
         watcher.on(EV.ERROR, resolve());
@@ -990,7 +990,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch();
       const spy = await aspy(watcher, EV.ALL);
       await delay();
-      await fs_symlink(getFixturePath('subdir'), getFixturePath('link'));
+      await fs_symlink(getFixturePath('subdir'), getFixturePath('link'), isWindows ? 'dir' : null);
       await waitFor([
         spy.withArgs(EV.ADD, getFixturePath('link/add.txt')),
         spy.withArgs(EV.ADD_DIR, getFixturePath('link'))
@@ -1010,7 +1010,7 @@ const runTests = (baseopts) => {
       options.followSymlinks = false;
       const targetDir = getFixturePath('subdir/nonexistent');
       await fs_mkdir(targetDir);
-      await fs_symlink(targetDir, getFixturePath('subdir/broken'));
+      await fs_symlink(targetDir, getFixturePath('subdir/broken'), isWindows ? 'dir' : null);
       await fs_rmdir(targetDir);
       await delay();
 
@@ -1064,7 +1064,7 @@ const runTests = (baseopts) => {
     it('should emit ready event even when broken symlinks are encountered', async () => {
       const targetDir = getFixturePath('subdir/nonexistent');
       await fs_mkdir(targetDir);
-      await fs_symlink(targetDir, getFixturePath('subdir/broken'));
+      await fs_symlink(targetDir, getFixturePath('subdir/broken'), isWindows ? 'dir' : null);
       await fs_rmdir(targetDir);
       const readySpy = sinon.spy(function readySpy(){});
       const watcher = chokidar_watch(getFixturePath('subdir'), options)
@@ -1281,7 +1281,7 @@ const runTests = (baseopts) => {
       it('should respect depth setting when following symlinks', async () => {
         if (isWindows) return true; // skip on windows
         options.depth = 1;
-        await fs_symlink(getFixturePath('subdir'), getFixturePath('link'));
+        await fs_symlink(getFixturePath('subdir'), getFixturePath('link'), isWindows ? 'dir' : null);
         await delay();
         const spy = await aspy(chokidar_watch(), EV.ALL);
         spy.should.have.been.calledWith(EV.ADD_DIR, getFixturePath('link'));
@@ -1296,7 +1296,7 @@ const runTests = (baseopts) => {
         const linkPath = getFixturePath('link');
         const dirPath = getFixturePath('link/subsub');
         const spy = await aspy(chokidar_watch(), EV.ALL);
-        await fs_symlink(getFixturePath('subdir'), linkPath);
+        await fs_symlink(getFixturePath('subdir'), linkPath, isWindows ? 'dir' : null);
         await waitFor([[spy, 3], spy.withArgs(EV.ADD_DIR, dirPath)]);
         spy.should.have.been.calledWith(EV.ADD_DIR, linkPath);
         spy.should.have.been.calledWith(EV.ADD_DIR, dirPath);
@@ -1882,7 +1882,7 @@ const runTests = (baseopts) => {
         const filePath = sysPath.join(folderPath, `file${i}.js`);
         await write(sysPath.resolve(filePath), 'file content');
         const symlinkPath = sysPath.join(linkPath, `folder${i}`);
-        await fs_symlink(sysPath.resolve(folderPath), symlinkPath);
+        await fs_symlink(sysPath.resolve(folderPath), symlinkPath, isWindows ? 'dir' : null);
         watcher.add(sysPath.resolve(sysPath.join(symlinkPath, `file${i}.js`)));
       }
 
@@ -1947,7 +1947,11 @@ const runTests = (baseopts) => {
       const id = subdirId.toString();
       const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
       const linkedRelativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test-link');
-      await fs_symlink(sysPath.resolve(relativeWatcherDir), linkedRelativeWatcherDir);
+      await fs_symlink(
+        sysPath.resolve(relativeWatcherDir),
+        linkedRelativeWatcherDir,
+        isWindows ? 'dir' : null
+      );
       await delay();
       const watcher = chokidar.watch(linkedRelativeWatcherDir, {
         persistent: true,
@@ -1967,6 +1971,7 @@ const runTests = (baseopts) => {
         // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
         await delay(300);
         await fs_mkdir(testSubDir);
+        await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
 
