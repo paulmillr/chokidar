@@ -269,59 +269,48 @@ const runTests = (baseopts) => {
       watcher2 = chokidar_watch().on(EV.READY, readySpy).on(EV.RAW, rawSpy);
       const spy = await aspy(watcher2, EV.ADD, null, true);
 
-      await write(test1Path, dateNow());
-      await write(test2Path, dateNow());
-      await write(test3Path, dateNow());
-      await write(test4Path, dateNow());
-      await write(test5Path, dateNow());
+      const filesToWrite = [
+        test1Path,
+        test2Path,
+        test3Path,
+        test4Path,
+        test5Path,
+        test6Path,
+        test7Path,
+        test8Path,
+        test9Path,
+        testb1Path,
+        testb2Path,
+        testb3Path,
+        testb4Path,
+        testb5Path,
+        testb6Path,
+        testb7Path,
+        testb8Path,
+        testb9Path,
+        testc1Path,
+        testc2Path,
+        testc3Path,
+        testc4Path,
+        testc5Path,
+        testc6Path,
+        testc7Path,
+        testc8Path,
+        testc9Path,
+        testd1Path,
+        teste1Path,
+        testf1Path,
+        testg1Path,
+        testh1Path,
+        testi1Path
+      ];
 
-      await waitFor([[spy, 5]]);
+      let currentCallCount = 0;
 
-      await write(test6Path, dateNow());
-      await write(test7Path, dateNow());
-      await write(test8Path, dateNow());
-      await write(test9Path, dateNow());
-
-      await waitFor([[spy, 9]]);
-
-      await write(testb1Path, dateNow());
-      await write(testb2Path, dateNow());
-      await write(testb3Path, dateNow());
-      await write(testb4Path, dateNow());
-      await write(testb5Path, dateNow());
-
-      await waitFor([[spy, 14]]);
-
-      await write(testb6Path, dateNow());
-      await write(testb7Path, dateNow());
-      await write(testb8Path, dateNow());
-      await write(testb9Path, dateNow());
-
-      await waitFor([[spy, 18]]);
-
-      await write(testc1Path, dateNow());
-      await write(testc2Path, dateNow());
-      await write(testc3Path, dateNow());
-      await write(testc4Path, dateNow());
-      await write(testc5Path, dateNow());
-
-      await waitFor([[spy, 23]]);
-
-      await write(testc6Path, dateNow());
-      await write(testc7Path, dateNow());
-      await write(testc8Path, dateNow());
-      await write(testc9Path, dateNow());
-      await write(testd1Path, dateNow());
-      await write(teste1Path, dateNow());
-      await write(testf1Path, dateNow());
-
-      await waitFor([[spy, 30]]);
-
-      await write(testg1Path, dateNow());
-      await write(testh1Path, dateNow());
-      await write(testi1Path, dateNow());
-
-      await waitFor([[spy, 33]]);
+      for (const fileToWrite of filesToWrite) {
+        await write(fileToWrite, dateNow());
+        await waitFor([[spy, ++currentCallCount]]);
+      }
 
       spy.should.have.been.calledWith(test1Path);
       spy.should.have.been.calledWith(test2Path);
@@ -407,14 +396,13 @@ const runTests = (baseopts) => {
       const testDir = getFixturePath('subdir');
       const testDir2 = getFixturePath('subdir/subdir2');
       const testDir3 = getFixturePath('subdir/subdir2/subdir3');
+      const spy = await aspy(watcher, EV.UNLINK_DIR);
       fs.mkdirSync(testDir, PERM_ARR);
       fs.mkdirSync(testDir2, PERM_ARR);
       fs.mkdirSync(testDir3, PERM_ARR);
-      const spy = await aspy(watcher, EV.UNLINK_DIR);
-      await Promise.all([
-        waitFor([[spy, 2]]),
-        rimraf(testDir2) // test removing in one
-      ]);
+      await delay();
+      await rimraf(testDir2);
+      await waitFor([[spy, 2]]);
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
