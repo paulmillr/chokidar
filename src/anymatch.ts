@@ -1,20 +1,32 @@
 import normalizePath from 'normalize-path';
+import path from 'node:path';
+import type {Stats} from 'node:fs';
 
-/**
- * @typedef {(testString: string) => boolean} AnymatchFn
- * @typedef {string|RegExp|AnymatchFn} AnymatchPattern
- * @typedef {AnymatchPattern|AnymatchPattern[]} AnymatchMatcher
- */
-const BANG = '!';
-const DEFAULT_OPTIONS = {returnIndex: false};
-const arrify = (item) => Array.isArray(item) ? item : [item];
+export type MatchFunction = (val: string, stats?: Stats) => boolean;
+export interface MatcherObject {
+  path: string;
+  recursive?: boolean;
+}
+export type Matcher =
+  | string
+  | RegExp
+  | MatchFunction
+  | MatcherObject;
+
+function arrify<T>(item: T | T[]): T[] {
+  return Array.isArray(item) ? item : [item];
+}
+
+export const isMatcherObject = (matcher: Matcher): matcher is MatcherObject =>
+    typeof matcher === 'object' &&
+      matcher !== null &&
+      !(matcher instanceof RegExp);
 
 /**
  * @param {AnymatchPattern} matcher
- * @param {object} options
- * @returns {AnymatchFn}
+ * @returns {MatchFunction}
  */
-const createPattern = (matcher, options) => {
+const createPattern = (matcher: Matcher): MatchFunction => {
   if (typeof matcher === 'function') {
     return matcher;
   }
@@ -24,7 +36,22 @@ const createPattern = (matcher, options) => {
   if (matcher instanceof RegExp) {
     return (string) => matcher.test(string);
   }
-  return (string) => false;
+  if (typeof matcher === 'object' && matcher !== null) {
+    return (string) => {
+      if (matcher.path === string) {
+        return true;
+      }
+      if (matcher.recursive) {
+        const relative = path.relative(matcher.path, string);
+        if (!relative) {
+          return false;
+        }
+        return !relative.startsWith('..') && !path.isAbsolute(relative);
+      }
+      return false;
+    };
+  }
+  return () => false;
 };
 
 /**
@@ -33,25 +60,22 @@ const createPattern = (matcher, options) => {
  * @param {Boolean} returnIndex
  * @returns {boolean|number}
  */
-const matchPatterns = (patterns, args, returnIndex) => {
-  const isList = Array.isArray(args);
-  const _path = isList ? args[0] : args;
-  if (!isList && typeof _path !== 'string') {
-    throw new TypeError('anymatch: second argument must be a string: got ' +
-      Object.prototype.toString.call(_path))
-  }
-  const path = normalizePath(_path);
+function matchPatterns(
+  patterns: MatchFunction[],
+  testString: string,
+  stats?: Stats
+): boolean {
+  const path = normalizePath(testString);
 
-  const applied = isList && [path].concat(args.slice(1));
   for (let index = 0; index < patterns.length; index++) {
     const pattern = patterns[index];
-    if (isList ? pattern(...applied) : pattern(path)) {
-      return returnIndex ? index : true;
+    if (pattern(path, stats)) {
+      return true;
     }
   }
 
-  return returnIndex ? -1 : false;
-};
+  return false;
+}
 
 /**
  * @param {AnymatchMatcher} matchers
@@ -59,27 +83,34 @@ const matchPatterns = (patterns, args, returnIndex) => {
  * @param {object} options
  * @returns {boolean|number|Function}
  */
-export const anymatch = (matchers, testString, options = DEFAULT_OPTIONS) => {
+function anymatch(
+  matchers: Matcher[],
+  testString: undefined
+): MatchFunction;
+function anymatch(
+  matchers: Matcher[],
+  testString: string
+): boolean;
+function anymatch(
+  matchers: Matcher[],
+  testString: string|undefined
+): boolean|MatchFunction {
   if (matchers == null) {
     throw new TypeError('anymatch: specify first argument');
   }
-  const opts = typeof options === 'boolean' ? {returnIndex: options} : options;
-  const returnIndex = opts.returnIndex || false;
 
   // Early cache for matchers.
-  const mtchers = arrify(matchers);
-  const patterns = mtchers
-    .filter(item => typeof item !== 'string' || (typeof item === 'string' && item.charAt(0) !== BANG))
-    .map(matcher => createPattern(matcher, opts));
+  const matchersArray = arrify(matchers);
+  const patterns = matchersArray
+    .map(matcher => createPattern(matcher));
 
   if (testString == null) {
-    return (testString, ri = false) => {
-      const returnIndex = typeof ri === 'boolean' ? ri : false;
-      return matchPatterns(patterns, testString, returnIndex);
-    }
+    return (testString: string, stats?: Stats): boolean => {
+      return matchPatterns(patterns, testString, stats);
+    };
   }
 
-  return matchPatterns(patterns, testString, returnIndex);
-};
+  return matchPatterns(patterns, testString);
+}
 
-export default anymatch;
+export {anymatch};

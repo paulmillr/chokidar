@@ -1,5 +1,3 @@
-'use strict';
-
 import fs from 'fs';
 import sysPath from 'path';
 import { promisify } from 'util';
@@ -8,6 +6,7 @@ import {
   Path,
   isWindows,
   isLinux,
+  isMacos,
   EMPTY_FN,
   EMPTY_STR,
   KEY_LISTENERS,
@@ -20,7 +19,7 @@ import {
   STAR,
 } from './constants.js';
 import * as EV from './events.js';
-import { FSWatcher } from './index.js';
+import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
@@ -101,8 +100,14 @@ const FsWatchInstances = new Map();
  * @param {Function} emitRaw emits raw event data
  * @returns {fs.FSWatcher} new fsevents instance
  */
-function createFsWatchInstance(path, options, listener, errHandler, emitRaw) {
-  const handleEvent = (rawEvent, evPath) => {
+function createFsWatchInstance(
+  path: string,
+  options: Partial<FSWInstanceOptions>,
+  listener: WatchHandlers['listener'],
+  errHandler: WatchHandlers['errHandler'],
+  emitRaw: WatchHandlers['rawEmitter']
+) {
+  const handleEvent: fs.WatchListener<string> = (rawEvent, evPath) => {
     listener(path);
     emitRaw(rawEvent, evPath, { watchedPath: path });
 
@@ -113,7 +118,9 @@ function createFsWatchInstance(path, options, listener, errHandler, emitRaw) {
     }
   };
   try {
-    return fs.watch(path, options, handleEvent);
+    return fs.watch(path, {
+      persistent: options.persistent
+    }, handleEvent);
   } catch (error) {
     errHandler(error);
   }
@@ -135,6 +142,12 @@ const fsWatchBroadcast = (fullPath: Path, type: string, val1?: any, val2?: any, 
   });
 };
 
+interface WatchHandlers {
+  listener: (path: string) => void;
+  errHandler: (err: unknown) => void;
+  rawEmitter: (ev: fs.WatchEventType, path: string, opts: unknown) => void;
+}
+
 /**
  * Instantiates the fs_watch interface or binds listeners
  * to an existing one covering the same file system entry
@@ -143,12 +156,17 @@ const fsWatchBroadcast = (fullPath: Path, type: string, val1?: any, val2?: any, 
  * @param {Object} options to be passed to fs_watch
  * @param {Object} handlers container for event listener functions
  */
-const setFsWatchListener = (path, fullPath, options, handlers) => {
+const setFsWatchListener = (
+  path: string,
+  fullPath: string,
+  options: Partial<FSWInstanceOptions>,
+  handlers: WatchHandlers
+) => {
   const { listener, errHandler, rawEmitter } = handlers;
   let cont = FsWatchInstances.get(fullPath);
 
   /** @type {fs.FSWatcher=} */
-  let watcher;
+  let watcher: fs.FSWatcher;
   if (!options.persistent) {
     watcher = createFsWatchInstance(path, options, listener, errHandler, rawEmitter);
     return watcher.close.bind(watcher);
@@ -228,7 +246,6 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
   const { listener, rawEmitter } = handlers;
   let cont = FsWatchFileInstances.get(fullPath);
 
-  /* eslint-disable no-unused-vars, prefer-destructuring */
   // let listeners = new Set();
   // let rawEmitters = new Set();
 
@@ -243,8 +260,6 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
     fs.unwatchFile(fullPath);
     cont = undefined;
   }
-
-  /* eslint-enable no-unused-vars, prefer-destructuring */
 
   if (cont) {
     addAndConvert(cont, KEY_LISTENERS, listener);
@@ -312,7 +327,9 @@ export default class NodeFsHandler {
     const parent = this.fsw._getWatchedDir(directory);
     parent.add(basename);
     const absolutePath = sysPath.resolve(path);
-    const options = { persistent: opts.persistent, interval: 0 };
+    const options: Partial<FSWInstanceOptions> = {
+      persistent: opts.persistent
+    };
     if (!listener) listener = EMPTY_FN;
 
     let closer;
@@ -365,7 +382,7 @@ export default class NodeFsHandler {
           if (!at || at <= mt || mt !== prevStats.mtimeMs) {
             this.fsw._emit(EV.CHANGE, file, newStats);
           }
-          if (isLinux && prevStats.ino !== newStats.ino) {
+          if ((isMacos || isLinux) && prevStats.ino !== newStats.ino) {
             this.fsw._closeFile(path);
             prevStats = newStats;
             this.fsw._addPathCloser(path, this._watchWithNodeFs(file, listener));
@@ -449,14 +466,12 @@ export default class NodeFsHandler {
     this.fsw._symlinkPaths.set(full, true);
   }
 
-  _handleRead(directory, initialAdd, wh, target, dir, depth, throttler) {
+  _handleRead(directory, initialAdd, wh: WatchHelper, target, dir, depth, throttler) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, EMPTY_STR);
 
-    if (!wh.hasGlob) {
-      throttler = this.fsw._throttle('readdir', directory, 1000);
-      if (!throttler) return;
-    }
+    throttler = this.fsw._throttle('readdir', directory, 1000);
+    if (!throttler) return;
 
     const previous = this.fsw._getWatchedDir(wh.path);
     const current = new Set();
@@ -519,14 +534,7 @@ export default class NodeFsHandler {
           .filter((item) => {
             return (
               item !== directory &&
-              !current.has(item) &&
-              // in case of intersecting globs;
-              // a path may have been filtered out of this readdir, but
-              // shouldn't be removed because it matches a different glob
-              (!wh.hasGlob ||
-                wh.filterPath({
-                  fullPath: sysPath.resolve(directory, item),
-                }))
+              !current.has(item)
             );
           })
           .forEach((item) => {
@@ -552,11 +560,11 @@ export default class NodeFsHandler {
    * @param {String} realpath
    * @returns {Promise<Function>} closer for the watcher instance.
    */
-  async _handleDir(dir, stats, initialAdd, depth, target, wh, realpath) {
+  async _handleDir(dir, stats, initialAdd, depth, target, wh: WatchHelper, realpath) {
     const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
     const tracked = parentDir.has(sysPath.basename(dir));
     if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
-      if (!wh.hasGlob || wh.globFilter(dir)) this.fsw._emit(EV.ADD_DIR, dir, stats);
+      this.fsw._emit(EV.ADD_DIR, dir, stats);
     }
 
     // ensure dir is tracked (harmless if redundant)
@@ -592,7 +600,7 @@ export default class NodeFsHandler {
    * @param {String=} target Child path actually targeted for watch
    * @returns {Promise}
    */
-  async _addToNodeFs(path, initialAdd, priorWh, depth, target?: string) {
+  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper|undefined, depth, target?: string) {
     const ready = this.fsw._emitReady;
     if (this.fsw._isIgnored(path) || this.fsw.closed) {
       ready();

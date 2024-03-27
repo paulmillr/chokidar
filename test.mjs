@@ -1,13 +1,12 @@
 /* eslint-env mocha */
 
-'use strict';
-
 import fs from 'node:fs';
 import sysPath from 'node:path';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
 import chai from 'chai';
-import rimraf from 'rimraf';
+import {rimraf} from 'rimraf';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import upath from 'upath';
@@ -18,9 +17,9 @@ import { isWindows, isMacos, isIBMi } from './lib/constants.js';
 
 import { URL } from 'url'; // in Browser, the URL in native accessible on window
 
-const __filename = new URL('', import.meta.url).pathname;
+const __filename = fileURLToPath(new URL('', import.meta.url));
 // Will contain trailing slash
-const __dirname = new URL('.', import.meta.url).pathname;
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 const {expect} = chai;
 chai.use(sinonChai);
@@ -33,7 +32,6 @@ const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
-const pRimraf = promisify(rimraf);
 
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
@@ -101,18 +99,30 @@ const waitFor = async (spies) => {
       }
       return spy.callCount >= 1;
     };
-    let intrvl, timeo;
-    function finish() {
-      clearInterval(intrvl);
-      clearTimeout(timeo);
-      resolve();
-    }
-    intrvl = setInterval(() => {
-      process.nextTick(() => {
-        if (spies.every(isSpyReady)) finish();
-      });
-    }, 20);
-    timeo = setTimeout(finish, 5000);
+    const checkSpiesReady = () => {
+      if (spies.every(isSpyReady)) {
+        resolve();
+      } else {
+        setTimeout(checkSpiesReady, 20);
+      }
+    };
+    checkSpiesReady();
+  });
+};
+
+const waitForEvents = (watcher, count) => {
+  return new Promise((resolve) => {
+    const events = [];
+    const handler = (event, path) => {
+      events.push(`[ALL] ${event}: ${path}`)
+
+      if (events.length === count) {
+        watcher.off('all', handler);
+        resolve(events);
+      }
+    };
+
+    watcher.on('all', handler);
   });
 };
 
@@ -126,7 +136,7 @@ const runTests = (baseopts) => {
 
   before(() => {
     // flags for bypassing special-case test failures on CI
-    macosFswatch = isMacos && !baseopts.usePolling && !baseopts.useFsEvents;
+    macosFswatch = isMacos && !baseopts.usePolling;
     win32Polling = isWindows && baseopts.usePolling;
     slowerDelay = macosFswatch ? 100 : undefined;
   });
@@ -254,61 +264,53 @@ const runTests = (baseopts) => {
       fs.mkdirSync(getFixturePath('h'), PERM_ARR);
       fs.mkdirSync(getFixturePath('i'), PERM_ARR);
 
+      await delay();
+
       watcher2 = chokidar_watch().on(EV.READY, readySpy).on(EV.RAW, rawSpy);
       const spy = await aspy(watcher2, EV.ADD, null, true);
 
-      await write(test1Path, dateNow());
-      await write(test2Path, dateNow());
-      await write(test3Path, dateNow());
-      await write(test4Path, dateNow());
-      await write(test5Path, dateNow());
+      const filesToWrite = [
+        test1Path,
+        test2Path,
+        test3Path,
+        test4Path,
+        test5Path,
+        test6Path,
+        test7Path,
+        test8Path,
+        test9Path,
+        testb1Path,
+        testb2Path,
+        testb3Path,
+        testb4Path,
+        testb5Path,
+        testb6Path,
+        testb7Path,
+        testb8Path,
+        testb9Path,
+        testc1Path,
+        testc2Path,
+        testc3Path,
+        testc4Path,
+        testc5Path,
+        testc6Path,
+        testc7Path,
+        testc8Path,
+        testc9Path,
+        testd1Path,
+        teste1Path,
+        testf1Path,
+        testg1Path,
+        testh1Path,
+        testi1Path
+      ];
 
-      await delay(200);
-      await write(test6Path, dateNow());
-      await write(test7Path, dateNow());
-      await write(test8Path, dateNow());
-      await write(test9Path, dateNow());
+      let currentCallCount = 0;
 
-      await delay(200);
-      await write(testb1Path, dateNow());
-      await write(testb2Path, dateNow());
-      await write(testb3Path, dateNow());
-      await write(testb4Path, dateNow());
-      await write(testb5Path, dateNow());
-
-      await delay(200);
-      await write(testb6Path, dateNow());
-      await write(testb7Path, dateNow());
-      await write(testb8Path, dateNow());
-      await write(testb9Path, dateNow());
-
-      await delay(200);
-      await write(testc1Path, dateNow());
-      await write(testc2Path, dateNow());
-      await write(testc3Path, dateNow());
-      await write(testc4Path, dateNow());
-      await write(testc5Path, dateNow());
-
-      await delay(150);
-      await write(testc6Path, dateNow());
-      await write(testc7Path, dateNow());
-      await write(testc8Path, dateNow());
-      await write(testc9Path, dateNow());
-      await write(testd1Path, dateNow());
-      await write(teste1Path, dateNow());
-      await write(testf1Path, dateNow());
-
-      await delay(100);
-      await write(testg1Path, dateNow());
-      await write(testh1Path, dateNow());
-      await write(testi1Path, dateNow());
-
-      await delay(300);
-      await waitFor([[spy, 11]]);
-      await waitFor([[spy, 22]]);
-
-      await delay(1000);
-      await waitFor([[spy, 33]]);
+      for (const fileToWrite of filesToWrite) {
+        await write(fileToWrite, dateNow());
+        await waitFor([[spy, ++currentCallCount]]);
+      }
 
       spy.should.have.been.calledWith(test1Path);
       spy.should.have.been.calledWith(test2Path);
@@ -316,8 +318,6 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(test4Path);
       spy.should.have.been.calledWith(test5Path);
       spy.should.have.been.calledWith(test6Path);
-
-      await delay(100);
       spy.should.have.been.calledWith(test7Path);
       spy.should.have.been.calledWith(test8Path);
       spy.should.have.been.calledWith(test9Path);
@@ -327,8 +327,6 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(testb4Path);
       spy.should.have.been.calledWith(testb5Path);
       spy.should.have.been.calledWith(testb6Path);
-      await delay(100);
-
       spy.should.have.been.calledWith(testb7Path);
       spy.should.have.been.calledWith(testb8Path);
       spy.should.have.been.calledWith(testb9Path);
@@ -336,15 +334,11 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(testc2Path);
       spy.should.have.been.calledWith(testc3Path);
       spy.should.have.been.calledWith(testc4Path);
-
-      await delay(100);
       spy.should.have.been.calledWith(testc5Path);
       spy.should.have.been.calledWith(testc6Path);
       spy.should.have.been.calledWith(testc7Path);
       spy.should.have.been.calledWith(testc8Path);
       spy.should.have.been.calledWith(testc9Path);
-
-      await delay(100);
       spy.should.have.been.calledWith(testd1Path);
       spy.should.have.been.calledWith(teste1Path);
       spy.should.have.been.calledWith(testf1Path);
@@ -402,13 +396,13 @@ const runTests = (baseopts) => {
       const testDir = getFixturePath('subdir');
       const testDir2 = getFixturePath('subdir/subdir2');
       const testDir3 = getFixturePath('subdir/subdir2/subdir3');
+      const spy = await aspy(watcher, EV.UNLINK_DIR);
       fs.mkdirSync(testDir, PERM_ARR);
       fs.mkdirSync(testDir2, PERM_ARR);
       fs.mkdirSync(testDir3, PERM_ARR);
-      const spy = await aspy(watcher, EV.UNLINK_DIR);
-      await waitFor([spy]);
-      await pRimraf(testDir2); // test removing in one
-      await waitFor([spy]);
+      await delay();
+      await rimraf(testDir2);
+      await waitFor([[spy, 2]]);
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
@@ -543,18 +537,32 @@ const runTests = (baseopts) => {
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD_DIR, addSpy);
       await waitForWatcher(watcher);
 
-      await delay();
+      await delay(300);
       await fs_unlink(testPath);
-      await delay();
+      await delay(300);
       await fs_mkdir(testPath, PERM_ARR);
 
-      await waitFor([unlinkSpy]);
+      await waitFor([addSpy, unlinkSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
-      await waitFor([addSpy]);
       addSpy.should.have.been.calledWith(testPath);
     });
   });
   describe('watch individual files', () => {
+    it('should emit `ready` when three files were added', async () => {
+      const readySpy = sinon.spy(function readySpy(){});
+      const watcher = chokidar_watch().on(EV.READY, readySpy);
+      const path1 = getFixturePath('add1.txt');
+      const path2 = getFixturePath('add2.txt');
+      const path3 = getFixturePath('add3.txt');
+
+      watcher.add(path1);
+      watcher.add(path2);
+      watcher.add(path3);
+
+      await waitForWatcher(watcher);
+      // callCount is 1 on macOS, 4 on Ubuntu
+      readySpy.callCount.should.be.greaterThanOrEqual(1);
+    });
     it('should detect changes', async () => {
       const testPath = getFixturePath('change.txt');
       const watcher = chokidar_watch(testPath, options);
@@ -890,7 +898,7 @@ const runTests = (baseopts) => {
     let linkedDir;
     beforeEach(async () => {
       linkedDir = sysPath.resolve(currentDir, '..', `${subdirId}-link`);
-      await fs_symlink(currentDir, linkedDir);
+      await fs_symlink(currentDir, linkedDir, isWindows ? 'dir' : null);
       await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
       await write(getFixturePath('subdir/add.txt'), 'b');
       return true;
@@ -949,7 +957,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.CHANGE, testFile);
     });
     it('should not recurse indefinitely on circular symlinks', async () => {
-      await fs_symlink(currentDir, getFixturePath('subdir/circular'));
+      await fs_symlink(currentDir, getFixturePath('subdir/circular'), isWindows ? 'dir' : null);
       return new Promise((resolve, reject) => {
         const watcher = chokidar_watch();
         watcher.on(EV.ERROR, resolve());
@@ -970,7 +978,7 @@ const runTests = (baseopts) => {
       const watcher = chokidar_watch();
       const spy = await aspy(watcher, EV.ALL);
       await delay();
-      await fs_symlink(getFixturePath('subdir'), getFixturePath('link'));
+      await fs_symlink(getFixturePath('subdir'), getFixturePath('link'), isWindows ? 'dir' : null);
       await waitFor([
         spy.withArgs(EV.ADD, getFixturePath('link/add.txt')),
         spy.withArgs(EV.ADD_DIR, getFixturePath('link'))
@@ -990,8 +998,9 @@ const runTests = (baseopts) => {
       options.followSymlinks = false;
       const targetDir = getFixturePath('subdir/nonexistent');
       await fs_mkdir(targetDir);
-      await fs_symlink(targetDir, getFixturePath('subdir/broken'));
+      await fs_symlink(targetDir, getFixturePath('subdir/broken'), isWindows ? 'dir' : null);
       await fs_rmdir(targetDir);
+      await delay();
 
       const watcher = chokidar_watch(getFixturePath('subdir'), options);
       const spy = await aspy(watcher, EV.ALL);
@@ -1043,7 +1052,7 @@ const runTests = (baseopts) => {
     it('should emit ready event even when broken symlinks are encountered', async () => {
       const targetDir = getFixturePath('subdir/nonexistent');
       await fs_mkdir(targetDir);
-      await fs_symlink(targetDir, getFixturePath('subdir/broken'));
+      await fs_symlink(targetDir, getFixturePath('subdir/broken'), isWindows ? 'dir' : null);
       await fs_rmdir(targetDir);
       const readySpy = sinon.spy(function readySpy(){});
       const watcher = chokidar_watch(getFixturePath('subdir'), options)
@@ -1221,10 +1230,10 @@ const runTests = (baseopts) => {
       beforeEach(async () => {
         await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
         await write(getFixturePath('subdir/add.txt'), 'b');
-        await delay(options.useFsEvents && 200);
+        await delay();
         await fs_mkdir(getFixturePath('subdir/subsub'), PERM_ARR);
         await write(getFixturePath('subdir/subsub/ab.txt'), 'b');
-        await delay(options.useFsEvents && 200);
+        await delay();
       });
       it('should not recurse if depth is 0', async () => {
         options.depth = 0;
@@ -1260,7 +1269,7 @@ const runTests = (baseopts) => {
       it('should respect depth setting when following symlinks', async () => {
         if (isWindows) return true; // skip on windows
         options.depth = 1;
-        await fs_symlink(getFixturePath('subdir'), getFixturePath('link'));
+        await fs_symlink(getFixturePath('subdir'), getFixturePath('link'), isWindows ? 'dir' : null);
         await delay();
         const spy = await aspy(chokidar_watch(), EV.ALL);
         spy.should.have.been.calledWith(EV.ADD_DIR, getFixturePath('link'));
@@ -1275,7 +1284,7 @@ const runTests = (baseopts) => {
         const linkPath = getFixturePath('link');
         const dirPath = getFixturePath('link/subsub');
         const spy = await aspy(chokidar_watch(), EV.ALL);
-        await fs_symlink(getFixturePath('subdir'), linkPath);
+        await fs_symlink(getFixturePath('subdir'), linkPath, isWindows ? 'dir' : null);
         await waitFor([[spy, 3], spy.withArgs(EV.ADD_DIR, dirPath)]);
         spy.should.have.been.calledWith(EV.ADD_DIR, linkPath);
         spy.should.have.been.calledWith(EV.ADD_DIR, dirPath);
@@ -1445,10 +1454,6 @@ const runTests = (baseopts) => {
         it('should watch unreadable files if possible', async () => {
           const spy = await aspy(chokidar_watch(), EV.ALL);
           spy.should.have.been.calledWith(EV.ADD, filePath);
-          if (!options.useFsEvents) return true;
-          await write(filePath, dateNow());
-          await waitFor([spy.withArgs(EV.CHANGE)]);
-          spy.should.have.been.calledWith(EV.CHANGE, filePath);
         });
         it('should not choke on non-existent files', async () => {
           const watcher = chokidar_watch(getFixturePath('nope.txt'), options);
@@ -1779,10 +1784,6 @@ const runTests = (baseopts) => {
     });
   });
   describe('env variable option override', () => {
-    beforeEach(() => {
-      // Do not spin up
-      options.useFsEvents = false;
-    });
     describe('CHOKIDAR_USEPOLLING', () => {
       afterEach(() => {
         delete process.env.CHOKIDAR_USEPOLLING;
@@ -1832,7 +1833,7 @@ const runTests = (baseopts) => {
         watcher.options.usePolling.should.be.true;
       });
     });
-    if (options && options.usePolling && !options.useFsEvents) {
+    if (options && options.usePolling) {
       describe('CHOKIDAR_INTERVAL', () => {
         afterEach(() => {
           delete process.env.CHOKIDAR_INTERVAL;
@@ -1854,28 +1855,29 @@ const runTests = (baseopts) => {
 
       const fixturesPathRel = sysPath.join(FIXTURES_PATH_REL, id, 'test-case-1040');
       const linkPath = sysPath.join(fixturesPathRel, 'symlinkFolder');
-      await fs_mkdir(sysPath.resolve(linkPath), { recursive: true });
+      const packagesPath = sysPath.join(fixturesPathRel, 'packages');
+      await fs_mkdir(fixturesPathRel);
+      await fs_mkdir(linkPath);
+      await fs_mkdir(packagesPath);
 
       // Init chokidar
       const watcher = chokidar.watch([]);
-      const events = [];
 
       // Add more than 10 folders to cap consolidateThreshhold
       for (let i = 0 ; i < 20 ; i += 1) {
-        const folderPath = sysPath.join(fixturesPathRel, 'packages', `folder${i}`);
-        await fs_mkdir(sysPath.resolve(folderPath), { recursive: true });
+        const folderPath = sysPath.join(packagesPath, `folder${i}`);
+        await fs_mkdir(folderPath);
         const filePath = sysPath.join(folderPath, `file${i}.js`);
         await write(sysPath.resolve(filePath), 'file content');
         const symlinkPath = sysPath.join(linkPath, `folder${i}`);
-        await fs_symlink(sysPath.resolve(folderPath), symlinkPath);
+        await fs_symlink(sysPath.resolve(folderPath), symlinkPath, isWindows ? 'dir' : null);
         watcher.add(sysPath.resolve(sysPath.join(symlinkPath, `file${i}.js`)));
       }
 
       // Wait to be sure that we have no other event than the update file
       await delay(300);
-      watcher.on('change', (event, path) =>
-        events.push(`[change] ${event}: ${path}`)
-      );
+
+      const eventsWaiter = waitForEvents(watcher, 1);
 
       // Update a random generated file to fire an event
       const randomFilePath = sysPath.join(fixturesPathRel, 'packages', 'folder17', 'file17.js');
@@ -1883,6 +1885,8 @@ const runTests = (baseopts) => {
 
       // Wait chokidar watch
       await delay(300);
+
+      const events = await eventsWaiter;
 
       expect(events.length).to.equal(1);
     })
@@ -1895,10 +1899,7 @@ const runTests = (baseopts) => {
         persistent: true,
       });
       try {
-        const events = [];
-        watcher.on('all', (event, path) =>
-          events.push(`[ALL] ${event}: ${path}`)
-        );
+        const eventsWaiter = waitForEvents(watcher, 5);
         const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
         const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
 
@@ -1915,6 +1916,8 @@ const runTests = (baseopts) => {
         await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
+
+        const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
@@ -1932,15 +1935,17 @@ const runTests = (baseopts) => {
       const id = subdirId.toString();
       const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
       const linkedRelativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test-link');
-      await fs_symlink(sysPath.resolve(relativeWatcherDir), linkedRelativeWatcherDir);
+      await fs_symlink(
+        sysPath.resolve(relativeWatcherDir),
+        linkedRelativeWatcherDir,
+        isWindows ? 'dir' : null
+      );
+      await delay();
       const watcher = chokidar.watch(linkedRelativeWatcherDir, {
         persistent: true,
       });
       try {
-        const events = [];
-        watcher.on('all', (event, path) =>
-          events.push(`[ALL] ${event}: ${path}`)
-        );
+        const eventsWaiter = waitForEvents(watcher, 5);
         const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
         const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
 
@@ -1954,8 +1959,11 @@ const runTests = (baseopts) => {
         // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
         await delay(300);
         await fs_mkdir(testSubDir);
+        await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
+
+        const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
           `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
@@ -1972,61 +1980,54 @@ const runTests = (baseopts) => {
 
   describe('close', () => {
     it('should ignore further events on close', async () => {
-      return new Promise((resolve) => {
-        const spy = sinon.spy();
-        const watcher = chokidar_watch(currentDir, options);
-        watcher.once(EV.ADD, () => {
-          watcher.once(EV.ADD, async () => {
-            await watcher.on(EV.ADD, spy).close();
-            await delay(900);
-            await write(getFixturePath('add.txt'), dateNow());
-            spy.should.not.have.been.called;
-            resolve();
-          });
-        });
-        (async () => {
-          await waitForWatcher(watcher);
-          await delay(300);
-          await write(getFixturePath('add.txt'), 'hello');
-          await delay(300);
-          await fs_unlink(getFixturePath('add.txt'));
-        })();
-      });
+      const spy = sinon.spy();
+      const watcher = chokidar_watch(currentDir, options);
+      await waitForWatcher(watcher);
+
+      watcher.on(EV.ALL, spy);
+      await watcher.close();
+
+      await write(getFixturePath('add.txt'), dateNow());
+      await write(getFixturePath('add.txt'), 'hello');
+      await delay(300);
+      await fs_unlink(getFixturePath('add.txt'));
+
+      spy.should.not.have.been.called;
     });
     it('should not ignore further events on close with existing watchers', async () => {
-      return new Promise((resolve) => {
-        const watcher1 = chokidar_watch(currentDir);
-        const watcher2 = chokidar_watch(currentDir);
-        // The EV.ADD event should be called on the second watcher even if the first watcher is closed
-        watcher2.on(EV.ADD, () => {
-          watcher2.on(EV.ADD, (path) => {
-            if (path.endsWith('add.txt')) {
-              resolve();
-            }
-          })
-        });
-        (async () => {
-          await waitForWatcher(watcher1);
-          await waitForWatcher(watcher2);
-          // Watcher 1 is closed to ensure events only happen on watcher 2
-          await watcher1.close();
-          // Write a new file into the fixtures to test the EV.ADD event
-          await write(getFixturePath('add.txt'), 'hello');
-          // Ensures EV.ADD is called. Immediately removing the file causes it to be skipped
-          await delay(200);
-          await fs_unlink(getFixturePath('add.txt'));
-        })()
-      })
+      const spy = sinon.spy();
+      const watcher1 = chokidar_watch(currentDir);
+      const watcher2 = chokidar_watch(currentDir);
+      await Promise.all([
+        waitForWatcher(watcher1),
+        waitForWatcher(watcher2)
+      ]);
+
+      // The EV_ADD event should be called on the second watcher even if the first watcher is closed
+      watcher2.on(EV.ADD, spy);
+      await watcher1.close();
+
+      await write(getFixturePath('add.txt'), 'hello');
+      // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
+      await delay(200);
+      await fs_unlink(getFixturePath('add.txt'));
+
+      spy.should.have.been.calledWith(sinon.match('add.txt'));
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
+      const chokidarPath = pathToFileURL(sysPath.join(__dirname, 'lib/index.js'))
+        .href
+        .replace(/\\/g, '\\\\');
       const scriptContent = `
-        const chokidar = require("${__dirname.replace(/\\/g, '\\\\')}");
+      (async () => {
+        const chokidar = await import("${chokidarPath}");
         const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
         watcher.on("ready", () => {
           watcher.close();
           process.stdout.write("closed");
-        });`;
+        });
+      })();`;
       await write(scriptFile, scriptContent);
       const obj = await exec(`node ${scriptFile}`);
       const {stdout} = obj;
@@ -2044,7 +2045,7 @@ const runTests = (baseopts) => {
 
 describe('chokidar', async () => {
   before(async () => {
-    await pRimraf(FIXTURES_PATH);
+    await rimraf(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
@@ -2058,8 +2059,9 @@ describe('chokidar', async () => {
     }
     subdirId = 0;
   });
+
   after(async () => {
-    await pRimraf(FIXTURES_PATH);
+    await rimraf(FIXTURES_PATH);
   });
 
   beforeEach(() => {
@@ -2079,14 +2081,8 @@ describe('chokidar', async () => {
     chokidar.watch.should.be.a('function');
   });
 
-  if (isMacos) {
-    const FsEventsHandler = await import('./lib/fsevents-handler.js')
-    if (FsEventsHandler.default.canUse()) {
-      describe('fsevents (native extension)', runTests.bind(this, {useFsEvents: true}));
-    }
-  }
   if (!isIBMi) {
-    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false, useFsEvents: false}));
+    describe('fs.watch (non-polling)', runTests.bind(this, {usePolling: false}));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
 });

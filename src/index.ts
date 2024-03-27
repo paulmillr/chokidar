@@ -1,5 +1,3 @@
-'use strict';
-
 import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import sysPath from 'node:path';
@@ -7,8 +5,12 @@ import { promisify } from 'node:util';
 import readdirp from 'readdirp';
 
 import NodeFsHandler from './nodefs-handler.js';
-import FsEventsHandler from './fsevents-handler.js';
-import anymatch from './anymatch.js';
+import {
+  anymatch,
+  MatchFunction,
+  isMatcherObject,
+  Matcher
+} from './anymatch.js';
 import {
   Path,
   STR_CLOSE,
@@ -168,7 +170,7 @@ class DirEntry {
 
 const STAT_METHOD_F = 'stat';
 const STAT_METHOD_L = 'lstat';
-class WatchHelper {
+export class WatchHelper {
   fsw: any;
   path: string;
   watchPath: string;
@@ -177,7 +179,7 @@ class WatchHelper {
   followSymlinks: boolean;
   statMethod: 'stat' | 'lstat';
 
-  constructor(path, follow, fsw) {
+  constructor(path: string, follow: boolean, fsw: any) {
     this.fsw = fsw;
     const watchPath = path;
     this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
@@ -227,7 +229,6 @@ export type ChokidarOptions = Partial<{
   cwd: string;
 
   usePolling: boolean;
-  useFsEvents: boolean;
   interval: number;
   binaryInterval: number;
   enableBinaryInterval: boolean;
@@ -244,16 +245,15 @@ export type ChokidarOptions = Partial<{
   atomic: boolean | number; // or a custom 'atomicity delay', in milliseconds (default 100)
 }>;
 
-interface FSWInstanceOptions {
+export interface FSWInstanceOptions {
   persistent: boolean;
 
-  ignored: string[];
+  ignored: Matcher[];
   ignoreInitial: boolean;
   followSymlinks: boolean;
   cwd: string;
 
   usePolling: boolean;
-  useFsEvents: boolean;
   interval: number;
   binaryInterval: number;
   enableBinaryInterval: boolean;
@@ -282,7 +282,7 @@ export class FSWatcher extends EventEmitter {
   options: FSWInstanceOptions;
   _watched: Map<string, DirEntry>;
   _closers: Map<string, Array<any>>;
-  _ignoredPaths: Set<string>;
+  _ignoredPaths: Set<Matcher>;
   _throttled: Map<ThrottleType, Map<any, any>>;
   _symlinkPaths: Map<Path, string | boolean>;
   _streams: Set<any>;
@@ -293,13 +293,12 @@ export class FSWatcher extends EventEmitter {
   _readyCount: number;
   _emitReady: () => void;
   _closePromise: Promise<void>;
-  _userIgnored: any;
+  _userIgnored?: MatchFunction;
   _readyEmitted: boolean;
   _emitRaw: () => void;
   _boundRemove: () => void;
 
   _nodeFsHandler?: NodeFsHandler;
-  _fsEventsHandler?: FsEventsHandler;
 
   // Not indenting methods for history sake; for now.
   constructor(_opts) {
@@ -309,7 +308,7 @@ export class FSWatcher extends EventEmitter {
     if (_opts) Object.assign(opts, _opts); // for frozen objects
     this._watched = new Map();
     this._closers = new Map();
-    this._ignoredPaths = new Set();
+    this._ignoredPaths = new Set<Matcher>();
     this._throttled = new Map();
     this._symlinkPaths = new Map();
     this._streams = new Set();
@@ -322,19 +321,6 @@ export class FSWatcher extends EventEmitter {
     if (undef(opts, 'interval')) opts.interval = 100;
     if (undef(opts, 'binaryInterval')) opts.binaryInterval = 300;
     opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
-
-    // Enable fsevents on OS X when polling isn't explicitly enabled.
-    if (undef(opts, 'useFsEvents')) opts.useFsEvents = !opts.usePolling;
-
-    // If we can't use fsevents, ensure the options reflect it's disabled.
-    const canUseFsEvents = FsEventsHandler.canUse();
-    if (!canUseFsEvents) opts.useFsEvents = false;
-
-    // Use polling on Mac if not using fsevents.
-    // Other platforms use non-polling fs_watch.
-    if (undef(opts, 'usePolling') && !opts.useFsEvents) {
-      opts.usePolling = isMacos;
-    }
 
     // Always default to polling on IBM i because fs.watch() is not available on IBM i.
     if (isIBMi) {
@@ -361,7 +347,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     // Editor atomic write normalization enabled by default with fs.watch
-    if (undef(opts, 'atomic')) opts.atomic = !opts.usePolling && !opts.useFsEvents;
+    if (undef(opts, 'atomic')) opts.atomic = !opts.usePolling;
     if (opts.atomic) this._pendingUnlinks = new Map();
 
     if (undef(opts, 'followSymlinks')) opts.followSymlinks = true;
@@ -397,14 +383,41 @@ export class FSWatcher extends EventEmitter {
     this.options = opts as FSWInstanceOptions;
 
     // Initialize with proper watcher.
-    if (opts.useFsEvents) {
-      this._fsEventsHandler = new FsEventsHandler(this);
-    } else {
-      this._nodeFsHandler = new NodeFsHandler(this);
-    }
+    this._nodeFsHandler = new NodeFsHandler(this);
 
     // You’re frozen when your heart’s not open.
     Object.freeze(opts);
+  }
+
+  _addIgnoredPath(matcher: Matcher): void {
+    if (isMatcherObject(matcher)) {
+      // return early if we already have a deeply equal matcher object
+      for (const ignored of this._ignoredPaths) {
+        if (isMatcherObject(ignored) &&
+          ignored.path === matcher.path &&
+          ignored.recursive === matcher.recursive) {
+          return;
+        }
+      }
+    }
+
+    this._ignoredPaths.add(matcher);
+  }
+
+  _removeIgnoredPath(matcher: Matcher): void {
+    this._ignoredPaths.delete(matcher);
+
+    // now find any matcher objects with the matcher as path
+    if (typeof matcher === 'string') {
+      for (const ignored of this._ignoredPaths) {
+        // TODO (43081j): make this more efficient.
+        // probably just make a `this._ignoredDirectories` or some
+        // such thing.
+        if (isMatcherObject(ignored) && ignored.path === matcher) {
+          this._ignoredPaths.delete(ignored);
+        }
+      }
+    }
   }
 
   // Public methods
@@ -429,28 +442,28 @@ export class FSWatcher extends EventEmitter {
       });
     }
 
-    if (this.options.useFsEvents && this._fsEventsHandler) {
-      if (!this._readyCount) this._readyCount = paths.length;
-      if (this.options.persistent) this._readyCount *= 2;
-      paths.forEach((path) => this._fsEventsHandler._addToFsEvents(path));
-    } else {
-      if (!this._readyCount) this._readyCount = 0;
-      this._readyCount += paths.length;
-      Promise.all(
-        paths.map(async (path) => {
-          const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, 0, 0, _origAdd);
-          if (res) this._emitReady();
-          return res;
-        })
-      ).then((results) => {
-        if (this.closed) return;
-        results
-          .filter((item) => item)
-          .forEach((item) => {
-            this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
-          });
-      });
-    }
+    paths.forEach((path) => {
+      this._removeIgnoredPath(path);
+    });
+
+    this._userIgnored = undefined;
+
+    if (!this._readyCount) this._readyCount = 0;
+    this._readyCount += paths.length;
+    Promise.all(
+      paths.map(async (path) => {
+        const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, undefined, 0, _origAdd);
+        if (res) this._emitReady();
+        return res;
+      })
+    ).then((results) => {
+      if (this.closed) return;
+      results
+        .filter((item) => item)
+        .forEach((item) => {
+          this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+        });
+    });
 
     return this;
   }
@@ -474,10 +487,12 @@ export class FSWatcher extends EventEmitter {
 
       this._closePath(path);
 
-      this._ignoredPaths.add(path);
+      this._addIgnoredPath(path);
       if (this._watched.has(path)) {
-        // TODO
-        // this._ignoredPaths.add(path + SLASH_GLOBSTAR);
+        this._addIgnoredPath({
+          path,
+          recursive: true
+        });
       }
 
       // reset the cached userIgnored anymatch fn
@@ -752,10 +767,6 @@ export class FSWatcher extends EventEmitter {
     }
   }
 
-  // _getGlobIgnored() {
-  //   return [...this._ignoredPaths.values()];
-  // }
-
   /**
    * Determines whether user has asked to ignore this path.
    * @param {Path} path filepath or dir
@@ -768,17 +779,16 @@ export class FSWatcher extends EventEmitter {
       const { cwd } = this.options;
       const ign = this.options.ignored;
 
-      // TODO
-      const ignored = ign && ign.map(normalizeIgnored(cwd));
-      // const paths = arrify(ignored)
-      //   .filter((path) => typeof path === STRING_TYPE)
-      //   .map((path) => path + SLASH_GLOBSTAR);
-      // TODO
-      // const list = this._getGlobIgnored().map(normalizeIgnored(cwd)).concat(ignored, paths);
-      this._userIgnored = anymatch(ignored || [], undefined);
+      const ignored = (ign || []).map(normalizeIgnored(cwd));
+      const ignoredPaths = [...this._ignoredPaths];
+      const list: Matcher[] = [
+        ...ignoredPaths.map(normalizeIgnored(cwd)),
+        ...ignored
+      ];
+      this._userIgnored = anymatch(list, undefined);
     }
 
-    return this._userIgnored([path, stats]);
+    return this._userIgnored(path, stats);
   }
 
   _isntIgnored(path, stat?: fs.Stats) {
@@ -791,7 +801,7 @@ export class FSWatcher extends EventEmitter {
    * @param {Number=} depth at any depth > 0, this isn't a glob
    * @returns {WatchHelper} object containing helpers for this path
    */
-  _getWatchHelpers(path, depth?: number) {
+  _getWatchHelpers(path: string, depth?: number): WatchHelper {
     return new WatchHelper(path, this.options.followSymlinks, this);
   }
 
@@ -851,7 +861,7 @@ export class FSWatcher extends EventEmitter {
     if (!this._throttle('remove', path, 100)) return;
 
     // if the only watched file is removed, watch for its return
-    if (!isDirectory && !this.options.useFsEvents && this._watched.size === 1) {
+    if (!isDirectory && this._watched.size === 1) {
       this.add(directory, item, true);
     }
 
@@ -893,9 +903,7 @@ export class FSWatcher extends EventEmitter {
     if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
 
     // Avoid conflicts if we later create another file with the same name
-    if (!this.options.useFsEvents) {
-      this._closePath(path);
-    }
+    this._closePath(path);
   }
 
   /**

@@ -1,0 +1,23 @@
+name: Publish Package to npm
+on:
+ release:
+   types: [created]
+jobs:
+ build:
+   runs-on: ubuntu-latest
+   permissions:
+     contents: read
+     id-token: write
+   steps:
+     - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3
+     - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3
+       with:
+         node-version: 20
+         registry-url: 'https://registry.npmjs.org'
+         cache: npm
+     - run: npm install -g npm
+     - run: npm ci
+     - run: npm run build
+     - run: npm publish --provenance --access public
+       env:
+         NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
