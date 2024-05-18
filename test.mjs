@@ -150,12 +150,13 @@ const runTests = (baseopts) => {
 
   describe('watch a directory', () => {
     let readySpy, rawSpy, watcher, watcher2;
-    beforeEach(() => {
+    beforeEach(async () => {
       options.ignoreInitial = true;
       options.alwaysStat = true;
       readySpy = sinon.spy(function readySpy(){});
       rawSpy = sinon.spy(function rawSpy(){});
       watcher = chokidar_watch().on(EV.READY, readySpy).on(EV.RAW, rawSpy);
+      await waitForWatcher(watcher);
     });
     afterEach(async () => {
       await waitFor([readySpy]);
@@ -175,7 +176,8 @@ const runTests = (baseopts) => {
     });
     it('should emit `add` event when file was added', async () => {
       const testPath = getFixturePath('add.txt');
-      const spy = await aspy(watcher, EV.ADD);
+      const spy = sinon.spy(function addSpy(){});
+      watcher.on(EV.ADD, spy);
       await delay();
       await write(testPath, dateNow());
       await waitFor([spy]);
@@ -194,8 +196,6 @@ const runTests = (baseopts) => {
       watcher.on(EV.ADD, (path) => {
         spy(path);
       });
-
-      await waitForWatcher(watcher);
 
       write(paths[0], dateNow());
       write(paths[1], dateNow());
@@ -266,6 +266,7 @@ const runTests = (baseopts) => {
 
       await delay();
 
+      readySpy.resetHistory();
       watcher2 = chokidar_watch().on(EV.READY, readySpy).on(EV.RAW, rawSpy);
       const spy = await aspy(watcher2, EV.ADD, null, true);
 
@@ -348,7 +349,8 @@ const runTests = (baseopts) => {
     });
     it('should emit `addDir` event when directory was added', async () => {
       const testDir = getFixturePath('subdir');
-      const spy = await aspy(watcher, 'addDir');
+      const spy = sinon.spy(function addDirSpy(){});
+      watcher.on(EV.ADD_DIR, spy);
       spy.should.not.have.been.called;
       await fs_mkdir(testDir, PERM_ARR);
       await waitFor([spy]);
@@ -359,7 +361,8 @@ const runTests = (baseopts) => {
     });
     it('should emit `change` event when file was changed', async () => {
       const testPath = getFixturePath('change.txt');
-      const spy = await aspy(watcher, EV.CHANGE);
+      const spy = sinon.spy(function changeSpy(){});
+      watcher.on(EV.CHANGE, spy);
       spy.should.not.have.been.called;
       await write(testPath, dateNow());
       await waitFor([spy]);
@@ -370,7 +373,8 @@ const runTests = (baseopts) => {
     });
     it('should emit `unlink` event when file was removed', async () => {
       const testPath = getFixturePath('unlink.txt');
-      const spy = await aspy(watcher, EV.UNLINK);
+      const spy = sinon.spy(function unlinkSpy(){});
+      watcher.on(EV.UNLINK, spy);
       spy.should.not.have.been.called;
       await fs_unlink(testPath);
       await waitFor([spy]);
@@ -382,7 +386,8 @@ const runTests = (baseopts) => {
     it('should emit `unlinkDir` event when a directory was removed', async () => {
       const testDir = getFixturePath('subdir');
       fs.mkdirSync(testDir, PERM_ARR);
-      const spy = await aspy(watcher, EV.UNLINK_DIR);
+      const spy = sinon.spy(function unlinkDirSpy(){});
+      watcher.on(EV.UNLINK_DIR, spy);
 
       await delay();
       await fs_rmdir(testDir);
@@ -396,7 +401,8 @@ const runTests = (baseopts) => {
       const testDir = getFixturePath('subdir');
       const testDir2 = getFixturePath('subdir/subdir2');
       const testDir3 = getFixturePath('subdir/subdir2/subdir3');
-      const spy = await aspy(watcher, EV.UNLINK_DIR);
+      const spy = sinon.spy(function unlinkDirSpy(){});
+      watcher.on(EV.UNLINK_DIR, spy);
       fs.mkdirSync(testDir, PERM_ARR);
       fs.mkdirSync(testDir2, PERM_ARR);
       fs.mkdirSync(testDir3, PERM_ARR);
@@ -415,7 +421,6 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('change.txt');
       const newPath = getFixturePath('moved.txt');
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD, addSpy);
-      await waitForWatcher(watcher);
       unlinkSpy.should.not.have.been.called;
       addSpy.should.not.have.been.called;
 
@@ -435,14 +440,13 @@ const runTests = (baseopts) => {
       const addSpy = sinon.spy(function add(){});
       const changeSpy = sinon.spy(function change(){});
       const testPath = getFixturePath('add.txt');
-      fs.writeFileSync(testPath, 'hello');
       watcher
         .on(EV.UNLINK, unlinkSpy)
         .on(EV.ADD, addSpy)
         .on(EV.CHANGE, changeSpy);
-      await waitForWatcher(watcher);
+      fs.writeFileSync(testPath, 'hello');
+      await waitFor([[addSpy.withArgs(testPath), 1]]);
       unlinkSpy.should.not.have.been.called;
-      addSpy.should.not.have.been.called;
       changeSpy.should.not.have.been.called;
       await fs_unlink(testPath);
       await waitFor([unlinkSpy.withArgs(testPath)]);
@@ -450,16 +454,17 @@ const runTests = (baseopts) => {
 
       await delay();
       await write(testPath, dateNow());
-      await waitFor([addSpy.withArgs(testPath)]);
+      await waitFor([[addSpy.withArgs(testPath), 2]]);
       addSpy.should.have.been.calledWith(testPath);
       changeSpy.should.not.have.been.called;
+      expect(addSpy.callCount).to.equal(2);
     });
     it('should not emit `unlink` for previously moved files', async () => {
       const unlinkSpy = sinon.spy(function unlink(){});
       const testPath = getFixturePath('change.txt');
       const newPath1 = getFixturePath('moved.txt');
       const newPath2 = getFixturePath('moved-again.txt');
-      await aspy(watcher, EV.UNLINK, unlinkSpy);
+      watcher.on(EV.UNLINK, unlinkSpy);
       await fs_rename(testPath, newPath1);
 
       await delay(300);
@@ -471,13 +476,13 @@ const runTests = (baseopts) => {
     });
     it('should survive ENOENT for missing subdirectories', async () => {
       const testDir = getFixturePath('notadir');
-      await waitForWatcher(watcher);
       watcher.add(testDir);
     });
     it('should notice when a file appears in a new directory', async () => {
       const testDir = getFixturePath('subdir');
       const testPath = getFixturePath('subdir/add.txt');
-      const spy = await aspy(watcher, EV.ADD);
+      const spy = sinon.spy(function addSpy(){});
+      watcher.on(EV.ADD, spy);
       spy.should.not.have.been.called;
       await fs_mkdir(testDir, PERM_ARR);
       await write(testPath, dateNow());
@@ -493,7 +498,6 @@ const runTests = (baseopts) => {
       const parentPath = getFixturePath('subdir2');
       const subPath = getFixturePath('subdir2/subsub');
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD_DIR, addSpy);
-      await waitForWatcher(watcher);
       await fs_mkdir(parentPath, PERM_ARR);
 
       await delay(win32Polling ? 900 : 300);
@@ -515,7 +519,6 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('dirFile');
       await fs_mkdir(testPath, PERM_ARR);
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD, addSpy);
-      await waitForWatcher(watcher);
 
       await delay();
       await fs_rmdir(testPath);
@@ -535,7 +538,6 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('fileDir');
       await write(testPath, 'file content');
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD_DIR, addSpy);
-      await waitForWatcher(watcher);
 
       await delay(300);
       await fs_unlink(testPath);
