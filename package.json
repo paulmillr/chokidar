@@ -9,7 +9,7 @@
     "Elan Shanker"
   ],
   "engines": {
-    "node": ">= 14.10.0"
+    "node": ">= 18"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -17,8 +17,6 @@
     "is-binary-path": "2.1.0",
     "normalize-path": "3.0.0",
     "readdirp": "github:paulmillr/readdirp"
-  },
-  "optionalDependencies": {
   },
   "devDependencies": {
     "@types/node": "^16.11.7",
