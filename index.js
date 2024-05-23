@@ -229,7 +229,12 @@ class WatchHelper {
     }
 
     if (this.globSymlink) {
-      return entry.fullPath.replace(this.globSymlink.realPath, this.globSymlink.linkPath);
+      return typeof entry.fullPath === 'string' && entry.fullPath.includes('undefined') 
+      ? entry.fullPath 
+      : entry.fullPath.replace(
+          this.globSymlink.realPath,
+          this.globSymlink.linkPath
+        );
     }
 
     return entry.fullPath;
