@@ -5,12 +5,7 @@ import { promisify } from 'node:util';
 import readdirp from 'readdirp';
 
 import NodeFsHandler from './nodefs-handler.js';
-import {
-  anymatch,
-  MatchFunction,
-  isMatcherObject,
-  Matcher
-} from './anymatch.js';
+import { anymatch, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
 import {
   Path,
   STR_CLOSE,
@@ -84,10 +79,12 @@ const toUnix = (string) => {
 // TODO: this is not equal to path-normalize module - investigate why
 const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
 
-const normalizeIgnored = (cwd = EMPTY_STR) => (path) => {
-  if (typeof path !== STRING_TYPE) return path;
-  return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
-};
+const normalizeIgnored =
+  (cwd = EMPTY_STR) =>
+  (path) => {
+    if (typeof path !== STRING_TYPE) return path;
+    return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+  };
 
 const getAbsolutePath = (path, cwd) => {
   if (sysPath.isAbsolute(path)) {
@@ -103,19 +100,13 @@ const undef = (opts, key) => opts[key] === undefined;
 
 /**
  * Directory entry.
- * @property {Path} path
- * @property {Set<Path>} items
  */
 class DirEntry {
   path: Path;
   _removeWatcher: any;
   items: Set<Path>;
 
-  /**
-   * @param {Path} dir
-   * @param {Function} removeWatcher
-   */
-  constructor(dir: Path, removeWatcher) {
+  constructor(dir: Path, removeWatcher: any) {
     this.path = dir;
     this._removeWatcher = removeWatcher;
     /** @type {Set<Path>} */
@@ -195,24 +186,18 @@ export class WatchHelper {
   }
 
   entryPath(entry) {
-    return sysPath.join(
-      this.watchPath,
-      sysPath.relative(this.watchPath, entry.fullPath)
-    );
+    return sysPath.join(this.watchPath, sysPath.relative(this.watchPath, entry.fullPath));
   }
 
   filterPath(entry) {
     const { stats } = entry;
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
     const resolvedPath = this.entryPath(entry);
-    return (
-      this.fsw._isntIgnored(resolvedPath, stats) &&
-      this.fsw._hasReadPermissions(stats)
-    );
+    return this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats);
   }
 
   getDirParts(path) {
-    return []
+    return [];
   }
 
   filterDir(entry) {
@@ -393,9 +378,11 @@ export class FSWatcher extends EventEmitter {
     if (isMatcherObject(matcher)) {
       // return early if we already have a deeply equal matcher object
       for (const ignored of this._ignoredPaths) {
-        if (isMatcherObject(ignored) &&
+        if (
+          isMatcherObject(ignored) &&
           ignored.path === matcher.path &&
-          ignored.recursive === matcher.recursive) {
+          ignored.recursive === matcher.recursive
+        ) {
           return;
         }
       }
@@ -452,7 +439,13 @@ export class FSWatcher extends EventEmitter {
     this._readyCount += paths.length;
     Promise.all(
       paths.map(async (path) => {
-        const res = await this._nodeFsHandler._addToNodeFs(path, !_internal, undefined, 0, _origAdd);
+        const res = await this._nodeFsHandler._addToNodeFs(
+          path,
+          !_internal,
+          undefined,
+          0,
+          _origAdd
+        );
         if (res) this._emitReady();
         return res;
       })
@@ -473,7 +466,7 @@ export class FSWatcher extends EventEmitter {
    * @param {Path|Array<Path>} paths_ - string or array of strings, file/directory paths
    * @returns {FSWatcher} for chaining
    */
-  unwatch(paths_: Path|Path[]) {
+  unwatch(paths_: Path | Path[]) {
     if (this.closed) return this;
     const paths = unifyPaths(paths_);
     const { cwd } = this.options;
@@ -491,7 +484,7 @@ export class FSWatcher extends EventEmitter {
       if (this._watched.has(path)) {
         this._addIgnoredPath({
           path,
-          recursive: true
+          recursive: true,
         });
       }
 
@@ -781,10 +774,7 @@ export class FSWatcher extends EventEmitter {
 
       const ignored = (ign || []).map(normalizeIgnored(cwd));
       const ignoredPaths = [...this._ignoredPaths];
-      const list: Matcher[] = [
-        ...ignoredPaths.map(normalizeIgnored(cwd)),
-        ...ignored
-      ];
+      const list: Matcher[] = [...ignoredPaths.map(normalizeIgnored(cwd)), ...ignored];
       this._userIgnored = anymatch(list, undefined);
     }
 
@@ -975,4 +965,4 @@ export const watch = (paths, options) => {
   return watcher;
 };
 
-export default {watch, FSWatcher};
+export default { watch, FSWatcher };

@@ -7,17 +7,6 @@ export const STR_DATA = 'data';
 export const STR_END = 'end';
 export const STR_CLOSE = 'close';
 
-export const FSEVENT_CREATED = 'created';
-export const FSEVENT_MODIFIED = 'modified';
-export const FSEVENT_DELETED = 'deleted';
-export const FSEVENT_MOVED = 'moved';
-export const FSEVENT_CLONED = 'cloned';
-export const FSEVENT_UNKNOWN = 'unknown';
-export const FSEVENT_FLAG_MUST_SCAN_SUBDIRS = 1;
-export const FSEVENT_TYPE_FILE = 'file';
-export const FSEVENT_TYPE_DIRECTORY = 'directory';
-export const FSEVENT_TYPE_SYMLINK = 'symlink';
-
 export const KEY_LISTENERS = 'listeners';
 export const KEY_ERR = 'errHandlers';
 export const KEY_RAW = 'rawEmitters';

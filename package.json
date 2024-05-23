@@ -4,10 +4,7 @@
   "version": "4.0.0-alpha",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
-  "contributors": [
-    "Paul Miller (https://paulmillr.com)",
-    "Elan Shanker"
-  ],
+  "contributors": ["Paul Miller (https://paulmillr.com)", "Elan Shanker"],
   "engines": {
     "node": ">= 18"
   },
@@ -15,26 +12,23 @@
   "main": "lib/index.js",
   "dependencies": {
     "is-binary-path": "2.1.0",
+    "micro-should": "0.4.0",
     "normalize-path": "3.0.0",
     "readdirp": "github:paulmillr/readdirp"
   },
   "devDependencies": {
-    "@types/node": "^16.11.7",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@types/node": "20.12.12",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
     "chai": "4.3.4",
-    "eslint": "^8.7.0",
-    "mocha": "^9.1.4",
-    "nyc": "15.1.0",
-    "rimraf": "^5.0.5",
+    "eslint": "8.7.0",
+    "mocha": "9.1.4",
+    "rimraf": "5.0.5",
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
-    "typescript": "^5.4.2",
+    "typescript": "5.4.2",
     "upath": "2.0.1"
   },
-  "files": [
-    "lib/*.js",
-    "lib/*.d.ts"
-  ],
+  "files": ["lib/*.js", "lib/*.d.ts"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/paulmillr/chokidar.git"
@@ -49,23 +43,6 @@
     "mocha": "mocha --exit --timeout 90000",
     "test": "npm run build && npm run lint && npm run mocha"
   },
-  "keywords": [
-    "fs",
-    "watch",
-    "watchFile",
-    "watcher",
-    "watching",
-    "file",
-    "fsevents"
-  ],
-  "nyc": {
-    "include": [
-      "lib/*.js"
-    ],
-    "reporter": [
-      "html",
-      "text"
-    ]
-  },
+  "keywords": ["fs", "watch", "watchFile", "watcher", "watching", "file", "fsevents"],
   "funding": "https://paulmillr.com/funding/"
 }
