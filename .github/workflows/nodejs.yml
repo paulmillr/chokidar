@@ -1,24 +1,32 @@
 name: Node CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches-ignore:
+      - "dependabot/**"
+  pull_request:
+  workflow_dispatch:
+
 env:
-  CI: true
+  FORCE_COLOR: 2
 
 jobs:
-  build:
-    name: v${{ matrix.node-version }} @ ${{ matrix.os }}
+  test:
+    name: Node.js ${{ matrix.version }} @ ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
-        node-version: [14, 16]
+        version: [18, 20, 22]
         os: [ubuntu-latest, windows-latest, macOS-latest]
 
     steps:
-      - uses: actions/checkout@v1
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v1
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ matrix.node }}
       - run: npm install
       - name: Run mocha tests
-        run: npm run mocha
+        run: npm run test

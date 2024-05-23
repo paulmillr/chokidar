@@ -9,7 +9,7 @@
     "Elan Shanker"
   ],
   "engines": {
-    "node": ">= 14.10.0"
+    "node": ">= 18"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -18,19 +18,17 @@
     "normalize-path": "3.0.0",
     "readdirp": "github:paulmillr/readdirp"
   },
-  "optionalDependencies": {
-    "fsevents": "~2.3.2"
-  },
   "devDependencies": {
     "@types/node": "^16.11.7",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
     "chai": "4.3.4",
     "eslint": "^8.7.0",
     "mocha": "^9.1.4",
     "nyc": "15.1.0",
-    "rimraf": "3.0.2",
+    "rimraf": "^5.0.5",
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
-    "typescript": "~4.5.3",
+    "typescript": "^5.4.2",
     "upath": "2.0.1"
   },
   "files": [
@@ -47,7 +45,7 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint --report-unused-disable-directives --ignore-path .gitignore .",
+    "lint": "eslint --ext=ts --report-unused-disable-directives --ignore-path .gitignore .",
     "mocha": "mocha --exit --timeout 90000",
     "test": "npm run build && npm run lint && npm run mocha"
   },
@@ -68,5 +66,6 @@
       "html",
       "text"
     ]
-  }
+  },
+  "funding": "https://paulmillr.com/funding/"
 }
