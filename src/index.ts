@@ -23,7 +23,6 @@ import {
   EMPTY_STR,
   EMPTY_FN,
   isWindows,
-  isMacos,
   isIBMi,
 } from './constants.js';
 import * as EV from './events.js';
@@ -194,10 +193,6 @@ export class WatchHelper {
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
     const resolvedPath = this.entryPath(entry);
     return this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats);
-  }
-
-  getDirParts(path) {
-    return [];
   }
 
   filterDir(entry) {
@@ -634,7 +629,9 @@ export class FSWatcher extends EventEmitter {
       let stats;
       try {
         stats = await stat(fullPath);
-      } catch (err) {}
+      } catch (err) {
+        // do nothing
+      }
       // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
       if (!stats || this.closed) return;
       args.push(stats);
@@ -684,6 +681,7 @@ export class FSWatcher extends EventEmitter {
       return false;
     }
 
+    // eslint-disable-next-line prefer-const
     let timeoutObject;
     const clear = () => {
       const item = action.get(path);
@@ -788,10 +786,9 @@ export class FSWatcher extends EventEmitter {
   /**
    * Provides a set of common helpers and properties relating to symlink and glob handling.
    * @param {Path} path file, directory, or glob pattern being watched
-   * @param {Number=} depth at any depth > 0, this isn't a glob
    * @returns {WatchHelper} object containing helpers for this path
    */
-  _getWatchHelpers(path: string, depth?: number): WatchHelper {
+  _getWatchHelpers(path: string): WatchHelper {
     return new WatchHelper(path, this.options.followSymlinks, this);
   }
 
