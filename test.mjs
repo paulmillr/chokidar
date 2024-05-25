@@ -1,7 +1,6 @@
-/* eslint-env mocha */
-
 import fs from 'node:fs';
 import sysPath from 'node:path';
+import {describe, it, before, after, beforeEach, afterEach} from 'node:test';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
@@ -37,6 +36,7 @@ const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
 const allWatchers = [];
 const PERM_ARR = 0o755; // rwe, r+e, r+e
+const TEST_TIMEOUT = 8000;
 let subdirId = 0;
 let options;
 let currentDir;
@@ -54,16 +54,34 @@ const aspy = (watcher, eventName, spy = null, noStat = false) => {
       (event, path) => spy(event, path) :
       (path) => spy(path)) :
       spy;
-    watcher.on(EV.ERROR, reject);
-    watcher.on(EV.READY, () => resolve(spy));
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
+    watcher.on(EV.ERROR, (...args) => {
+      clearTimeout(timeout);
+      reject(...args);
+    });
+    watcher.on(EV.READY, () => {
+      clearTimeout(timeout);
+      resolve(spy);
+    });
     watcher.on(eventName, handler);
   });
 };
 
 const waitForWatcher = (watcher) => {
   return new Promise((resolve, reject) => {
-    watcher.on(EV.ERROR, reject);
-    watcher.on(EV.READY, resolve);
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
+    watcher.on(EV.ERROR, (...args) => {
+      clearTimeout(timeout);
+      reject(...args);
+    });
+    watcher.on(EV.READY, (...args) => {
+      clearTimeout(timeout);
+      resolve(...args);
+    });
   });
 };
 
@@ -92,7 +110,10 @@ const chokidar_watch = (path = currentDir, opts = options) => {
 
 const waitFor = async (spies) => {
   if (spies.length === 0) throw new TypeError('SPies zero');
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
     const isSpyReady = (spy) => {
       if (Array.isArray(spy)) {
         return spy[0].callCount >= spy[1];
@@ -101,6 +122,7 @@ const waitFor = async (spies) => {
     };
     const checkSpiesReady = () => {
       if (spies.every(isSpyReady)) {
+        clearTimeout(timeout);
         resolve();
       } else {
         setTimeout(checkSpiesReady, 20);
@@ -111,13 +133,17 @@ const waitFor = async (spies) => {
 };
 
 const waitForEvents = (watcher, count) => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
     const events = [];
     const handler = (event, path) => {
       events.push(`[ALL] ${event}: ${path}`)
 
       if (events.length === count) {
         watcher.off('all', handler);
+        clearTimeout(timeout);
         resolve(events);
       }
     };
