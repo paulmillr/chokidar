@@ -1,7 +1,6 @@
-/* eslint-env mocha */
-
 import fs from 'node:fs';
 import sysPath from 'node:path';
+import {describe, it, before, after, beforeEach, afterEach} from 'node:test';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
@@ -37,6 +36,7 @@ const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
 const allWatchers = [];
 const PERM_ARR = 0o755; // rwe, r+e, r+e
+const TEST_TIMEOUT = 8000;
 let subdirId = 0;
 let options;
 let currentDir;
@@ -54,16 +54,34 @@ const aspy = (watcher, eventName, spy = null, noStat = false) => {
       (event, path) => spy(event, path) :
       (path) => spy(path)) :
       spy;
-    watcher.on(EV.ERROR, reject);
-    watcher.on(EV.READY, () => resolve(spy));
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
+    watcher.on(EV.ERROR, (...args) => {
+      clearTimeout(timeout);
+      reject(...args);
+    });
+    watcher.on(EV.READY, () => {
+      clearTimeout(timeout);
+      resolve(spy);
+    });
     watcher.on(eventName, handler);
   });
 };
 
 const waitForWatcher = (watcher) => {
   return new Promise((resolve, reject) => {
-    watcher.on(EV.ERROR, reject);
-    watcher.on(EV.READY, resolve);
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
+    watcher.on(EV.ERROR, (...args) => {
+      clearTimeout(timeout);
+      reject(...args);
+    });
+    watcher.on(EV.READY, (...args) => {
+      clearTimeout(timeout);
+      resolve(...args);
+    });
   });
 };
 
@@ -92,7 +110,10 @@ const chokidar_watch = (path = currentDir, opts = options) => {
 
 const waitFor = async (spies) => {
   if (spies.length === 0) throw new TypeError('SPies zero');
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
     const isSpyReady = (spy) => {
       if (Array.isArray(spy)) {
         return spy[0].callCount >= spy[1];
@@ -101,6 +122,7 @@ const waitFor = async (spies) => {
     };
     const checkSpiesReady = () => {
       if (spies.every(isSpyReady)) {
+        clearTimeout(timeout);
         resolve();
       } else {
         setTimeout(checkSpiesReady, 20);
@@ -111,13 +133,17 @@ const waitFor = async (spies) => {
 };
 
 const waitForEvents = (watcher, count) => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('timeout'));
+    }, TEST_TIMEOUT);
     const events = [];
     const handler = (event, path) => {
       events.push(`[ALL] ${event}: ${path}`)
 
       if (events.length === count) {
         watcher.off('all', handler);
+        clearTimeout(timeout);
         resolve(events);
       }
     };
@@ -160,6 +186,7 @@ const runTests = (baseopts) => {
     });
     afterEach(async () => {
       await waitFor([readySpy]);
+      await watcher.close();
       readySpy.should.have.been.calledOnce;
       readySpy = undefined;
       rawSpy = undefined;
@@ -385,11 +412,12 @@ const runTests = (baseopts) => {
     });
     it('should emit `unlinkDir` event when a directory was removed', async () => {
       const testDir = getFixturePath('subdir');
-      fs.mkdirSync(testDir, PERM_ARR);
       const spy = sinon.spy(function unlinkDirSpy(){});
+
+      await fs_mkdir(testDir, PERM_ARR);
+      await delay(300);
       watcher.on(EV.UNLINK_DIR, spy);
 
-      await delay();
       await fs_rmdir(testDir);
       await waitFor([spy]);
       spy.should.have.been.calledWith(testDir);
@@ -402,13 +430,17 @@ const runTests = (baseopts) => {
       const testDir2 = getFixturePath('subdir/subdir2');
       const testDir3 = getFixturePath('subdir/subdir2/subdir3');
       const spy = sinon.spy(function unlinkDirSpy(){});
+
+      await fs_mkdir(testDir, PERM_ARR);
+      await fs_mkdir(testDir2, PERM_ARR);
+      await fs_mkdir(testDir3, PERM_ARR);
+      await delay(300);
+
       watcher.on(EV.UNLINK_DIR, spy);
-      fs.mkdirSync(testDir, PERM_ARR);
-      fs.mkdirSync(testDir2, PERM_ARR);
-      fs.mkdirSync(testDir3, PERM_ARR);
-      await delay();
+
       await rimraf(testDir2);
       await waitFor([[spy, 2]]);
+
       spy.should.have.been.calledWith(testDir2);
       spy.should.have.been.calledWith(testDir3);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
@@ -444,7 +476,7 @@ const runTests = (baseopts) => {
         .on(EV.UNLINK, unlinkSpy)
         .on(EV.ADD, addSpy)
         .on(EV.CHANGE, changeSpy);
-      fs.writeFileSync(testPath, 'hello');
+      await write(testPath, 'hello');
       await waitFor([[addSpy.withArgs(testPath), 1]]);
       unlinkSpy.should.not.have.been.called;
       changeSpy.should.not.have.been.called;
@@ -518,17 +550,16 @@ const runTests = (baseopts) => {
       const addSpy = sinon.spy(function addSpy(){});
       const testPath = getFixturePath('dirFile');
       await fs_mkdir(testPath, PERM_ARR);
+      await delay(300);
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD, addSpy);
 
-      await delay();
       await fs_rmdir(testPath);
-      await delay(300);
-      await write(testPath, 'file content');
-
-      await delay(300);
       await waitFor([unlinkSpy]);
-      unlinkSpy.should.have.been.calledWith(testPath);
+
+      await write(testPath, 'file content');
       await waitFor([addSpy]);
+
+      unlinkSpy.should.have.been.calledWith(testPath);
       addSpy.should.have.been.calledWith(testPath);
     });
     it('should emit `unlink` and `addDir` when file is replaced by dir', async () => {
@@ -822,8 +853,7 @@ const runTests = (baseopts) => {
 
       await delay();
       await fs_mkdir(testDir, PERM_ARR);
-
-      await delay();
+      await waitFor([spy.withArgs(EV.ADD_DIR)]);
       await write(testPath, 'hello');
       await waitFor([spy.withArgs(EV.ADD)]);
       spy.should.have.been.calledWith(EV.ADD_DIR, testDir);
