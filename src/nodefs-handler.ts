@@ -193,7 +193,9 @@ const setFsWatchListener = (
           const fd = await open(path, 'r');
           await close(fd);
           broadcastErr(error);
-        } catch (err) {}
+        } catch (err) {
+          // do nothing
+        }
       } else {
         broadcastErr(error);
       }
@@ -607,7 +609,7 @@ export default class NodeFsHandler {
       return false;
     }
 
-    const wh = this.fsw._getWatchHelpers(path, depth);
+    const wh = this.fsw._getWatchHelpers(path);
     if (priorWh) {
       wh.filterPath = (entry) => priorWh.filterPath(entry);
       wh.filterDir = (entry) => priorWh.filterDir(entry);

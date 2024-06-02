@@ -1645,7 +1645,10 @@ const runTests = (baseopts) => {
           function isSpyReady(spy) {
             return Array.isArray(spy) ? spy[0].callCount >= spy[1] : spy.callCount;
           }
-          let intrvl, to;
+          // eslint-disable-next-line prefer-const
+          let intrvl;
+          // eslint-disable-next-line prefer-const
+          let to;
           function finish() {
             clearInterval(intrvl);
             clearTimeout(to);
