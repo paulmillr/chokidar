@@ -484,7 +484,7 @@ const runTests = (baseopts) => {
       await waitFor([unlinkSpy.withArgs(testPath)]);
       unlinkSpy.should.have.been.calledWith(testPath);
 
-      await delay();
+      await delay(100);
       await write(testPath, dateNow());
       await waitFor([[addSpy.withArgs(testPath), 2]]);
       addSpy.should.have.been.calledWith(testPath);
@@ -1414,15 +1414,17 @@ const runTests = (baseopts) => {
         });
         options2.cwd = getFixturePath('subdir');
         const watcher = chokidar_watch(getGlobPath('.'), options);
+        const watcherEvents = waitForEvents(watcher, 3);
         const spy1 = await aspy(watcher, EV.ALL);
 
         await delay();
         const watcher2 = chokidar_watch(currentDir, options2);
+        const watcher2Events = waitForEvents(watcher2, 5);
         const spy2 = await aspy(watcher2, EV.ALL);
 
         await fs_unlink(getFixturePath('unlink.txt'));
         await write(getFixturePath('change.txt'), dateNow());
-        await waitFor([spy1.withArgs(EV.UNLINK), spy2.withArgs(EV.UNLINK)]);
+        await Promise.all([watcherEvents, watcher2Events]);
         spy1.should.have.been.calledWith(EV.CHANGE, 'change.txt');
         spy1.should.have.been.calledWith(EV.UNLINK, 'unlink.txt');
         spy2.should.have.been.calledWith(EV.ADD, sysPath.join('..', 'change.txt'));
