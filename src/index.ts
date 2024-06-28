@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import sysPath from 'node:path';
-import { promisify } from 'node:util';
 import readdirp from 'readdirp';
+import {stat, readdir} from 'node:fs/promises';
 
 import NodeFsHandler from './nodefs-handler.js';
 import { anymatch, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
@@ -27,9 +27,6 @@ import {
 } from './constants.js';
 import * as EV from './events.js';
 import { EventName } from './events.js';
-
-const stat = promisify(fs.stat);
-const readdir = promisify(fs.readdir);
 
 type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
 type EmitArgs = [EventName, Path, any?, any?, any?];
