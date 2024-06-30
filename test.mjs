@@ -9,6 +9,13 @@ import {rimraf} from 'rimraf';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import upath from 'upath';
+import {
+  symlink as fs_symlink,
+  rename as fs_rename,
+  mkdir as fs_mkdir,
+  rmdir as fs_rmdir,
+  unlink as fs_unlink
+} from 'node:fs/promises';
 
 import chokidar from './lib/index.js';
 import * as EV from './lib/events.js';
@@ -26,11 +33,6 @@ chai.should();
 
 const exec = promisify(childProcess.exec);
 const write = promisify(fs.writeFile);
-const fs_symlink = promisify(fs.symlink);
-const fs_rename = promisify(fs.rename);
-const fs_mkdir = promisify(fs.mkdir);
-const fs_rmdir = promisify(fs.rmdir);
-const fs_unlink = promisify(fs.unlink);
 
 const FIXTURES_PATH_REL = 'test-fixtures';
 const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
