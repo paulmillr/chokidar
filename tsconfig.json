@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "declaration": true,
+    "target": "es2020",
+    "lib": ["es2020"],
+    "module": "es2022",
+    "moduleResolution": "node",
+    "outDir": "lib",
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+  },
+  "include": ["src", "types"],
+  "exclude": ["node_modules", "lib"]
+}
