@@ -372,17 +372,15 @@ export default class NodeFsHandler {
     if (parent.has(basename)) return;
 
     const listener = async (path, newStats) => {
-      console.log({path, newStats});
       if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5)) return;
       if (!newStats || newStats.mtimeMs === 0) {
         try {
           const newStats = await stat(file);
-          console.log({newStats, prevStats});
           if (this.fsw.closed) return;
           // Check that change event was not fired because of changed only accessTime.
           const at = newStats.atimeMs;
           const mt = newStats.mtimeMs;
-          if (!at || at <= mt || mt !== prevStats.mtimeMs) {
+          if (!at || at < mt || mt !== prevStats.mtimeMs) {
             this.fsw._emit(EV.CHANGE, file, newStats);
           }
           if ((isMacos || isLinux) && prevStats.ino !== newStats.ino) {
@@ -393,7 +391,6 @@ export default class NodeFsHandler {
             prevStats = newStats;
           }
         } catch (error) {
-          console.log({error});
           // Fix issues where mtime is null but file is still present
           this.fsw._remove(dirname, basename);
         }
