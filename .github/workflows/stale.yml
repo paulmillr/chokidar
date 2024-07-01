@@ -12,9 +12,11 @@ jobs:
     steps:
       - uses: actions/stale@v9
         with:
+          days-before-issue-stale: 30
           days-before-issue-close: 14
           stale-issue-label: "stale"
-          close-issue-message: "This issue was closed because chokidar v4 is going to be released ASAP. The backlog is being clean-up. Create pull request if you still want it for v4."
+          stale-issue-message: "This issue is stale because it has been open for 30 days with no activity."
+          close-issue-message: "This issue was closed because it has been inactive for 14 days since being marked as stale."
           days-before-pr-stale: -1
           days-before-pr-close: -1
           repo-token: ${{ secrets.GITHUB_TOKEN }}
