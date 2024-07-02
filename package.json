@@ -21,7 +21,7 @@
   "devDependencies": {
     "@eslint/js": "^9.3.0",
     "@types/node": "20.12.12",
-    "chai": "4.3.4",
+    "chai": "4.4.1",
     "eslint": "^8.57.0",
     "globals": "^15.3.0",
     "rimraf": "5.0.5",
