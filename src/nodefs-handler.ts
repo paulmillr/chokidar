@@ -19,12 +19,7 @@ import {
 } from './constants.js';
 import * as EV from './events.js';
 import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
-import {
-  open,
-  stat,
-  lstat,
-  realpath as fsrealpath
-} from 'node:fs/promises';
+import { open, stat, lstat, realpath as fsrealpath } from 'node:fs/promises';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
@@ -41,19 +36,14 @@ const foreach = (val, fn) => {
 
 const addAndConvert = (main, prop, item) => {
   let container = main[prop];
-  if (!(container instanceof Set)) {
-    main[prop] = container = new Set([container]);
-  }
+  if (!(container instanceof Set)) main[prop] = container = new Set([container]);
   container.add(item);
 };
 
 const clearItem = (cont) => (key) => {
   const set = cont[key];
-  if (set instanceof Set) {
-    set.clear();
-  } else {
-    delete cont[key];
-  }
+  if (set instanceof Set) set.clear();
+  else delete cont[key];
 };
 
 const delFromSet = (main, prop, item) => {
@@ -117,9 +107,13 @@ function createFsWatchInstance(
     }
   };
   try {
-    return fs.watch(path, {
-      persistent: options.persistent
-    }, handleEvent);
+    return fs.watch(
+      path,
+      {
+        persistent: options.persistent,
+      },
+      handleEvent
+    );
   } catch (error) {
     errHandler(error);
   }
@@ -329,7 +323,7 @@ export default class NodeFsHandler {
     parent.add(basename);
     const absolutePath = sysPath.resolve(path);
     const options: Partial<FSWInstanceOptions> = {
-      persistent: opts.persistent
+      persistent: opts.persistent,
     };
     if (!listener) listener = EMPTY_FN;
 
@@ -359,9 +353,7 @@ export default class NodeFsHandler {
    * @returns {Function} closer for the watcher instance
    */
   _handleFile(file, stats, initialAdd) {
-    if (this.fsw.closed) {
-      return;
-    }
+    if (this.fsw.closed) return;
     const dirname = sysPath.dirname(file);
     const basename = sysPath.basename(file);
     const parent = this.fsw._getWatchedDir(dirname);
@@ -372,12 +364,10 @@ export default class NodeFsHandler {
     if (parent.has(basename)) return;
 
     const listener = async (path, newStats) => {
-      console.log({path, newStats});
       if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5)) return;
       if (!newStats || newStats.mtimeMs === 0) {
         try {
           const newStats = await stat(file);
-          console.log({newStats, prevStats});
           if (this.fsw.closed) return;
           // Check that change event was not fired because of changed only accessTime.
           const at = newStats.atimeMs;
@@ -393,7 +383,6 @@ export default class NodeFsHandler {
             prevStats = newStats;
           }
         } catch (error) {
-          console.log({error});
           // Fix issues where mtime is null but file is still present
           this.fsw._remove(dirname, basename);
         }
@@ -536,10 +525,7 @@ export default class NodeFsHandler {
         previous
           .getChildren()
           .filter((item) => {
-            return (
-              item !== directory &&
-              !current.has(item)
-            );
+            return item !== directory && !current.has(item);
           })
           .forEach((item) => {
             this.fsw._remove(directory, item);
@@ -568,6 +554,7 @@ export default class NodeFsHandler {
     const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
     const tracked = parentDir.has(sysPath.basename(dir));
     if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
+      console.log('addDir', dir, new Error().stack);
       this.fsw._emit(EV.ADD_DIR, dir, stats);
     }
 
@@ -604,7 +591,7 @@ export default class NodeFsHandler {
    * @param {String=} target Child path actually targeted for watch
    * @returns {Promise}
    */
-  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper|undefined, depth, target?: string) {
+  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper | undefined, depth, target?: string) {
     const ready = this.fsw._emitReady;
     if (this.fsw._isIgnored(path) || this.fsw.closed) {
       ready();

@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import sysPath from 'node:path';
 import readdirp from 'readdirp';
-import {stat, readdir} from 'node:fs/promises';
+import { stat, readdir } from 'node:fs/promises';
 
 import NodeFsHandler from './nodefs-handler.js';
 import { anymatch, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
@@ -83,12 +83,8 @@ const normalizeIgnored =
   };
 
 const getAbsolutePath = (path, cwd) => {
-  if (sysPath.isAbsolute(path)) {
-    return path;
-  }
-  if (path.startsWith(BANG)) {
-    return BANG + sysPath.join(cwd, path.slice(1));
-  }
+  if (sysPath.isAbsolute(path)) return path;
+  if (path.startsWith('!')) return '!' + sysPath.join(cwd, path.slice(1)); // '!' == './'
   return sysPath.join(cwd, path);
 };
 
@@ -112,7 +108,7 @@ class DirEntry {
   add(item) {
     const { items } = this;
     if (!items) return;
-    if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
+    if (item !== '.' && item !== '..') items.add(item);
   }
 
   async remove(item) {
@@ -169,10 +165,11 @@ export class WatchHelper {
   constructor(path: string, follow: boolean, fsw: any) {
     this.fsw = fsw;
     const watchPath = path;
-    this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
+    this.path = path = path.replace(REPLACER_RE, '');
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath.resolve(watchPath);
     /** @type {object|boolean} */
+
     this.dirParts = [];
     this.dirParts.forEach((parts) => {
       if (parts.length > 1) parts.pop();
@@ -182,12 +179,13 @@ export class WatchHelper {
   }
 
   entryPath(entry) {
+    // basically sysPath.absolute
     return sysPath.join(this.watchPath, sysPath.relative(this.watchPath, entry.fullPath));
   }
 
   filterPath(entry) {
     const { stats } = entry;
-    if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
+    if (stats && stats.isSymbolicLink()) return this.filterDir(entry); /// WUT?! symlink can be file too
     const resolvedPath = this.entryPath(entry);
     return this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats);
   }
@@ -345,6 +343,7 @@ export class FSWatcher extends EventEmitter {
     }
     if (opts.ignored) opts.ignored = arrify(opts.ignored);
 
+    // Done to emit ready only once, but each 'add' will increase that
     let readyCalls = 0;
     this._emitReady = () => {
       readyCalls++;
@@ -472,6 +471,7 @@ export class FSWatcher extends EventEmitter {
 
       this._closePath(path);
 
+      // TWICE!
       this._addIgnoredPath(path);
       if (this._watched.has(path)) {
         this._addIgnoredPath({
@@ -507,7 +507,7 @@ export class FSWatcher extends EventEmitter {
     );
     this._streams.forEach((stream) => stream.destroy());
     this._userIgnored = undefined;
-    this._readyCount = 0;
+    this._readyCount = 0; // allows to re-start
     this._readyEmitted = false;
     this._watched.forEach((dirent) => dirent.dispose());
     ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach((key) => {
@@ -544,6 +544,7 @@ export class FSWatcher extends EventEmitter {
   /**
    * Normalize and emit events.
    * Calling _emit DOES NOT MEAN emit() would be called!
+   * val1 == stats, others are unused
    * @param {EventName} event Type of event
    * @param {Path} path File or directory path
    * @param {*=} val1 arguments to be passed with event
@@ -907,6 +908,7 @@ export class FSWatcher extends EventEmitter {
   _closeFile(path) {
     const closers = this._closers.get(path);
     if (!closers) return;
+    // no promise handling here
     closers.forEach((closer) => closer());
     this._closers.delete(path);
   }
@@ -931,10 +933,13 @@ export class FSWatcher extends EventEmitter {
     const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts };
     let stream = readdirp(root, options);
     this._streams.add(stream);
-    stream.once(STR_CLOSE, () => {
+    // possible mem leak if emited before end
+    stream.once('close', () => {
+      console.log('readdirp close');
       stream = undefined;
     });
-    stream.once(STR_END, () => {
+    stream.once('end', () => {
+      console.log('readdirp end');
       if (stream) {
         this._streams.delete(stream);
         stream = undefined;

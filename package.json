@@ -12,18 +12,14 @@
     "node": ">= 18"
   },
   "type": "module",
-  "main": "lib/index.js",
+  "main": "lib/v4.js",
   "dependencies": {
-    "is-binary-path": "2.1.0",
-    "normalize-path": "3.0.0",
-    "readdirp": "github:paulmillr/readdirp"
   },
   "devDependencies": {
     "@eslint/js": "^9.3.0",
     "@types/node": "20.12.12",
     "chai": "4.3.4",
     "eslint": "^8.57.0",
-    "globals": "^15.3.0",
     "rimraf": "5.0.5",
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
@@ -32,8 +28,8 @@
     "upath": "2.0.1"
   },
   "files": [
-    "lib/*.js",
-    "lib/*.d.ts"
+    "lib/v4.js",
+    "lib/v4.d.ts"
   ],
   "repository": {
     "type": "git",
@@ -45,8 +41,8 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint .",
-    "test": "npm run build && npm run lint && node --test"
+    "lint": "eslint src/v4.ts",
+    "test": "npm run build && npm run lint && node --test test-v4.mjs"
   },
   "keywords": [
     "fs",
