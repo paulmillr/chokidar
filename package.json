@@ -28,7 +28,7 @@
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
     "typescript": "5.4.2",
-    "typescript-eslint": "^7.10.0",
+    "typescript-eslint": "^8.0.0",
     "upath": "2.0.1"
   },
   "files": [
