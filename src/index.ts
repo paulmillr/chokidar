@@ -16,7 +16,6 @@ import {
   REPLACER_RE,
   SLASH,
   SLASH_SLASH,
-  BANG,
   ONE_DOT,
   TWO_DOTS,
   STRING_TYPE,
@@ -84,9 +83,6 @@ const normalizeIgnored =
 const getAbsolutePath = (path, cwd) => {
   if (sysPath.isAbsolute(path)) {
     return path;
-  }
-  if (path.startsWith(BANG)) {
-    return BANG + sysPath.join(cwd, path.slice(1));
   }
   return sysPath.join(cwd, path);
 };

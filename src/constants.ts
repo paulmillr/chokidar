@@ -1,4 +1,3 @@
-import { sep } from 'path';
 import { type as osType } from 'os';
 
 export type Path = string;
@@ -12,8 +11,6 @@ export const KEY_ERR = 'errHandlers';
 export const KEY_RAW = 'rawEmitters';
 export const HANDLER_KEYS = [KEY_LISTENERS, KEY_ERR, KEY_RAW];
 
-export const DOT_SLASH = `.${sep}`;
-
 export const BACK_SLASH_RE = /\\/g;
 export const DOUBLE_SLASH_RE = /\/\//;
 export const SLASH_OR_BACK_SLASH_RE = /[/\\]/;
@@ -22,20 +19,14 @@ export const REPLACER_RE = /^\.[/\\]/;
 
 export const SLASH = '/';
 export const SLASH_SLASH = '//';
-export const BRACE_START = '{';
-export const BANG = '!';
 export const ONE_DOT = '.';
 export const TWO_DOTS = '..';
-export const STAR = '*';
-export const DIR_SUFFIX = 'Dir';
 export const STRING_TYPE = 'string';
-// export const FUNCTION_TYPE = 'function';
-// export const EMPTY_STR = '';
 export const EMPTY_FN = () => {};
 export const IDENTITY_FN = (val: any) => val;
 
-const { platform } = process;
-export const isWindows = platform === 'win32';
-export const isMacos = platform === 'darwin';
-export const isLinux = platform === 'linux';
+const p = process.platform;
+export const isWindows = p === 'win32';
+export const isMacos = p === 'darwin';
+export const isLinux = p === 'linux';
 export const isIBMi = osType() === 'OS400';

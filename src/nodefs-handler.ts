@@ -12,8 +12,6 @@ import {
   HANDLER_KEYS,
   STR_DATA,
   STR_END,
-  BRACE_START,
-  STAR,
 } from './constants.js';
 import * as EV from './events.js';
 import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
@@ -660,8 +658,7 @@ export default class NodeFsHandler {
         return false;
       }
 
-      const follow =
-        this.fsw.options.followSymlinks && !path.includes(STAR) && !path.includes(BRACE_START);
+      const follow = this.fsw.options.followSymlinks;
       let closer;
       if (stats.isDirectory()) {
         const absPath = sysPath.resolve(path);
