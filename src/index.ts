@@ -2,18 +2,11 @@ import fs from 'node:fs';
 import { EventEmitter } from 'node:events';
 import sysPath from 'node:path';
 import readdirp from 'readdirp';
-import {stat, readdir} from 'node:fs/promises';
+import { stat, readdir } from 'node:fs/promises';
 
 import NodeFsHandler from './nodefs-handler.js';
 import { anymatch, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
-import {
-  Path,
-  isWindows,
-  isIBMi,
-  EMPTY_FN,
-  STR_CLOSE,
-  STR_END,
-} from './constants.js';
+import { Path, isWindows, isIBMi, EMPTY_FN, STR_CLOSE, STR_END } from './constants.js';
 import * as EV from './events.js';
 import { EventName } from './events.js';
 

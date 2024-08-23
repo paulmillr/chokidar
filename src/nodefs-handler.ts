@@ -1,22 +1,9 @@
 import fs from 'fs';
 import sysPath from 'path';
-import {
-  Path,
-  isWindows,
-  isLinux,
-  isMacos,
-  EMPTY_FN,
-  STR_DATA,
-  STR_END,
-} from './constants.js';
+import { Path, isWindows, isLinux, isMacos, EMPTY_FN, STR_DATA, STR_END } from './constants.js';
 import * as EV from './events.js';
 import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
-import {
-  open,
-  stat,
-  lstat,
-  realpath as fsrealpath
-} from 'fs/promises';
+import { open, stat, lstat, realpath as fsrealpath } from 'fs/promises';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
@@ -64,7 +51,6 @@ const binaryExtensions = new Set([
 ]);
 const isBinaryPath = (filePath) =>
   binaryExtensions.has(sysPath.extname(filePath).slice(1).toLowerCase());
-
 
 // TODO: emit errors properly. Example: EMFILE on Macos.
 const foreach = (val, fn) => {
@@ -153,9 +139,13 @@ function createFsWatchInstance(
     }
   };
   try {
-    return fs.watch(path, {
-      persistent: options.persistent
-    }, handleEvent);
+    return fs.watch(
+      path,
+      {
+        persistent: options.persistent,
+      },
+      handleEvent
+    );
   } catch (error) {
     errHandler(error);
   }
@@ -365,7 +355,7 @@ export default class NodeFsHandler {
     parent.add(basename);
     const absolutePath = sysPath.resolve(path);
     const options: Partial<FSWInstanceOptions> = {
-      persistent: opts.persistent
+      persistent: opts.persistent,
     };
     if (!listener) listener = EMPTY_FN;
 
@@ -569,10 +559,7 @@ export default class NodeFsHandler {
         previous
           .getChildren()
           .filter((item) => {
-            return (
-              item !== directory &&
-              !current.has(item)
-            );
+            return item !== directory && !current.has(item);
           })
           .forEach((item) => {
             this.fsw._remove(directory, item);
@@ -637,7 +624,7 @@ export default class NodeFsHandler {
    * @param {String=} target Child path actually targeted for watch
    * @returns {Promise}
    */
-  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper|undefined, depth, target?: string) {
+  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper | undefined, depth, target?: string) {
     const ready = this.fsw._emitReady;
     if (this.fsw._isIgnored(path) || this.fsw.closed) {
       ready();

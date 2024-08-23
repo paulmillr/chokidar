@@ -9,7 +9,7 @@
     "Elan Shanker"
   ],
   "engines": {
-    "node": ">= 18"
+    "node": ">= 14"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -23,6 +23,7 @@
     "chai": "4.3.4",
     "eslint": "^8.57.0",
     "globals": "^15.3.0",
+    "prettier": "3.3.3",
     "rimraf": "5.0.5",
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
