@@ -6,10 +6,6 @@ import {
   isLinux,
   isMacos,
   EMPTY_FN,
-  KEY_LISTENERS,
-  KEY_ERR,
-  KEY_RAW,
-  HANDLER_KEYS,
   STR_DATA,
   STR_END,
 } from './constants.js';
@@ -25,6 +21,11 @@ import {
 const THROTTLE_MODE_WATCH = 'watch';
 
 const statMethods = { lstat, stat };
+
+const KEY_LISTENERS = 'listeners';
+const KEY_ERR = 'errHandlers';
+const KEY_RAW = 'rawEmitters';
+const HANDLER_KEYS = [KEY_LISTENERS, KEY_ERR, KEY_RAW];
 
 // prettier-ignore
 const binaryExtensions = new Set([

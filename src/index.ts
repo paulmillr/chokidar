@@ -8,26 +8,29 @@ import NodeFsHandler from './nodefs-handler.js';
 import { anymatch, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
 import {
   Path,
-  STR_CLOSE,
-  STR_END,
-  BACK_SLASH_RE,
-  DOUBLE_SLASH_RE,
-  DOT_RE,
-  REPLACER_RE,
-  SLASH,
-  SLASH_SLASH,
-  ONE_DOT,
-  TWO_DOTS,
-  STRING_TYPE,
-  EMPTY_FN,
   isWindows,
   isIBMi,
+  EMPTY_FN,
+  STR_CLOSE,
+  STR_END,
 } from './constants.js';
 import * as EV from './events.js';
 import { EventName } from './events.js';
 
 type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
 type EmitArgs = [EventName, Path, any?, any?, any?];
+
+export const SLASH = '/';
+export const SLASH_SLASH = '//';
+export const ONE_DOT = '.';
+export const TWO_DOTS = '..';
+export const STRING_TYPE = 'string';
+
+export const BACK_SLASH_RE = /\\/g;
+export const DOUBLE_SLASH_RE = /\/\//;
+export const SLASH_OR_BACK_SLASH_RE = /[/\\]/;
+export const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
+export const REPLACER_RE = /^\.[/\\]/;
 
 const arrify = (value = []) => (Array.isArray(value) ? value : [value]);
 const flatten = (list, result = []) => {
