@@ -20,7 +20,6 @@ import {
   ONE_DOT,
   TWO_DOTS,
   STRING_TYPE,
-  EMPTY_STR,
   EMPTY_FN,
   isWindows,
   isIBMi,
@@ -76,7 +75,7 @@ const toUnix = (string) => {
 const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
 
 const normalizeIgnored =
-  (cwd = EMPTY_STR) =>
+  (cwd = '') =>
   (path) => {
     if (typeof path !== STRING_TYPE) return path;
     return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
@@ -169,7 +168,7 @@ export class WatchHelper {
   constructor(path: string, follow: boolean, fsw: any) {
     this.fsw = fsw;
     const watchPath = path;
-    this.path = path = path.replace(REPLACER_RE, EMPTY_STR);
+    this.path = path = path.replace(REPLACER_RE, '');
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath.resolve(watchPath);
     /** @type {object|boolean} */

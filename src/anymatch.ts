@@ -1,6 +1,6 @@
 import normalizePath from 'normalize-path';
-import path from 'node:path';
-import type {Stats} from 'node:fs';
+import path from 'path';
+import type {Stats} from 'fs';
 
 export type MatchFunction = (val: string, stats?: Stats) => boolean;
 export interface MatcherObject {

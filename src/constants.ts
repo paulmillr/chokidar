@@ -29,8 +29,8 @@ export const TWO_DOTS = '..';
 export const STAR = '*';
 export const DIR_SUFFIX = 'Dir';
 export const STRING_TYPE = 'string';
-export const FUNCTION_TYPE = 'function';
-export const EMPTY_STR = '';
+// export const FUNCTION_TYPE = 'function';
+// export const EMPTY_STR = '';
 export const EMPTY_FN = () => {};
 export const IDENTITY_FN = (val: any) => val;
 

@@ -1,13 +1,11 @@
 import fs from 'fs';
 import sysPath from 'path';
-import isBinaryPath from 'is-binary-path';
 import {
   Path,
   isWindows,
   isLinux,
   isMacos,
   EMPTY_FN,
-  EMPTY_STR,
   KEY_LISTENERS,
   KEY_ERR,
   KEY_RAW,
@@ -24,11 +22,50 @@ import {
   stat,
   lstat,
   realpath as fsrealpath
-} from 'node:fs/promises';
+} from 'fs/promises';
 
 const THROTTLE_MODE_WATCH = 'watch';
 
 const statMethods = { lstat, stat };
+
+// prettier-ignore
+const binaryExtensions = new Set([
+  '3dm', '3ds', '3g2', '3gp', '7z', 'a', 'aac', 'adp', 'afdesign', 'afphoto', 'afpub', 'ai',
+  'aif', 'aiff', 'alz', 'ape', 'apk', 'appimage', 'ar', 'arj', 'asf', 'au', 'avi',
+  'bak', 'baml', 'bh', 'bin', 'bk', 'bmp', 'btif', 'bz2', 'bzip2',
+  'cab', 'caf', 'cgm', 'class', 'cmx', 'cpio', 'cr2', 'cur', 'dat', 'dcm', 'deb', 'dex', 'djvu',
+  'dll', 'dmg', 'dng', 'doc', 'docm', 'docx', 'dot', 'dotm', 'dra', 'DS_Store', 'dsk', 'dts',
+  'dtshd', 'dvb', 'dwg', 'dxf',
+  'ecelp4800', 'ecelp7470', 'ecelp9600', 'egg', 'eol', 'eot', 'epub', 'exe',
+  'f4v', 'fbs', 'fh', 'fla', 'flac', 'flatpak', 'fli', 'flv', 'fpx', 'fst', 'fvt',
+  'g3', 'gh', 'gif', 'graffle', 'gz', 'gzip',
+  'h261', 'h263', 'h264', 'icns', 'ico', 'ief', 'img', 'ipa', 'iso',
+  'jar', 'jpeg', 'jpg', 'jpgv', 'jpm', 'jxr', 'key', 'ktx',
+  'lha', 'lib', 'lvp', 'lz', 'lzh', 'lzma', 'lzo',
+  'm3u', 'm4a', 'm4v', 'mar', 'mdi', 'mht', 'mid', 'midi', 'mj2', 'mka', 'mkv', 'mmr','mng',
+  'mobi', 'mov', 'movie', 'mp3',
+  'mp4', 'mp4a', 'mpeg', 'mpg', 'mpga', 'mxu',
+  'nef', 'npx', 'numbers', 'nupkg',
+  'o', 'odp', 'ods', 'odt', 'oga', 'ogg', 'ogv', 'otf', 'ott',
+  'pages', 'pbm', 'pcx', 'pdb', 'pdf', 'pea', 'pgm', 'pic', 'png', 'pnm', 'pot', 'potm',
+  'potx', 'ppa', 'ppam',
+  'ppm', 'pps', 'ppsm', 'ppsx', 'ppt', 'pptm', 'pptx', 'psd', 'pya', 'pyc', 'pyo', 'pyv',
+  'qt',
+  'rar', 'ras', 'raw', 'resources', 'rgb', 'rip', 'rlc', 'rmf', 'rmvb', 'rpm', 'rtf', 'rz',
+  's3m', 's7z', 'scpt', 'sgi', 'shar', 'snap', 'sil', 'sketch', 'slk', 'smv', 'snk', 'so',
+  'stl', 'suo', 'sub', 'swf',
+  'tar', 'tbz', 'tbz2', 'tga', 'tgz', 'thmx', 'tif', 'tiff', 'tlz', 'ttc', 'ttf', 'txz',
+  'udf', 'uvh', 'uvi', 'uvm', 'uvp', 'uvs', 'uvu',
+  'viv', 'vob',
+  'war', 'wav', 'wax', 'wbmp', 'wdp', 'weba', 'webm', 'webp', 'whl', 'wim', 'wm', 'wma',
+  'wmv', 'wmx', 'woff', 'woff2', 'wrm', 'wvx',
+  'xbm', 'xif', 'xla', 'xlam', 'xls', 'xlsb', 'xlsm', 'xlsx', 'xlt', 'xltm', 'xltx', 'xm',
+  'xmind', 'xpi', 'xpm', 'xwd', 'xz',
+  'z', 'zip', 'zipx',
+]);
+const isBinaryPath = (filePath) =>
+  binaryExtensions.has(sysPath.extname(filePath).slice(1).toLowerCase());
+
 
 // TODO: emit errors properly. Example: EMFILE on Macos.
 const foreach = (val, fn) => {
@@ -372,12 +409,10 @@ export default class NodeFsHandler {
     if (parent.has(basename)) return;
 
     const listener = async (path, newStats) => {
-      console.log({path, newStats});
       if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5)) return;
       if (!newStats || newStats.mtimeMs === 0) {
         try {
           const newStats = await stat(file);
-          console.log({newStats, prevStats});
           if (this.fsw.closed) return;
           // Check that change event was not fired because of changed only accessTime.
           const at = newStats.atimeMs;
@@ -393,7 +428,6 @@ export default class NodeFsHandler {
             prevStats = newStats;
           }
         } catch (error) {
-          console.log({error});
           // Fix issues where mtime is null but file is still present
           this.fsw._remove(dirname, basename);
         }
@@ -472,7 +506,7 @@ export default class NodeFsHandler {
 
   _handleRead(directory, initialAdd, wh: WatchHelper, target, dir, depth, throttler) {
     // Normalize the directory name on Windows
-    directory = sysPath.join(directory, EMPTY_STR);
+    directory = sysPath.join(directory, '');
 
     throttler = this.fsw._throttle('readdir', directory, 1000);
     if (!throttler) return;

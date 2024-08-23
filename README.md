@@ -1,8 +1,6 @@
-# Chokidar [![Weekly downloads](https://img.shields.io/npm/dw/chokidar.svg)](https://github.com/paulmillr/chokidar) [![Yearly downloads](https://img.shields.io/npm/dy/chokidar.svg)](https://github.com/paulmillr/chokidar)
+# Chokidar [![Weekly downloads](https://img.shields.io/npm/dw/chokidar.svg)](https://github.com/paulmillr/chokidar)
 
 > Minimal and efficient cross-platform file watching library
-
-[![NPM](https://nodei.co/npm/chokidar.png)](https://www.npmjs.com/package/chokidar)
 
 ## Why?
 
@@ -23,18 +21,9 @@ Node.js `fs.watchFile`:
 
 Chokidar resolves these problems.
 
-Initially made for **[Brunch](https://brunch.io/)** (an ultra-swift web app build tool), it is now used in
-[Microsoft's Visual Studio Code](https://github.com/microsoft/vscode),
-[gulp](https://github.com/gulpjs/gulp/),
-[karma](https://karma-runner.github.io/),
-[PM2](https://github.com/Unitech/PM2),
-[browserify](http://browserify.org/),
-[webpack](https://webpack.github.io/),
-[BrowserSync](https://www.browsersync.io/),
-and [many others](https://www.npmjs.com/browse/depended/chokidar).
-It has proven itself in production environments.
-
-Version 3 is out! Check out our blog post about it: [Chokidar 3: How to save 32TB of traffic every week](https://paulmillr.com/posts/chokidar-3-save-32tb-of-traffic/)
+Made for **[Brunch](https://brunch.io/)** in 2012,
+it is now used in [~30 million repositories](https://www.npmjs.com/browse/depended/chokidar) and
+has proven itself in production environments.
 
 ## How?
 
