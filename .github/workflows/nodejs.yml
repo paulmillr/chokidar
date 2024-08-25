@@ -26,5 +26,7 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm install
-      - name: Run mocha tests
+      - run: npm run build
+      - run: npm run lint
+      - name: Run tests
         run: npm run test

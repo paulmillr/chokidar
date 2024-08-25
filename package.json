@@ -18,17 +18,13 @@
     "readdirp": "github:paulmillr/readdirp"
   },
   "devDependencies": {
-    "@eslint/js": "^9.3.0",
     "@types/node": "20.12.12",
     "chai": "4.3.4",
-    "eslint": "^8.57.0",
-    "globals": "^15.3.0",
-    "prettier": "3.3.3",
+    "prettier": "3.1.1",
     "rimraf": "5.0.5",
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
-    "typescript": "5.4.2",
-    "typescript-eslint": "^7.10.0",
+    "typescript": "5.5.2",
     "upath": "2.0.1"
   },
   "files": [
@@ -45,8 +41,8 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint .",
-    "test": "npm run build && npm run lint && node --test"
+    "lint": "prettier --check src",
+    "test": "node --test"
   },
   "keywords": [
     "fs",
