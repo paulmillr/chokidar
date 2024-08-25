@@ -1,9 +1,6 @@
 name: Node CI
 
 on:
-  push:
-    branches-ignore:
-      - "dependabot/**"
   pull_request:
   workflow_dispatch:
 
@@ -27,6 +24,5 @@ jobs:
           node-version: ${{ matrix.node }}
       - run: npm install
       - run: npm run build
-      - run: npm run lint
       - name: Run tests
         run: npm run test

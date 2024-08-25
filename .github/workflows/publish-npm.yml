@@ -9,8 +9,8 @@ jobs:
      contents: read
      id-token: write
    steps:
-     - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3
-     - uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c # v3
+     - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4
+     - uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65 # v4
        with:
          node-version: 20
          registry-url: 'https://registry.npmjs.org'

@@ -1,9 +1,6 @@
 name: Lint
 
 on:
-  push:
-    branches-ignore:
-      - "dependabot/**"
   pull_request:
   workflow_dispatch:
 
@@ -11,20 +8,19 @@ env:
   FORCE_COLOR: 2
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-
+  test:
+    name: v${{ matrix.version }} @ ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        version: [22]
+        os: [ubuntu-latest]
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4
+      - name: Use Node.js ${{ matrix.node }}
+        uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65 # v4
         with:
-          node-version: "16"
-
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: Run lint
-        run: npm run lint
+          node-version: ${{ matrix.node }}
+      - run: npm install
+      - run: npm run build
+      - run: npm run lint
