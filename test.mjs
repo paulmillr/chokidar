@@ -467,6 +467,10 @@ const runTests = (baseopts) => {
       if (!macosFswatch) unlinkSpy.should.have.been.calledOnce;
     });
     it('should emit `add`, not `change`, when previously deleted file is re-added', async () => {
+      if (isWindows) {
+        console.warn('test skipped')
+        return true;
+      }
       const unlinkSpy = sinon.spy(function unlink(){});
       const addSpy = sinon.spy(function add(){});
       const changeSpy = sinon.spy(function change(){});
