@@ -1,4 +1,4 @@
-import { relative as prelative, isAbsolute } from 'path';
+import { relative as pathRelative, isAbsolute } from 'path';
 import type { Stats } from 'fs';
 import normalizePath from 'normalize-path';
 
@@ -16,11 +16,7 @@ export function arrify<T>(item: T | T[]): T[] {
 export const isMatcherObject = (matcher: Matcher): matcher is MatcherObject =>
   typeof matcher === 'object' && matcher !== null && !(matcher instanceof RegExp);
 
-/**
- * @param {AnymatchPattern} matcher
- * @returns {MatchFunction}
- */
-const createPattern = (matcher: Matcher): MatchFunction => {
+function createPattern(matcher: Matcher): MatchFunction {
   if (typeof matcher === 'function') {
     return matcher;
   }
@@ -36,7 +32,7 @@ const createPattern = (matcher: Matcher): MatchFunction => {
         return true;
       }
       if (matcher.recursive) {
-        const relative = prelative(matcher.path, string);
+        const relative = pathRelative(matcher.path, string);
         if (!relative) {
           return false;
         }
@@ -46,14 +42,8 @@ const createPattern = (matcher: Matcher): MatchFunction => {
     };
   }
   return () => false;
-};
+}
 
-/**
- * @param {Array<Function>} patterns
- * @param {String|Array} args
- * @param {Boolean} returnIndex
- * @returns {boolean|number}
- */
 function matchPatterns(patterns: MatchFunction[], testString: string, stats?: Stats): boolean {
   const path = normalizePath(testString);
 
@@ -67,12 +57,6 @@ function matchPatterns(patterns: MatchFunction[], testString: string, stats?: St
   return false;
 }
 
-/**
- * @param {AnymatchMatcher} matchers
- * @param {Array|string} testString
- * @param {object} options
- * @returns {boolean|number|Function}
- */
 function anymatch(matchers: Matcher[], testString: undefined): MatchFunction;
 function anymatch(matchers: Matcher[], testString: string): boolean;
 function anymatch(matchers: Matcher[], testString: string | undefined): boolean | MatchFunction {
