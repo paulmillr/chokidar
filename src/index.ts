@@ -1,14 +1,21 @@
-import fs from 'node:fs';
-import { EventEmitter } from 'node:events';
-import sysPath from 'node:path';
+import fs from 'fs';
+import { stat, readdir } from 'fs/promises';
+import { EventEmitter } from 'events';
+import sysPath from 'path';
 import readdirp from 'readdirp';
-import { stat, readdir } from 'node:fs/promises';
 
 import NodeFsHandler from './nodefs-handler.js';
-import { anymatch, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
-import { Path, isWindows, isIBMi, EMPTY_FN, STR_CLOSE, STR_END } from './constants.js';
-import * as EV from './events.js';
-import { EventName } from './events.js';
+import {
+  EventName,
+  Path,
+  EVENTS as EV,
+  isWindows,
+  isIBMi,
+  EMPTY_FN,
+  STR_CLOSE,
+  STR_END,
+} from './nodefs-handler.js';
+import { anymatch, arrify, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
 
 type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
 type EmitArgs = [EventName, Path, any?, any?, any?];
@@ -25,7 +32,6 @@ export const SLASH_OR_BACK_SLASH_RE = /[/\\]/;
 export const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
 export const REPLACER_RE = /^\.[/\\]/;
 
-const arrify = (value = []) => (Array.isArray(value) ? value : [value]);
 const flatten = (list, result = []) => {
   list.forEach((item) => {
     if (Array.isArray(item)) {

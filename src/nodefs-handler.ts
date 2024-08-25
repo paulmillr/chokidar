@@ -1,10 +1,37 @@
 import fs from 'fs';
-import sysPath from 'path';
-import { Path, isWindows, isLinux, isMacos, EMPTY_FN, STR_DATA, STR_END } from './constants.js';
-import * as EV from './events.js';
-import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
 import { open, stat, lstat, realpath as fsrealpath } from 'fs/promises';
+import sysPath from 'path';
+import { type as osType } from 'os';
+import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
 
+export type Path = string;
+
+export const STR_DATA = 'data';
+export const STR_END = 'end';
+export const STR_CLOSE = 'close';
+export const EMPTY_FN = () => {};
+export const IDENTITY_FN = (val: any) => val;
+
+const pl = process.platform;
+export const isWindows = pl === 'win32';
+export const isMacos = pl === 'darwin';
+export const isLinux = pl === 'linux';
+export const isIBMi = osType() === 'OS400';
+
+export const EVENTS = {
+  ALL: 'all',
+  READY: 'ready',
+  ADD: 'add',
+  CHANGE: 'change',
+  ADD_DIR: 'addDir',
+  UNLINK: 'unlink',
+  UNLINK_DIR: 'unlinkDir',
+  RAW: 'raw',
+  ERROR: 'error',
+} as const;
+export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
+
+const EV = EVENTS;
 const THROTTLE_MODE_WATCH = 'watch';
 
 const statMethods = { lstat, stat };
@@ -209,7 +236,7 @@ const setFsWatchListener = (
       fsWatchBroadcast.bind(null, fullPath, KEY_RAW)
     );
     if (!watcher) return;
-    watcher.on(EV.ERROR, async (error) => {
+    watcher.on(EV.ERROR, async (error: Error & { code: string }) => {
       const broadcastErr = fsWatchBroadcast.bind(null, fullPath, KEY_ERR);
       cont.watcherUnusable = true; // documented since Node 10.4.1
       // Workaround for https://github.com/joyent/node/issues/4337
@@ -347,7 +374,7 @@ export default class NodeFsHandler {
    * @param {Function} listener on fs change
    * @returns {Function} closer for the watcher instance
    */
-  _watchWithNodeFs(path, listener) {
+  _watchWithNodeFs(path: string, listener: (path: string, newStats?: any) => void | Promise<void>) {
     const opts = this.fsw.options;
     const directory = sysPath.dirname(path);
     const basename = sysPath.basename(path);

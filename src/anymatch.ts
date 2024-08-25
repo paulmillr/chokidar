@@ -1,6 +1,6 @@
-import normalizePath from 'normalize-path';
-import path from 'path';
+import { relative as prelative, isAbsolute } from 'path';
 import type { Stats } from 'fs';
+import normalizePath from 'normalize-path';
 
 export type MatchFunction = (val: string, stats?: Stats) => boolean;
 export interface MatcherObject {
@@ -9,7 +9,7 @@ export interface MatcherObject {
 }
 export type Matcher = string | RegExp | MatchFunction | MatcherObject;
 
-function arrify<T>(item: T | T[]): T[] {
+export function arrify<T>(item: T | T[]): T[] {
   return Array.isArray(item) ? item : [item];
 }
 
@@ -36,11 +36,11 @@ const createPattern = (matcher: Matcher): MatchFunction => {
         return true;
       }
       if (matcher.recursive) {
-        const relative = path.relative(matcher.path, string);
+        const relative = prelative(matcher.path, string);
         if (!relative) {
           return false;
         }
-        return !relative.startsWith('..') && !path.isAbsolute(relative);
+        return !relative.startsWith('..') && !isAbsolute(relative);
       }
       return false;
     };

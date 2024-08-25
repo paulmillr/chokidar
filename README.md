@@ -4,10 +4,10 @@
 
 ## Why?
 
-Node.js `fs.watch`:
+As per 2024, Node.js `fs.watch`:
 
 * Doesn't report filenames on MacOS.
-* Doesn't report events at all when using editors like Sublime on MacOS.
+* Doesn't report events at all when using some text editors on MacOS.
 * Often reports events twice.
 * Emits most changes as `rename`.
 * Does not provide an easy way to recursively watch file trees.
