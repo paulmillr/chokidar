@@ -11,8 +11,7 @@ import sinonChai from 'sinon-chai';
 import upath from 'upath';
 
 import chokidar from './lib/index.js';
-import * as EV from './lib/events.js';
-import { isWindows, isMacos, isIBMi } from './lib/constants.js';
+import { EVENTS as EV, isWindows, isMacos, isIBMi } from './lib/nodefs-handler.js';
 
 import { URL } from 'url'; // in Browser, the URL in native accessible on window
 
