@@ -1,12 +1,8 @@
 name: Node CI
 
 on:
-  pull_request:
-  workflow_dispatch:
-
-env:
-  FORCE_COLOR: 2
-
+  - push
+  - pull_request
 jobs:
   test:
     name: v${{ matrix.version }} @ ${{ matrix.os }}
