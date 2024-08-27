@@ -60,8 +60,9 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc -p tsconfig.esm.json",
     "lint": "prettier --check src",
+    "format": "prettier --write src",
     "test": "node --test"
   },
   "keywords": [
