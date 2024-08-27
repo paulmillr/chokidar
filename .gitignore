@@ -4,4 +4,8 @@
 /node_modules/
 /test-fixtures/
 /package-lock.json
-/lib
+/*.d.ts
+/*.map
+/index.js
+/handler.js
+/esm

@@ -10,8 +10,8 @@ import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import upath from 'upath';
 
-import chokidar from './lib/index.js';
-import { EVENTS as EV, isWindows, isMacos, isIBMi } from './lib/nodefs-handler.js';
+import chokidar from './esm/index.js';
+import { EVENTS as EV, isWindows, isMacos, isIBMi } from './esm/handler.js';
 
 import { URL } from 'url'; // in Browser, the URL in native accessible on window
 
@@ -2056,7 +2056,7 @@ const runTests = (baseopts) => {
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = getFixturePath('script.js');
-      const chokidarPath = pathToFileURL(sysPath.join(__dirname, 'lib/index.js'))
+      const chokidarPath = pathToFileURL(sysPath.join(__dirname, 'esm/index.js'))
         .href
         .replace(/\\/g, '\\\\');
       const scriptContent = `

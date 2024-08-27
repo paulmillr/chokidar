@@ -9,16 +9,40 @@
     "Elan Shanker"
   ],
   "engines": {
-    "node": ">= 14"
+    "node": ">= 14.16.0"
   },
-  "type": "module",
-  "main": "lib/index.js",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "index.d.ts.map",
+    "index.js.map",
+    "handler.js",
+    "handler.d.ts",
+    "handler.d.ts.map",
+    "handler.js.map",
+    "esm"
+  ],
+  "main": "./index.js",
+  "module": "./esm/index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./esm/index.js",
+      "require": "./index.js"
+    },
+    "./handler.js": {
+      "import": "./esm/handler.js",
+      "require": "./handler.js"
+    }
+  },
+  "sideEffects": false,
   "dependencies": {
     "normalize-path": "3.0.0",
-    "readdirp": "github:paulmillr/readdirp"
+    "readdirp": "^4.0.1"
   },
   "devDependencies": {
-    "@types/node": "20.12.12",
+    "@paulmillr/jsbt": "0.2.1",
+    "@types/node": "20.14.8",
     "chai": "4.3.4",
     "prettier": "3.1.1",
     "rimraf": "5.0.5",
@@ -27,10 +51,6 @@
     "typescript": "5.5.2",
     "upath": "2.0.1"
   },
-  "files": [
-    "lib/*.js",
-    "lib/*.d.ts"
-  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/paulmillr/chokidar.git"

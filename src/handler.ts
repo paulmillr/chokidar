@@ -1,6 +1,6 @@
-import fs from 'fs';
+import * as fs from 'fs';
 import { open, stat, lstat, realpath as fsrealpath } from 'fs/promises';
-import sysPath from 'path';
+import * as sysPath from 'path';
 import { type as osType } from 'os';
 import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
 

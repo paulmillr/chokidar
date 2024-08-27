@@ -1,10 +1,13 @@
-import fs from 'fs';
+import * as fs from 'fs';
 import { stat, readdir } from 'fs/promises';
+import type { Stats } from 'fs';
 import { EventEmitter } from 'events';
-import sysPath from 'path';
-import readdirp from 'readdirp';
+import * as sysPath from 'path';
+import { readdirp } from 'readdirp';
+// @ts-ignore
+import normalizePath from 'normalize-path';
 
-import NodeFsHandler from './nodefs-handler.js';
+import NodeFsHandler from './handler.js';
 import {
   EventName,
   Path,
@@ -14,11 +17,10 @@ import {
   EMPTY_FN,
   STR_CLOSE,
   STR_END,
-} from './nodefs-handler.js';
-import { anymatch, arrify, MatchFunction, isMatcherObject, Matcher } from './anymatch.js';
+} from './handler.js';
 
-type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
-type EmitArgs = [EventName, Path, any?, any?, any?];
+export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
+export type EmitArgs = [EventName, Path, any?, any?, any?];
 
 export const SLASH = '/';
 export const SLASH_SLASH = '//';
@@ -31,6 +33,73 @@ export const DOUBLE_SLASH_RE = /\/\//;
 export const SLASH_OR_BACK_SLASH_RE = /[/\\]/;
 export const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
 export const REPLACER_RE = /^\.[/\\]/;
+
+export type MatchFunction = (val: string, stats?: Stats) => boolean;
+export interface MatcherObject {
+  path: string;
+  recursive?: boolean;
+}
+export type Matcher = string | RegExp | MatchFunction | MatcherObject;
+
+function arrify<T>(item: T | T[]): T[] {
+  return Array.isArray(item) ? item : [item];
+}
+
+const isMatcherObject = (matcher: Matcher): matcher is MatcherObject =>
+  typeof matcher === 'object' && matcher !== null && !(matcher instanceof RegExp);
+
+function createPattern(matcher: Matcher): MatchFunction {
+  if (typeof matcher === 'function') return matcher;
+  if (typeof matcher === 'string') return (string) => matcher === string;
+  if (matcher instanceof RegExp) return (string) => matcher.test(string);
+  if (typeof matcher === 'object' && matcher !== null) {
+    return (string) => {
+      if (matcher.path === string) return true;
+      if (matcher.recursive) {
+        const relative = sysPath.relative(matcher.path, string);
+        if (!relative) {
+          return false;
+        }
+        return !relative.startsWith('..') && !sysPath.isAbsolute(relative);
+      }
+      return false;
+    };
+  }
+  return () => false;
+}
+
+function matchPatterns(patterns: MatchFunction[], testString: string, stats?: Stats): boolean {
+  const path = normalizePath(testString);
+
+  for (let index = 0; index < patterns.length; index++) {
+    const pattern = patterns[index];
+    if (pattern(path, stats)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function anymatch(matchers: Matcher[], testString: undefined): MatchFunction;
+function anymatch(matchers: Matcher[], testString: string): boolean;
+function anymatch(matchers: Matcher[], testString: string | undefined): boolean | MatchFunction {
+  if (matchers == null) {
+    throw new TypeError('anymatch: specify first argument');
+  }
+
+  // Early cache for matchers.
+  const matchersArray = arrify(matchers);
+  const patterns = matchersArray.map((matcher) => createPattern(matcher));
+
+  if (testString == null) {
+    return (testString: string, stats?: Stats): boolean => {
+      return matchPatterns(patterns, testString, stats);
+    };
+  }
+
+  return matchPatterns(patterns, testString);
+}
 
 const flatten = (list, result = []) => {
   list.forEach((item) => {
