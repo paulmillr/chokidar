@@ -3,7 +3,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "outDir": ".",
-    "strict": false,
+    "strict": true,
     "noImplicitReturns": false
   },
   "include": [

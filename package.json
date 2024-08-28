@@ -1,13 +1,9 @@
 {
   "name": "chokidar",
   "description": "Minimal and efficient cross-platform file watching library",
-  "version": "4.0.0-alpha",
+  "version": "4.0.0-beta",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
-  "contributors": [
-    "Paul Miller (https://paulmillr.com)",
-    "Elan Shanker"
-  ],
   "engines": {
     "node": ">= 14.16.0"
   },
@@ -37,7 +33,6 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "normalize-path": "3.0.0",
     "readdirp": "^4.0.1"
   },
   "devDependencies": {

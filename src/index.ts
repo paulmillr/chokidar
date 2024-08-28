@@ -1,14 +1,10 @@
-import * as fs from 'fs';
+import { stat as statcb, Stats } from 'fs';
 import { stat, readdir } from 'fs/promises';
-import type { Stats } from 'fs';
 import { EventEmitter } from 'events';
 import * as sysPath from 'path';
-import { readdirp } from 'readdirp';
-// @ts-ignore
-import normalizePath from 'normalize-path';
-
-import NodeFsHandler from './handler.js';
+import { readdirp, ReaddirpStream, ReaddirpOptions, EntryInfo } from 'readdirp';
 import {
+  NodeFsHandler,
   EventName,
   Path,
   EVENTS as EV,
@@ -19,27 +15,60 @@ import {
   STR_END,
 } from './handler.js';
 
+type AWF = {
+  stabilityThreshold: number;
+  pollInterval: number;
+};
+
+type BasicOpts = {
+  persistent: boolean;
+  ignoreInitial: boolean;
+  followSymlinks: boolean;
+  cwd?: string;
+  // Polling
+  usePolling: boolean;
+  interval: number;
+  binaryInterval: number; // Used only for pooling and if different from interval
+
+  alwaysStat?: boolean;
+  depth?: number;
+  ignorePermissionErrors: boolean;
+  atomic: boolean | number; // or a custom 'atomicity delay', in milliseconds (default 100)
+  // useAsync?: boolean; // Use async for stat/readlink methods
+
+  // ioLimit?: number; // Limit parallel IO operations (CPU usage + OS limits)
+};
+
+export type ChokidarOptions = Partial<
+  BasicOpts & {
+    ignored: string | ((path: string) => boolean); // And what about regexps?
+    awaitWriteFinish: boolean | Partial<AWF>;
+  }
+>;
+
+export type FSWInstanceOptions = BasicOpts & {
+  ignored: Matcher[]; // string | fn ->
+  awaitWriteFinish: false | AWF;
+};
+
 export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
 export type EmitArgs = [EventName, Path, any?, any?, any?];
-
-export const SLASH = '/';
-export const SLASH_SLASH = '//';
-export const ONE_DOT = '.';
-export const TWO_DOTS = '..';
-export const STRING_TYPE = 'string';
-
-export const BACK_SLASH_RE = /\\/g;
-export const DOUBLE_SLASH_RE = /\/\//;
-export const SLASH_OR_BACK_SLASH_RE = /[/\\]/;
-export const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
-export const REPLACER_RE = /^\.[/\\]/;
-
 export type MatchFunction = (val: string, stats?: Stats) => boolean;
 export interface MatcherObject {
   path: string;
   recursive?: boolean;
 }
 export type Matcher = string | RegExp | MatchFunction | MatcherObject;
+
+const SLASH = '/';
+const SLASH_SLASH = '//';
+const ONE_DOT = '.';
+const TWO_DOTS = '..';
+const STRING_TYPE = 'string';
+const BACK_SLASH_RE = /\\/g;
+const DOUBLE_SLASH_RE = /\/\//;
+const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
+const REPLACER_RE = /^\.[/\\]/;
 
 function arrify<T>(item: T | T[]): T[] {
   return Array.isArray(item) ? item : [item];
@@ -66,6 +95,18 @@ function createPattern(matcher: Matcher): MatchFunction {
     };
   }
   return () => false;
+}
+
+function normalizePath(path: Path): Path {
+  if (typeof path !== 'string') throw new Error('string expected');
+  path = sysPath.normalize(path);
+  path = path.replace(/\\/g, '/');
+  let prepend = false;
+  if (path.startsWith('//')) prepend = true;
+  const DOUBLE_SLASH_RE = /\/\//;
+  while (path.match(DOUBLE_SLASH_RE)) path = path.replace(DOUBLE_SLASH_RE, '/');
+  if (prepend) path = '/' + path;
+  return path;
 }
 
 function matchPatterns(patterns: MatchFunction[], testString: string, stats?: Stats): boolean {
@@ -101,21 +142,19 @@ function anymatch(matchers: Matcher[], testString: string | undefined): boolean 
   return matchPatterns(patterns, testString);
 }
 
-const flatten = (list, result = []) => {
+const flatten = (list: any[], result = []) => {
   list.forEach((item) => {
     if (Array.isArray(item)) {
       flatten(item, result);
     } else {
+      // @ts-ignore
       result.push(item);
     }
   });
   return result;
 };
 
-const unifyPaths = (paths_) => {
-  /**
-   * @type {Array<String>}
-   */
+const unifyPaths = (paths_: Path | Path[]) => {
   const paths = flatten(arrify(paths_));
   if (!paths.every((p) => typeof p === STRING_TYPE)) {
     throw new TypeError(`Non-string provided as watch path: ${paths}`);
@@ -125,7 +164,7 @@ const unifyPaths = (paths_) => {
 
 // If SLASH_SLASH occurs at the beginning of path, it is not replaced
 //     because "//StoragePC/DrivePool/Movies" is a valid network path
-const toUnix = (string) => {
+const toUnix = (string: string) => {
   let str = string.replace(BACK_SLASH_RE, SLASH);
   let prepend = false;
   if (str.startsWith(SLASH_SLASH)) {
@@ -142,24 +181,27 @@ const toUnix = (string) => {
 
 // Our version of upath.normalize
 // TODO: this is not equal to path-normalize module - investigate why
-const normalizePathToUnix = (path) => toUnix(sysPath.normalize(toUnix(path)));
+const normalizePathToUnix = (path: Path) => toUnix(sysPath.normalize(toUnix(path)));
 
+// TODO: refactor
 const normalizeIgnored =
   (cwd = '') =>
-  (path) => {
-    if (typeof path !== STRING_TYPE) return path;
-    return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+  (path: any): any => {
+    if (typeof path === 'string') {
+      return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+    } else {
+      return path;
+    }
   };
 
-const getAbsolutePath = (path, cwd) => {
+const getAbsolutePath = (path: Path, cwd: Path) => {
   if (sysPath.isAbsolute(path)) {
     return path;
   }
   return sysPath.join(cwd, path);
 };
 
-const undef = (opts, key) => opts[key] === undefined;
-
+const EMPTY_SET = Object.freeze(new Set<string>());
 /**
  * Directory entry.
  */
@@ -175,13 +217,13 @@ class DirEntry {
     this.items = new Set();
   }
 
-  add(item) {
+  add(item: string) {
     const { items } = this;
     if (!items) return;
     if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
   }
 
-  async remove(item) {
+  async remove(item: string) {
     const { items } = this;
     if (!items) return;
     items.delete(item);
@@ -197,26 +239,23 @@ class DirEntry {
     }
   }
 
-  has(item) {
+  has(item: string) {
     const { items } = this;
     if (!items) return;
     return items.has(item);
   }
 
-  /**
-   * @returns {Array<String>}
-   */
-  getChildren() {
+  getChildren(): string[] {
     const { items } = this;
-    if (!items) return;
+    if (!items) return [];
     return [...items.values()];
   }
 
   dispose() {
     this.items.clear();
-    delete this.path;
-    delete this._removeWatcher;
-    delete this.items;
+    this.path = '';
+    this._removeWatcher = EMPTY_FN;
+    this.items = EMPTY_SET;
     Object.freeze(this);
   }
 }
@@ -224,7 +263,7 @@ class DirEntry {
 const STAT_METHOD_F = 'stat';
 const STAT_METHOD_L = 'lstat';
 export class WatchHelper {
-  fsw: any;
+  fsw: FSWatcher;
   path: string;
   watchPath: string;
   fullWatchPath: string;
@@ -247,70 +286,21 @@ export class WatchHelper {
     this.statMethod = follow ? STAT_METHOD_F : STAT_METHOD_L;
   }
 
-  entryPath(entry) {
+  entryPath(entry: EntryInfo): Path {
     return sysPath.join(this.watchPath, sysPath.relative(this.watchPath, entry.fullPath));
   }
 
-  filterPath(entry) {
+  filterPath(entry: EntryInfo): boolean {
     const { stats } = entry;
     if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
     const resolvedPath = this.entryPath(entry);
-    return this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats);
+    // TODO: what if stats is undefined? remove !
+    return this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats!);
   }
 
-  filterDir(entry) {
+  filterDir(entry: EntryInfo): boolean {
     return this.fsw._isntIgnored(this.entryPath(entry), entry.stats);
   }
-}
-
-export type ChokidarOptions = Partial<{
-  persistent: boolean;
-
-  ignored: string | ((path: string) => boolean);
-  ignoreInitial: boolean;
-  followSymlinks: boolean;
-  cwd: string;
-
-  usePolling: boolean;
-  interval: number;
-  binaryInterval: number;
-  enableBinaryInterval: boolean;
-  alwaysStat: boolean;
-  depth: number;
-  awaitWriteFinish:
-    | boolean
-    | Partial<{
-        stabilityThreshold: number;
-        pollInterval: number;
-      }>;
-
-  ignorePermissionErrors: boolean;
-  atomic: boolean | number; // or a custom 'atomicity delay', in milliseconds (default 100)
-}>;
-
-export interface FSWInstanceOptions {
-  persistent: boolean;
-
-  ignored: Matcher[];
-  ignoreInitial: boolean;
-  followSymlinks: boolean;
-  cwd: string;
-
-  usePolling: boolean;
-  interval: number;
-  binaryInterval: number;
-  enableBinaryInterval: boolean;
-  alwaysStat: boolean;
-  depth: number;
-  awaitWriteFinish:
-    | false
-    | {
-        stabilityThreshold: number;
-        pollInterval: number;
-      };
-
-  ignorePermissionErrors: boolean;
-  atomic: boolean | number; // or a custom 'atomicity delay', in milliseconds (default 100)
 }
 
 /**
@@ -322,95 +312,82 @@ export interface FSWInstanceOptions {
  *       .on('add', path => log('File', path, 'was added'))
  */
 export class FSWatcher extends EventEmitter {
+  closed: boolean;
   options: FSWInstanceOptions;
-  _watched: Map<string, DirEntry>;
+
   _closers: Map<string, Array<any>>;
   _ignoredPaths: Set<Matcher>;
   _throttled: Map<ThrottleType, Map<any, any>>;
-  _symlinkPaths: Map<Path, string | boolean>;
   _streams: Set<any>;
-  closed: boolean;
+  _symlinkPaths: Map<Path, string | boolean>;
+  _watched: Map<string, DirEntry>;
 
   _pendingWrites: Map<any, any>;
   _pendingUnlinks: Map<any, any>;
   _readyCount: number;
   _emitReady: () => void;
-  _closePromise: Promise<void>;
+  _closePromise?: Promise<void>;
   _userIgnored?: MatchFunction;
   _readyEmitted: boolean;
   _emitRaw: () => void;
-  _boundRemove: () => void;
+  _boundRemove: (dir: string, item: string) => void;
 
-  _nodeFsHandler?: NodeFsHandler;
+  _nodeFsHandler: NodeFsHandler;
 
   // Not indenting methods for history sake; for now.
-  constructor(_opts) {
+  constructor(_opts: ChokidarOptions = {}) {
     super();
+    this.closed = false;
 
-    const opts: Partial<FSWInstanceOptions> = {};
-    if (_opts) Object.assign(opts, _opts); // for frozen objects
-    this._watched = new Map();
     this._closers = new Map();
     this._ignoredPaths = new Set<Matcher>();
     this._throttled = new Map();
-    this._symlinkPaths = new Map();
     this._streams = new Set();
-    this.closed = false;
+    this._symlinkPaths = new Map();
+    this._watched = new Map();
 
-    // Set up default options.
-    if (undef(opts, 'persistent')) opts.persistent = true;
-    if (undef(opts, 'ignoreInitial')) opts.ignoreInitial = false;
-    if (undef(opts, 'ignorePermissionErrors')) opts.ignorePermissionErrors = false;
-    if (undef(opts, 'interval')) opts.interval = 100;
-    if (undef(opts, 'binaryInterval')) opts.binaryInterval = 300;
-    opts.enableBinaryInterval = opts.binaryInterval !== opts.interval;
+    this._pendingWrites = new Map();
+    this._pendingUnlinks = new Map();
+    this._readyCount = 0;
+    this._readyEmitted = false;
+
+    const awf = _opts.awaitWriteFinish;
+    const DEF_AWF = { stabilityThreshold: 2000, pollInterval: 100 };
+    const opts: FSWInstanceOptions = {
+      // Defaults
+      persistent: true,
+      ignoreInitial: false,
+      ignorePermissionErrors: false,
+      interval: 100,
+      binaryInterval: 300,
+      followSymlinks: true,
+      usePolling: false,
+      // useAsync: false,
+      atomic: true, // NOTE: overwritten later (depends on usePolling)
+      ..._opts,
+      // Change format
+      ignored: _opts.ignored ? arrify(_opts.ignored) : arrify([]),
+      awaitWriteFinish:
+        awf === true ? DEF_AWF : typeof awf === 'object' ? { ...DEF_AWF, ...awf } : false,
+    };
 
     // Always default to polling on IBM i because fs.watch() is not available on IBM i.
-    if (isIBMi) {
-      opts.usePolling = true;
-    }
-
-    // Global override (useful for end-developers that need to force polling for all
-    // instances of chokidar, regardless of usage/dependency depth)
+    if (isIBMi) opts.usePolling = true;
+    // Editor atomic write normalization enabled by default with fs.watch
+    if (opts.atomic === undefined) opts.atomic = !opts.usePolling;
+    // opts.atomic = typeof _opts.atomic === 'number' ? _opts.atomic : 100;
+    // Global override. Useful for developers, who need to force polling for all
+    // instances of chokidar, regardless of usage / dependency depth
     const envPoll = process.env.CHOKIDAR_USEPOLLING;
     if (envPoll !== undefined) {
       const envLower = envPoll.toLowerCase();
-
-      if (envLower === 'false' || envLower === '0') {
-        opts.usePolling = false;
-      } else if (envLower === 'true' || envLower === '1') {
-        opts.usePolling = true;
-      } else {
-        opts.usePolling = !!envLower;
-      }
+      if (envLower === 'false' || envLower === '0') opts.usePolling = false;
+      else if (envLower === 'true' || envLower === '1') opts.usePolling = true;
+      else opts.usePolling = !!envLower;
     }
     const envInterval = process.env.CHOKIDAR_INTERVAL;
-    if (envInterval) {
-      opts.interval = Number.parseInt(envInterval, 10);
-    }
-
-    // Editor atomic write normalization enabled by default with fs.watch
-    if (undef(opts, 'atomic')) opts.atomic = !opts.usePolling;
-    if (opts.atomic) this._pendingUnlinks = new Map();
-
-    if (undef(opts, 'followSymlinks')) opts.followSymlinks = true;
-
-    if (undef(opts, 'awaitWriteFinish')) opts.awaitWriteFinish = false;
-    if ((opts.awaitWriteFinish as any) === true || typeof opts.awaitWriteFinish === 'object') {
-      // opts.awaitWriteFinish = {};
-      const awf = opts.awaitWriteFinish;
-      if (awf) {
-        this._pendingWrites = new Map();
-        const st = typeof awf === 'object' && awf.stabilityThreshold;
-        const pi = typeof awf === 'object' && awf.pollInterval;
-        opts.awaitWriteFinish = {
-          stabilityThreshold: st || 2000,
-          pollInterval: pi || 100,
-        };
-      }
-    }
-    if (opts.ignored) opts.ignored = arrify(opts.ignored);
-
+    if (envInterval) opts.interval = Number.parseInt(envInterval, 10);
+    // This is done to emit ready only once, but each 'add' will increase that?
     let readyCalls = 0;
     this._emitReady = () => {
       readyCalls++;
@@ -422,12 +399,11 @@ export class FSWatcher extends EventEmitter {
       }
     };
     this._emitRaw = (...args) => this.emit(EV.RAW, ...args);
-    this._readyEmitted = false;
-    this.options = opts as FSWInstanceOptions;
 
-    // Initialize with proper watcher.
+    this._boundRemove = this._remove.bind(this);
+
+    this.options = opts;
     this._nodeFsHandler = new NodeFsHandler(this);
-
     // You’re frozen when your heart’s not open.
     Object.freeze(opts);
   }
@@ -468,13 +444,10 @@ export class FSWatcher extends EventEmitter {
   // Public methods
 
   /**
-   * Adds paths to be watched on an existing FSWatcher instance
-   * @param {Path|Array<Path>} paths_
-   * @param {String=} _origAdd private; for handling non-existent paths to be watched
-   * @param {Boolean=} _internal private; indicates a non-user add
-   * @returns {FSWatcher} for chaining
+   * Adds paths to be watched on an existing FSWatcher instance.
+   * @param paths_ file or file list. Other arguments are unused
    */
-  add(paths_: Path | Path[], _origAdd?: string, _internal?: boolean) {
+  add(paths_: Path | Path[], _origAdd?: string, _internal?: boolean): FSWatcher {
     const { cwd } = this.options;
     this.closed = false;
     let paths = unifyPaths(paths_);
@@ -509,11 +482,9 @@ export class FSWatcher extends EventEmitter {
       })
     ).then((results) => {
       if (this.closed) return;
-      results
-        .filter((item) => item)
-        .forEach((item) => {
-          this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
-        });
+      results.forEach((item) => {
+        if (item) this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+      });
     });
 
     return this;
@@ -521,10 +492,8 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Close watchers or start ignoring events from specified paths.
-   * @param {Path|Array<Path>} paths_ - string or array of strings, file/directory paths
-   * @returns {FSWatcher} for chaining
    */
-  unwatch(paths_: Path | Path[]) {
+  unwatch(paths_: Path | Path[]): FSWatcher {
     if (this.closed) return this;
     const paths = unifyPaths(paths_);
     const { cwd } = this.options;
@@ -564,7 +533,7 @@ export class FSWatcher extends EventEmitter {
 
     // Memory management.
     this.removeAllListeners();
-    const closers = [];
+    const closers: any[] = [];
     this._closers.forEach((closerList) =>
       closerList.forEach((closer) => {
         const promise = closer();
@@ -576,9 +545,12 @@ export class FSWatcher extends EventEmitter {
     this._readyCount = 0;
     this._readyEmitted = false;
     this._watched.forEach((dirent) => dirent.dispose());
-    ['closers', 'watched', 'streams', 'symlinkPaths', 'throttled'].forEach((key) => {
-      this[`_${key}`].clear();
-    });
+
+    this._closers.clear();
+    this._watched.clear();
+    this._streams.clear();
+    this._symlinkPaths.clear();
+    this._throttled.clear();
 
     this._closePromise = closers.length
       ? Promise.all(closers).then(() => undefined)
@@ -591,10 +563,12 @@ export class FSWatcher extends EventEmitter {
    * @returns {Object} for chaining
    */
   getWatched() {
-    const watchList = {};
+    const watchList: Object = {};
     this._watched.forEach((entry, dir) => {
       const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
-      watchList[key || ONE_DOT] = entry.getChildren().sort();
+      const index = key || ONE_DOT;
+      // @ts-ignore
+      watchList[index] = entry.getChildren().sort();
     });
     return watchList;
   }
@@ -610,14 +584,12 @@ export class FSWatcher extends EventEmitter {
   /**
    * Normalize and emit events.
    * Calling _emit DOES NOT MEAN emit() would be called!
-   * @param {EventName} event Type of event
-   * @param {Path} path File or directory path
-   * @param {*=} val1 arguments to be passed with event
-   * @param {*=} val2
-   * @param {*=} val3
+   * @param event Type of event
+   * @param path File or directory path
+   * @param stats arguments to be passed with event
    * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
    */
-  async _emit(event: EventName, path: Path, val1?: any, val2?: any, val3?: any) {
+  async _emit(event: EventName, path: Path, stats?: Stats) {
     if (this.closed) return;
 
     const opts = this.options;
@@ -625,9 +597,7 @@ export class FSWatcher extends EventEmitter {
     if (opts.cwd) path = sysPath.relative(opts.cwd, path);
     /** @type Array<any> */
     const args: EmitArgs = [event, path];
-    if (val3 !== undefined) args.push(val1, val2, val3);
-    else if (val2 !== undefined) args.push(val1, val2);
-    else if (val1 !== undefined) args.push(val1);
+    if (stats != null) args.push(stats);
 
     const awf = opts.awaitWriteFinish;
     let pw;
@@ -658,9 +628,10 @@ export class FSWatcher extends EventEmitter {
     }
 
     if (awf && (event === EV.ADD || event === EV.CHANGE) && this._readyEmitted) {
-      const awfEmit = (err, stats) => {
+      const awfEmit = (err: Error, stats: Stats) => {
         if (err) {
           event = args[0] = EV.ERROR;
+          // @ts-ignore
           args[1] = err;
           this.emitWithAll(event, args);
         } else if (stats) {
@@ -685,7 +656,7 @@ export class FSWatcher extends EventEmitter {
 
     if (
       opts.alwaysStat &&
-      val1 === undefined &&
+      stats === undefined &&
       (event === EV.ADD || event === EV.ADD_DIR || event === EV.CHANGE)
     ) {
       const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
@@ -706,11 +677,10 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Common handler for errors
-   * @param {Error} error
-   * @returns {Error|Boolean} The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+   * @returns The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
    */
-  _handleError(error) {
-    const code = error && error.code;
+  _handleError(error: Error): Error | boolean {
+    const code = error && (error as Error & { code: string }).code;
     if (
       error &&
       code !== 'ENOENT' &&
@@ -724,18 +694,19 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Helper utility for throttling
-   * @param {ThrottleType} actionType type being throttled
-   * @param {Path} path being acted upon
-   * @param {Number} timeout duration of time to suppress duplicate actions
+   * @param actionType type being throttled
+   * @param path being acted upon
+   * @param timeout duration of time to suppress duplicate actions
    * @returns {Object|false} tracking object or false if action should be suppressed
    */
-  _throttle(actionType, path, timeout) {
+  _throttle(actionType: ThrottleType, path: Path, timeout: number) {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, new Map());
     }
 
     /** @type {Map<Path, Object>} */
     const action = this._throttled.get(actionType);
+    if (!action) throw new Error('invalid throttle');
     /** @type {Object} */
     const actionPath = action.get(path);
 
@@ -745,7 +716,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     // eslint-disable-next-line prefer-const
-    let timeoutObject;
+    let timeoutObject: any;
     const clear = () => {
       const item = action.get(path);
       const count = item ? item.count : 0;
@@ -767,15 +738,16 @@ export class FSWatcher extends EventEmitter {
   /**
    * Awaits write operation to finish.
    * Polls a newly created file for size variations. When files size does not change for 'threshold' milliseconds calls callback.
-   * @param {Path} path being acted upon
-   * @param {Number} threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
-   * @param {EventName} event
-   * @param {Function} awfEmit Callback to be called when ready for event to be emitted.
+   * @param path being acted upon
+   * @param threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
+   * @param event
+   * @param awfEmit Callback to be called when ready for event to be emitted.
    */
   _awaitWriteFinish(path: Path, threshold: number, event: EventName, awfEmit: any) {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== 'object') return;
-    let timeoutHandler;
+    const pollInterval = awf.pollInterval as unknown as number;
+    let timeoutHandler: any;
 
     let fullPath = path;
     if (this.options.cwd && !sysPath.isAbsolute(path)) {
@@ -784,9 +756,10 @@ export class FSWatcher extends EventEmitter {
 
     const now = new Date();
 
-    const awaitWriteFinish = (prevStat) => {
-      fs.stat(fullPath, (err, curStat) => {
-        if (err || !this._pendingWrites.has(path)) {
+    const writes = this._pendingWrites;
+    function awaitWriteFinishFn(prevStat?: Stats): void {
+      statcb(fullPath, (err, curStat) => {
+        if (err || !writes.has(path)) {
           if (err && err.code !== 'ENOENT') awfEmit(err);
           return;
         }
@@ -794,40 +767,37 @@ export class FSWatcher extends EventEmitter {
         const now = Number(new Date());
 
         if (prevStat && curStat.size !== prevStat.size) {
-          this._pendingWrites.get(path).lastChange = now;
+          writes.get(path).lastChange = now;
         }
-        const pw = this._pendingWrites.get(path);
+        const pw = writes.get(path);
         const df = now - pw.lastChange;
 
         if (df >= threshold) {
-          this._pendingWrites.delete(path);
+          writes.delete(path);
           awfEmit(undefined, curStat);
         } else {
-          timeoutHandler = setTimeout(awaitWriteFinish, awf.pollInterval, curStat);
+          timeoutHandler = setTimeout(awaitWriteFinishFn, pollInterval, curStat);
         }
       });
-    };
+    }
 
-    if (!this._pendingWrites.has(path)) {
-      this._pendingWrites.set(path, {
+    if (!writes.has(path)) {
+      writes.set(path, {
         lastChange: now,
         cancelWait: () => {
-          this._pendingWrites.delete(path);
+          writes.delete(path);
           clearTimeout(timeoutHandler);
           return event;
         },
       });
-      timeoutHandler = setTimeout(awaitWriteFinish, awf.pollInterval);
+      timeoutHandler = setTimeout(awaitWriteFinishFn, pollInterval);
     }
   }
 
   /**
    * Determines whether user has asked to ignore this path.
-   * @param {Path} path filepath or dir
-   * @param {fs.Stats=} stats result of fs.stat
-   * @returns {Boolean}
    */
-  _isIgnored(path: Path, stats?: fs.Stats) {
+  _isIgnored(path: Path, stats?: Stats): boolean {
     if (this.options.atomic && DOT_RE.test(path)) return true;
     if (!this._userIgnored) {
       const { cwd } = this.options;
@@ -842,16 +812,15 @@ export class FSWatcher extends EventEmitter {
     return this._userIgnored(path, stats);
   }
 
-  _isntIgnored(path, stat?: fs.Stats) {
+  _isntIgnored(path: Path, stat?: Stats) {
     return !this._isIgnored(path, stat);
   }
 
   /**
-   * Provides a set of common helpers and properties relating to symlink and glob handling.
-   * @param {Path} path file, directory, or glob pattern being watched
-   * @returns {WatchHelper} object containing helpers for this path
+   * Provides a set of common helpers and properties relating to symlink handling.
+   * @param path file or directory pattern being watched
    */
-  _getWatchHelpers(path: string): WatchHelper {
+  _getWatchHelpers(path: Path): WatchHelper {
     return new WatchHelper(path, this.options.followSymlinks, this);
   }
 
@@ -860,44 +829,33 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Provides directory tracking objects
-   * @param {String} directory path of the directory
-   * @returns {DirEntry} the directory's tracking object
+   * @param directory path of the directory
    */
-  _getWatchedDir(directory: string) {
-    if (!this._boundRemove) this._boundRemove = this._remove.bind(this);
+  _getWatchedDir(directory: string): DirEntry {
     const dir = sysPath.resolve(directory);
     if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
-    return this._watched.get(dir);
+    return this._watched.get(dir)!;
   }
 
   // File helpers
   // ------------
 
   /**
-   * Check for read permissions.
-   * Based on this answer on SO: https://stackoverflow.com/a/11781404/1358405
-   * @param stats - object, result of fs_stat
-   * @returns indicates whether the file can be read
+   * Check for read permissions: https://stackoverflow.com/a/11781404/1358405
    */
-  _hasReadPermissions(stats: fs.Stats): boolean {
+  _hasReadPermissions(stats: Stats): boolean {
     if (this.options.ignorePermissionErrors) return true;
-
-    // stats.mode may be bigint
-    const md = stats && Number.parseInt(stats.mode as any, 10);
-    const st = md & 0o777;
-    const it = Number.parseInt(st.toString(8)[0], 10);
-    return Boolean(4 & it);
+    return Boolean(Number(stats.mode) & 0o400);
   }
 
   /**
    * Handles emitting unlink events for
    * files and directories, and via recursion, for
    * files and directories within directories that are unlinked
-   * @param {String} directory within which the following item is located
-   * @param {String} item      base path of item/directory
-   * @returns {void}
+   * @param directory within which the following item is located
+   * @param item      base path of item/directory
    */
-  _remove(directory: string, item: string, isDirectory?: boolean) {
+  _remove(directory: string, item: string, isDirectory?: boolean): void {
     // if what is being deleted is a directory, get that directory's paths
     // for recursive deleting and cleaning of watched object
     // if it is not a directory, nestedDirectoryChildren will be empty array
@@ -958,9 +916,8 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Closes all watchers for a path
-   * @param {Path} path
    */
-  _closePath(path) {
+  _closePath(path: Path) {
     this._closeFile(path);
     const dir = sysPath.dirname(path);
     this._getWatchedDir(dir).remove(sysPath.basename(path));
@@ -968,21 +925,15 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Closes only file-specific watchers
-   * @param {Path} path
    */
-  _closeFile(path) {
+  _closeFile(path: Path) {
     const closers = this._closers.get(path);
     if (!closers) return;
     closers.forEach((closer) => closer());
     this._closers.delete(path);
   }
 
-  /**
-   *
-   * @param {Path} path
-   * @param {Function} closer
-   */
-  _addPathCloser(path, closer) {
+  _addPathCloser(path: Path, closer: () => void) {
     if (!closer) return;
     let list = this._closers.get(path);
     if (!list) {
@@ -992,10 +943,10 @@ export class FSWatcher extends EventEmitter {
     list.push(closer);
   }
 
-  _readdirp(root, opts) {
+  _readdirp(root: Path, opts?: Partial<ReaddirpOptions>) {
     if (this.closed) return;
-    const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts };
-    let stream = readdirp(root, options);
+    const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts, depth: 0 };
+    let stream: ReaddirpStream | undefined = readdirp(root, options);
     this._streams.add(stream);
     stream.once(STR_CLOSE, () => {
       stream = undefined;
@@ -1010,16 +961,13 @@ export class FSWatcher extends EventEmitter {
   }
 }
 
-// Export FSWatcher class
-// exports.FSWatcher = FSWatcher;
-
 /**
  * Instantiates watcher with paths to be tracked.
- * @param {String|Array<String>} paths file/directory paths and/or globs
- * @param {Object=} options chokidar opts
+ * @param paths file/directory paths
+ * @param options chokidar opts
  * @returns an instance of FSWatcher for chaining.
  */
-export const watch = (paths, options) => {
+export const watch = (paths: string | string[], options: ChokidarOptions): FSWatcher => {
   const watcher = new FSWatcher(options);
   watcher.add(paths);
   return watcher;

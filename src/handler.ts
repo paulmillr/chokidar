@@ -1,8 +1,10 @@
-import * as fs from 'fs';
+import { watchFile, unwatchFile, watch as fs_watch } from 'fs';
+import type { WatchListener, WatchEventType, Stats, FSWatcher as NativeFsWatcher } from 'fs';
 import { open, stat, lstat, realpath as fsrealpath } from 'fs/promises';
 import * as sysPath from 'path';
 import { type as osType } from 'os';
 import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
+import type { EntryInfo } from 'readdirp';
 
 export type Path = string;
 
@@ -76,11 +78,11 @@ const binaryExtensions = new Set([
   'xmind', 'xpi', 'xpm', 'xwd', 'xz',
   'z', 'zip', 'zipx',
 ]);
-const isBinaryPath = (filePath) =>
+const isBinaryPath = (filePath: string) =>
   binaryExtensions.has(sysPath.extname(filePath).slice(1).toLowerCase());
 
 // TODO: emit errors properly. Example: EMFILE on Macos.
-const foreach = (val, fn) => {
+const foreach = (val: any, fn: any) => {
   if (val instanceof Set) {
     val.forEach(fn);
   } else {
@@ -88,7 +90,7 @@ const foreach = (val, fn) => {
   }
 };
 
-const addAndConvert = (main, prop, item) => {
+const addAndConvert = (main: any, prop: any, item: any) => {
   let container = main[prop];
   if (!(container instanceof Set)) {
     main[prop] = container = new Set([container]);
@@ -96,7 +98,7 @@ const addAndConvert = (main, prop, item) => {
   container.add(item);
 };
 
-const clearItem = (cont) => (key) => {
+const clearItem = (cont: any) => (key: string) => {
   const set = cont[key];
   if (set instanceof Set) {
     set.clear();
@@ -105,7 +107,7 @@ const clearItem = (cont) => (key) => {
   }
 };
 
-const delFromSet = (main, prop, item) => {
+const delFromSet = (main: any, prop: any, item: any) => {
   const container = main[prop];
   if (container instanceof Set) {
     container.delete(item);
@@ -114,39 +116,31 @@ const delFromSet = (main, prop, item) => {
   }
 };
 
-const isEmptySet = (val) => (val instanceof Set ? val.size === 0 : !val);
-
-/**
- * @typedef {String} Path
- */
+const isEmptySet = (val: any) => (val instanceof Set ? val.size === 0 : !val);
 
 // fs_watch helpers
 
 // object to hold per-process fs_watch instances
 // (may be shared across chokidar FSWatcher instances)
 
-/**
- * @typedef {Object} FsWatchContainer
- * @property {Set} listeners
- * @property {Set} errHandlers
- * @property {Set} rawEmitters
- * @property {fs.FSWatcher=} watcher
- * @property {Boolean=} watcherUnusable
- */
+export type FsWatchContainer = {
+  listeners: (path: string) => void | Set<any>;
+  errHandlers: (err: unknown) => void | Set<any>;
+  rawEmitters: (ev: WatchEventType, path: string, opts: unknown) => void | Set<any>;
+  watcher: NativeFsWatcher;
+  watcherUnusable?: boolean;
+};
 
-/**
- * @type {Map<String,FsWatchContainer>}
- */
-const FsWatchInstances = new Map();
+const FsWatchInstances = new Map<string, FsWatchContainer>();
 
 /**
  * Instantiates the fs_watch interface
- * @param {String} path to be watched
- * @param {Object} options to be passed to fs_watch
- * @param {Function} listener main event handler
- * @param {Function} errHandler emits info about errors
- * @param {Function} emitRaw emits raw event data
- * @returns {fs.FSWatcher} new fsevents instance
+ * @param path to be watched
+ * @param options to be passed to fs_watch
+ * @param listener main event handler
+ * @param errHandler emits info about errors
+ * @param emitRaw emits raw event data
+ * @returns new fsevents instance
  */
 function createFsWatchInstance(
   path: string,
@@ -155,9 +149,9 @@ function createFsWatchInstance(
   errHandler: WatchHandlers['errHandler'],
   emitRaw: WatchHandlers['rawEmitter']
 ) {
-  const handleEvent: fs.WatchListener<string> = (rawEvent, evPath) => {
+  const handleEvent: WatchListener<string> = (rawEvent, evPath: string | null) => {
     listener(path);
-    emitRaw(rawEvent, evPath, { watchedPath: path });
+    emitRaw(rawEvent, evPath!, { watchedPath: path });
 
     // emit based on events occurring for files from a directory's watcher in
     // case the file's watcher misses it (and rely on throttling to de-dupe)
@@ -166,7 +160,7 @@ function createFsWatchInstance(
     }
   };
   try {
-    return fs.watch(
+    return fs_watch(
       path,
       {
         persistent: options.persistent,
@@ -180,33 +174,35 @@ function createFsWatchInstance(
 
 /**
  * Helper for passing fs_watch event data to a collection of listeners
- * @param {Path} fullPath absolute path bound to fs_watch instance
- * @param {String} type listener type
- * @param {*=} val1 arguments to be passed to listeners
- * @param {*=} val2
- * @param {*=} val3
+ * @param fullPath absolute path bound to fs_watch instance
  */
-const fsWatchBroadcast = (fullPath: Path, type: string, val1?: any, val2?: any, val3?: any) => {
+const fsWatchBroadcast = (
+  fullPath: Path,
+  listenerType: string,
+  val1?: any,
+  val2?: any,
+  val3?: any
+) => {
   const cont = FsWatchInstances.get(fullPath);
   if (!cont) return;
-  foreach(cont[type], (listener) => {
+  foreach(cont[listenerType as keyof typeof cont], (listener: any) => {
     listener(val1, val2, val3);
   });
 };
 
-interface WatchHandlers {
+export interface WatchHandlers {
   listener: (path: string) => void;
   errHandler: (err: unknown) => void;
-  rawEmitter: (ev: fs.WatchEventType, path: string, opts: unknown) => void;
+  rawEmitter: (ev: WatchEventType, path: string, opts: unknown) => void;
 }
 
 /**
  * Instantiates the fs_watch interface or binds listeners
  * to an existing one covering the same file system entry
- * @param {String} path
- * @param {String} fullPath absolute path
- * @param {Object} options to be passed to fs_watch
- * @param {Object} handlers container for event listener functions
+ * @param path
+ * @param fullPath absolute path
+ * @param options to be passed to fs_watch
+ * @param handlers container for event listener functions
  */
 const setFsWatchListener = (
   path: string,
@@ -217,10 +213,10 @@ const setFsWatchListener = (
   const { listener, errHandler, rawEmitter } = handlers;
   let cont = FsWatchInstances.get(fullPath);
 
-  /** @type {fs.FSWatcher=} */
-  let watcher: fs.FSWatcher;
+  let watcher: NativeFsWatcher | undefined;
   if (!options.persistent) {
     watcher = createFsWatchInstance(path, options, listener, errHandler, rawEmitter);
+    if (!watcher) return;
     return watcher.close.bind(watcher);
   }
   if (cont) {
@@ -238,7 +234,7 @@ const setFsWatchListener = (
     if (!watcher) return;
     watcher.on(EV.ERROR, async (error: Error & { code: string }) => {
       const broadcastErr = fsWatchBroadcast.bind(null, fullPath, KEY_ERR);
-      cont.watcherUnusable = true; // documented since Node 10.4.1
+      if (cont) cont.watcherUnusable = true; // documented since Node 10.4.1
       // Workaround for https://github.com/joyent/node/issues/4337
       if (isWindows && error.code === 'EPERM') {
         try {
@@ -275,6 +271,7 @@ const setFsWatchListener = (
       // }
       FsWatchInstances.delete(fullPath);
       HANDLER_KEYS.forEach(clearItem(cont));
+      // @ts-ignore
       cont.watcher = undefined;
       Object.freeze(cont);
     }
@@ -290,13 +287,13 @@ const FsWatchFileInstances = new Map();
 /**
  * Instantiates the fs_watchFile interface or binds listeners
  * to an existing one covering the same file system entry
- * @param {String} path to be watched
- * @param {String} fullPath absolute path
- * @param {Object} options options to be passed to fs_watchFile
- * @param {Object} handlers container for event listener functions
+ * @param path to be watched
+ * @param fullPath absolute path
+ * @param options options to be passed to fs_watchFile
+ * @param handlers container for event listener functions
  * @returns {Function} closer
  */
-const setFsWatchFileListener = (path, fullPath, options, handlers) => {
+const setFsWatchFileListener = (path: Path, fullPath: Path, options: any, handlers: any) => {
   const { listener, rawEmitter } = handlers;
   let cont = FsWatchFileInstances.get(fullPath);
 
@@ -311,7 +308,7 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
     // doesn't seem worthwhile for the added complexity.
     // listeners = cont.listeners;
     // rawEmitters = cont.rawEmitters;
-    fs.unwatchFile(fullPath);
+    unwatchFile(fullPath);
     cont = undefined;
   }
 
@@ -326,13 +323,13 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
       listeners: listener,
       rawEmitters: rawEmitter,
       options,
-      watcher: fs.watchFile(fullPath, options, (curr, prev) => {
-        foreach(cont.rawEmitters, (rawEmitter) => {
+      watcher: watchFile(fullPath, options, (curr, prev) => {
+        foreach(cont.rawEmitters, (rawEmitter: any) => {
           rawEmitter(EV.CHANGE, fullPath, { curr, prev });
         });
         const currmtime = curr.mtimeMs;
         if (curr.size !== prev.size || currmtime > prev.mtimeMs || currmtime === 0) {
-          foreach(cont.listeners, (listener) => listener(path, curr));
+          foreach(cont.listeners, (listener: any) => listener(path, curr));
         }
       }),
     };
@@ -347,7 +344,7 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
     delFromSet(cont, KEY_RAW, rawEmitter);
     if (isEmptySet(cont.listeners)) {
       FsWatchFileInstances.delete(fullPath);
-      fs.unwatchFile(fullPath);
+      unwatchFile(fullPath);
       cont.options = cont.watcher = undefined;
       Object.freeze(cont);
     }
@@ -357,22 +354,19 @@ const setFsWatchFileListener = (path, fullPath, options, handlers) => {
 /**
  * @mixin
  */
-export default class NodeFsHandler {
+export class NodeFsHandler {
   fsw: FSWatcher;
   _boundHandleError: any;
-  /**
-   * @param {import("../index").FSWatcher} fsW
-   */
-  constructor(fsW) {
+  constructor(fsW: FSWatcher) {
     this.fsw = fsW;
-    this._boundHandleError = (error) => fsW._handleError(error);
+    this._boundHandleError = (error: Error) => fsW._handleError(error);
   }
 
   /**
    * Watch file for changes with fs_watchFile or fs_watch.
-   * @param {String} path to file or dir
-   * @param {Function} listener on fs change
-   * @returns {Function} closer for the watcher instance
+   * @param path to file or dir
+   * @param listener on fs change
+   * @returns closer for the watcher instance
    */
   _watchWithNodeFs(path: string, listener: (path: string, newStats?: any) => void | Promise<void>) {
     const opts = this.fsw.options;
@@ -388,8 +382,8 @@ export default class NodeFsHandler {
 
     let closer;
     if (opts.usePolling) {
-      options.interval =
-        opts.enableBinaryInterval && isBinaryPath(basename) ? opts.binaryInterval : opts.interval;
+      const enableBin = opts.interval !== opts.binaryInterval;
+      options.interval = enableBin && isBinaryPath(basename) ? opts.binaryInterval : opts.interval;
       closer = setFsWatchFileListener(path, absolutePath, options, {
         listener,
         rawEmitter: this.fsw._emitRaw,
@@ -406,12 +400,9 @@ export default class NodeFsHandler {
 
   /**
    * Watch a file and emit add event if warranted.
-   * @param {Path} file Path
-   * @param {fs.Stats} stats result of fs_stat
-   * @param {Boolean} initialAdd was the file added at watch instantiation?
    * @returns {Function} closer for the watcher instance
    */
-  _handleFile(file, stats, initialAdd) {
+  _handleFile(file: Path, stats: Stats, initialAdd: boolean) {
     if (this.fsw.closed) {
       return;
     }
@@ -424,7 +415,7 @@ export default class NodeFsHandler {
     // if the file is already being watched, do nothing
     if (parent.has(basename)) return;
 
-    const listener = async (path, newStats) => {
+    const listener = async (path: Path, newStats: Stats) => {
       if (!this.fsw._throttle(THROTTLE_MODE_WATCH, file, 5)) return;
       if (!newStats || newStats.mtimeMs === 0) {
         try {
@@ -439,7 +430,8 @@ export default class NodeFsHandler {
           if ((isMacos || isLinux) && prevStats.ino !== newStats.ino) {
             this.fsw._closeFile(path);
             prevStats = newStats;
-            this.fsw._addPathCloser(path, this._watchWithNodeFs(file, listener));
+            const closer = this._watchWithNodeFs(file, listener);
+            if (closer) this.fsw._addPathCloser(path, closer);
           } else {
             prevStats = newStats;
           }
@@ -472,13 +464,18 @@ export default class NodeFsHandler {
 
   /**
    * Handle symlinks encountered while reading a dir.
-   * @param {Object} entry returned by readdirp
-   * @param {String} directory path of dir being read
-   * @param {String} path of this item
-   * @param {String} item basename of this item
-   * @returns {Promise<Boolean>} true if no more processing is needed for this entry.
+   * @param entry returned by readdirp
+   * @param directory path of dir being read
+   * @param path of this item
+   * @param item basename of this item
+   * @returns true if no more processing is needed for this entry.
    */
-  async _handleSymlink(entry, directory, path, item) {
+  async _handleSymlink(
+    entry: EntryInfo,
+    directory: string,
+    path: Path,
+    item: string
+  ): Promise<boolean | undefined> {
     if (this.fsw.closed) {
       return;
     }
@@ -520,7 +517,15 @@ export default class NodeFsHandler {
     this.fsw._symlinkPaths.set(full, true);
   }
 
-  _handleRead(directory, initialAdd, wh: WatchHelper, target, dir, depth, throttler) {
+  _handleRead(
+    directory: string,
+    initialAdd: boolean,
+    wh: WatchHelper,
+    target: Path,
+    dir: Path,
+    depth: number,
+    throttler: any
+  ) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, '');
 
@@ -530,12 +535,12 @@ export default class NodeFsHandler {
     const previous = this.fsw._getWatchedDir(wh.path);
     const current = new Set();
 
-    let stream = this.fsw
-      ._readdirp(directory, {
-        fileFilter: (entry) => wh.filterPath(entry),
-        directoryFilter: (entry) => wh.filterDir(entry),
-        depth: 0,
-      })
+    let stream = this.fsw._readdirp(directory, {
+      fileFilter: (entry: EntryInfo) => wh.filterPath(entry),
+      directoryFilter: (entry: EntryInfo) => wh.filterDir(entry),
+    });
+    if (!stream) return;
+    stream
       .on(STR_DATA, async (entry) => {
         if (this.fsw.closed) {
           stream = undefined;
@@ -570,7 +575,8 @@ export default class NodeFsHandler {
       })
       .on(EV.ERROR, this._boundHandleError);
 
-    return new Promise((resolve) =>
+    return new Promise((resolve, reject) => {
+      if (!stream) return reject();
       stream.once(STR_END, () => {
         if (this.fsw.closed) {
           stream = undefined;
@@ -596,22 +602,30 @@ export default class NodeFsHandler {
 
         // one more time for any missed in case changes came in extremely quickly
         if (wasThrottled) this._handleRead(directory, false, wh, target, dir, depth, throttler);
-      })
-    );
+      });
+    });
   }
 
   /**
    * Read directory to add / remove files from `@watched` list and re-read it on change.
-   * @param {String} dir fs path
-   * @param {fs.Stats} stats
-   * @param {Boolean} initialAdd
-   * @param {Number} depth relative to user-supplied path
-   * @param {String} target child path targeted for watch
-   * @param {Object} wh Common watch helpers for this path
-   * @param {String} realpath
+   * @param dir fs path
+   * @param stats
+   * @param initialAdd
+   * @param depth relative to user-supplied path
+   * @param target child path targeted for watch
+   * @param wh Common watch helpers for this path
+   * @param realpath
    * @returns {Promise<Function>} closer for the watcher instance.
    */
-  async _handleDir(dir, stats, initialAdd, depth, target, wh: WatchHelper, realpath) {
+  async _handleDir(
+    dir: string,
+    stats: Stats,
+    initialAdd: boolean,
+    depth: number,
+    target: string,
+    wh: WatchHelper,
+    realpath: string
+  ) {
     const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
     const tracked = parentDir.has(sysPath.basename(dir));
     if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
@@ -621,7 +635,7 @@ export default class NodeFsHandler {
     // ensure dir is tracked (harmless if redundant)
     parentDir.add(sysPath.basename(dir));
     this.fsw._getWatchedDir(dir);
-    let throttler;
+    let throttler: any;
     let closer;
 
     const oDepth = this.fsw.options.depth;
@@ -644,14 +658,19 @@ export default class NodeFsHandler {
   /**
    * Handle added file, directory, or glob pattern.
    * Delegates call to _handleFile / _handleDir after checks.
-   * @param {String} path to file or ir
-   * @param {Boolean} initialAdd was the file added at watch instantiation?
-   * @param {Object} priorWh depth relative to user-supplied path
-   * @param {Number} depth Child path actually targeted for watch
-   * @param {String=} target Child path actually targeted for watch
-   * @returns {Promise}
+   * @param path to file or ir
+   * @param initialAdd was the file added at watch instantiation?
+   * @param priorWh depth relative to user-supplied path
+   * @param depth Child path actually targeted for watch
+   * @param target Child path actually targeted for watch
    */
-  async _addToNodeFs(path, initialAdd, priorWh: WatchHelper | undefined, depth, target?: string) {
+  async _addToNodeFs(
+    path: string,
+    initialAdd: boolean,
+    priorWh: WatchHelper | undefined,
+    depth: number,
+    target?: string
+  ) {
     const ready = this.fsw._emitReady;
     if (this.fsw._isIgnored(path) || this.fsw.closed) {
       ready();
@@ -684,7 +703,7 @@ export default class NodeFsHandler {
           stats,
           initialAdd,
           depth,
-          target,
+          target!,
           wh,
           targetPath
         );
@@ -711,10 +730,10 @@ export default class NodeFsHandler {
       }
       ready();
 
-      this.fsw._addPathCloser(path, closer);
+      if (closer) this.fsw._addPathCloser(path, closer);
       return false;
     } catch (error) {
-      if (this.fsw._handleError(error)) {
+      if (this.fsw._handleError(error as any)) {
         ready();
         return path;
       }

@@ -3,7 +3,6 @@
 /coverage/
 /node_modules/
 /test-fixtures/
-/package-lock.json
 /*.d.ts
 /*.map
 /index.js
