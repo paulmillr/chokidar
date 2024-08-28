@@ -1,6 +1,4 @@
-'use strict';
-
-global.watcher = require('.').watch('.', {
+global.watcher = require('./index.js').default.watch('.', {
   ignored: /node_modules|\.git/,
   persistent: true,
   // followSymlinks: false,

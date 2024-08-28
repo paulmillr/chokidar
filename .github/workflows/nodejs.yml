@@ -5,12 +5,12 @@ on:
   - pull_request
 jobs:
   test:
-    name: v${{ matrix.version }} @ ${{ matrix.os }}
+    name: v${{ matrix.node }} @ ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        version: [14, 16, 18, 20, 22]
+        node: [16, 18, 20, 22]
         os: [ubuntu-latest, windows-latest, macOS-latest]
     steps:
       - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4

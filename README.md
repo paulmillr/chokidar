@@ -4,43 +4,36 @@
 
 ## Why?
 
-As per 2024, Node.js `fs.watch`:
+There are many reasons to prefer Chokidar to raw fs.watch / fs.watchFile in 2024:
 
-* Doesn't report filenames on MacOS.
-* Doesn't report events at all when using some text editors on MacOS.
-* Often reports events twice.
-* Emits most changes as `rename`.
-* Does not provide an easy way to recursively watch file trees.
-* Does not support recursive watching on Linux.
+- Events are properly reported
+    - macOS events report filenames
+    - events are not reported twice
+    - changes are reported as add / change / unlink instead of useless `rename`
+- Atomic writes are supported, using `atomic` option
+    - Some file editors use them
+- Chunked writes are supported, using `awaitWriteFinish` option
+    - Large files are commonly written in chunks
+- File / dir filtering is supported
+- Symbolic links are supported
+- Recursive watching is always supported, instead of partial when using raw events
+    - Includes a way to limit recursion depth
 
-Node.js `fs.watchFile`:
-
-* Almost as bad at event handling.
-* Also does not provide any recursive watching.
-* Results in high CPU utilization.
-
-Chokidar resolves these problems.
-
-Made for **[Brunch](https://brunch.io/)** in 2012,
-it is now used in [~30 million repositories](https://www.npmjs.com/browse/depended/chokidar) and
-has proven itself in production environments.
-
-## How?
-
-Chokidar does still rely on the Node.js core `fs` module, but when using
+Chokidar relies on the Node.js core `fs` module, but when using
 `fs.watch` and `fs.watchFile` for watching, it normalizes the events it
 receives, often checking for truth by getting file stats and/or dir contents.
-
-On MacOS, chokidar by default uses a native extension exposing the Darwin
-`FSEvents` API. This provides very efficient recursive watching compared with
-implementations like `kqueue` available on most \*nix platforms. Chokidar still
-does have to do some work to normalize the events received that way as well.
-
-On most other platforms, the `fs.watch`-based implementation is the default, which
+The `fs.watch`-based implementation is the default, which
 avoids polling and keeps CPU usage down. Be advised that chokidar will initiate
 watchers recursively for everything within scope of the paths that have been
 specified, so be judicious about not wasting system resources by watching much
-more than needed.
+more than needed. For some cases, `fs.watchFile`, which utilizes polling and uses more resources, is used.
+
+Made for [Brunch](https://brunch.io/) in 2012,
+it is now used in [~30 million repositories](https://www.npmjs.com/browse/depended/chokidar) and
+has proven itself in production environments.
+
+**Aug 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
+support for globs, adds support for ESM / Common.js modules, and bumps minimum node.js version from v8 to v14.
 
 ## Getting started
 
@@ -50,21 +43,19 @@ Install with npm:
 npm install chokidar
 ```
 
-Then `require` and use it in your code:
+Use it in your code:
 
 ```javascript
-const chokidar = require('chokidar');
+import chokidar from 'chokidar';
 
 // One-liner for current directory
 chokidar.watch('.').on('all', (event, path) => {
   console.log(event, path);
 });
-```
 
-## API
 
-```javascript
-// Example of a more typical implementation structure
+// Extended options
+// ----------------
 
 // Initialize watcher.
 const watcher = chokidar.watch('file, dir, or array', {
@@ -98,13 +89,13 @@ watcher.on('change', (path, stats) => {
 
 // Watch new files.
 watcher.add('new-file');
-watcher.add(['new-file-2', 'new-file-3', '**/other-file*']);
+watcher.add(['new-file-2', 'new-file-3']);
 
 // Get list of actual paths being watched on the filesystem
-var watchedPaths = watcher.getWatched();
+let watchedPaths = watcher.getWatched();
 
 // Un-watch some files.
-await watcher.unwatch('new-file*');
+await watcher.unwatch('new-file');
 
 // Stop watching.
 // The method is async!
@@ -115,7 +106,7 @@ watcher.close().then(() => console.log('closed'));
 chokidar.watch('file', {
   persistent: true,
 
-  ignored: '*.txt',
+  ignored: (file) => file.endsWith('.txt'),
   ignoreInitial: false,
   followSymlinks: true,
   cwd: '.',
@@ -246,37 +237,29 @@ values are arrays of the names of the items contained in each directory.
 ## CLI
 
 If you need a CLI interface for your file watching, check out
-[chokidar-cli](https://github.com/open-cli-tools/chokidar-cli), allowing you to
+third party [chokidar-cli](https://github.com/open-cli-tools/chokidar-cli), allowing you to
 execute a command on each change, or get a stdio stream of change events.
 
-## Install Troubleshooting
+## Troubleshooting
 
-* `npm WARN optional dep failed, continuing fsevents@n.n.n`
-  * This message is normal part of how `npm` handles optional dependencies and is
-    not indicative of a problem. Even if accompanied by other related error messages,
-    Chokidar should function properly.
-
-* `TypeError: fsevents is not a constructor`
-  * Update chokidar by doing `rm -rf node_modules package-lock.json yarn.lock && npm install`, or update your dependency that uses chokidar.
-
-* Chokidar is producing `ENOSP` error on Linux, like this:
-  * `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
+* On Linux, sometimes there's `ENOSP` error:
+    * `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
   `Error: watch /home/ ENOSPC`
-  * This means Chokidar ran out of file handles and you'll need to increase their count by executing the following command in Terminal:
+    * This means Chokidar ran out of file handles and you'll need to increase their count by executing the following command in Terminal:
   `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
+* Upgrade to latest chokidar, to prevent fsevents-related issues:
+    * `npm WARN optional dep failed, continuing fsevents@n.n.n`
+    * `TypeError: fsevents is not a constructor`
 
 ## Changelog
 
-For more detailed changelog, see [`full_changelog.md`](.github/full_changelog.md).
-- **v3.5 (Jan 6, 2021):** Support for ARM Macs with Apple Silicon. Fixes for deleted symlinks.
-- **v3.4 (Apr 26, 2020):** Support for directory-based symlinks. Fixes for macos file replacement.
-- **v3.3 (Nov 2, 2019):** `FSWatcher#close()` method became async. That fixes IO race conditions related to close method.
-- **v3.2 (Oct 1, 2019):** Improve Linux RAM usage by 50%. Race condition fixes. Windows glob fixes. Improve stability by using tight range of dependency versions.
-- **v3.1 (Sep 16, 2019):** dotfiles are no longer filtered out by default. Use `ignored` option if needed. Improve initial Linux scan time by 50%.
-- **v3 (Apr 30, 2019):** massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8.16 and higher.
-- **v2 (Dec 29, 2017):** Globs are now posix-style-only; without windows support. Tons of bugfixes.
+- **v4 (Aug 28, 2024):** Remove glob support and bundled fsevents: decrease dependency count from 13 to 1. Rewrite in typescript. Bumps minimum node.js requirement to v14+
+- **v3 (Apr 30, 2019):** massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8.16+.
+- **v2 (Dec 29, 2017):** Globs are now posix-style-only. Tons of bugfixes.
 - **v1 (Apr 7, 2015):** Glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
 - **v0.1 (Apr 20, 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
+
+Details in [`.github/full_changelog.md`](.github/full_changelog.md).
 
 ## Also
 
