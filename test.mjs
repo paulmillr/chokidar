@@ -109,10 +109,11 @@ const chokidar_watch = (path = currentDir, opts) => {
 const waitFor = (spies) => {
   if (spies.length === 0) throw new TypeError('SPies zero');
   return new Promise((resolve, reject) => {
+    let checkTimer;
     const timeout = setTimeout(() => {
+      clearTimeout(checkTimer);
       reject(new Error('timeout'));
     }, TEST_TIMEOUT);
-    let checkTimer;
     const isSpyReady = (spy) => {
       if (Array.isArray(spy)) {
         return spy[0].callCount >= spy[1];
