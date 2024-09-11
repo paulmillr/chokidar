@@ -106,12 +106,13 @@ const chokidar_watch = (path = currentDir, opts) => {
   return wt;
 };
 
-const waitFor = async (spies) => {
+const waitFor = (spies) => {
   if (spies.length === 0) throw new TypeError('SPies zero');
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('timeout'));
     }, TEST_TIMEOUT);
+    let checkTimer;
     const isSpyReady = (spy) => {
       if (Array.isArray(spy)) {
         return spy[0].callCount >= spy[1];
@@ -119,11 +120,13 @@ const waitFor = async (spies) => {
       return spy.callCount >= 1;
     };
     const checkSpiesReady = () => {
+      clearTimeout(checkTimer);
+
       if (spies.every(isSpyReady)) {
         clearTimeout(timeout);
         resolve();
       } else {
-        setTimeout(checkSpiesReady, 20);
+        checkTimer = setTimeout(checkSpiesReady, 20);
       }
     };
     checkSpiesReady();
@@ -1399,10 +1402,13 @@ const runTests = (baseopts) => {
         await fs_mkdir(testDir, PERM_ARR);
         const watcher = chokidar_watch('.', options);
 
-        setTimeout(() => {
-          watcher.on(EV.ADD_DIR, spy);
-          fs_rename(testDir, renamedDir);
-        }, 1000);
+        await new Promise((resolve) => {
+          setTimeout(() => {
+            watcher.on(EV.ADD_DIR, spy);
+            fs_rename(testDir, renamedDir);
+            resolve();
+          }, 1000);
+        });
 
         await waitFor([spy]);
         spy.should.have.been.calledOnce;
