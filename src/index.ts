@@ -967,7 +967,7 @@ export class FSWatcher extends EventEmitter {
  * @param options chokidar opts
  * @returns an instance of FSWatcher for chaining.
  */
-export const watch = (paths: string | string[], options: ChokidarOptions): FSWatcher => {
+export const watch = (paths: string | string[], options?: ChokidarOptions): FSWatcher => {
   const watcher = new FSWatcher(options);
   watcher.add(paths);
   return watcher;
