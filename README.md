@@ -59,7 +59,7 @@ chokidar.watch('.').on('all', (event, path) => {
 
 // Initialize watcher.
 const watcher = chokidar.watch('file, dir, or array', {
-  ignored: /(^|[\/\\])\../, // ignore dotfiles
+  ignored: (path, stats) => stats?.isFile() && !path.endsWith('.js'), // only watch js files
   persistent: true
 });
 
@@ -260,6 +260,30 @@ execute a command on each change, or get a stdio stream of change events.
 - **v0.1 (Apr 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
 
 Details in [`.github/full_changelog.md`](.github/full_changelog.md).
+
+If you've used globs before and want do replicate the functionality with v4:
+
+```js
+// v3
+chok.watch('**/*.js');
+chok.watch("./directory/**/*");
+
+// v4
+chok.watch('.', {
+  ignored: (path, stats) => stats?.isFile() && !path.endsWith('.js'), // only watch js files
+});
+chok.watch('./directory');
+
+// other way
+import { glob } from 'node:fs/promises';
+const watcher = watch(await glob('**/*.js'));
+
+// unwatching
+// v3
+chok.unwatch('**/*.js');
+// v4
+chok.unwatch(await glob('**/*.js'));
+```
 
 ## Also
 
