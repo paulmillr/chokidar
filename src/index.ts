@@ -41,7 +41,7 @@ type BasicOpts = {
 
 export type ChokidarOptions = Partial<
   BasicOpts & {
-    ignored: string | ((path: string) => boolean); // And what about regexps?
+    ignored: Matcher | Matcher[];
     awaitWriteFinish: boolean | Partial<AWF>;
   }
 >;
