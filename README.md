@@ -32,7 +32,7 @@ Made for [Brunch](https://brunch.io/) in 2012,
 it is now used in [~30 million repositories](https://www.npmjs.com/browse/depended/chokidar) and
 has proven itself in production environments.
 
-**Aug 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
+**Sep 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
 support for globs, adds support for ESM / Common.js modules, and bumps minimum node.js version from v8 to v14.
 
 ## Getting started
@@ -253,11 +253,11 @@ execute a command on each change, or get a stdio stream of change events.
 
 ## Changelog
 
-- **v4 (Aug 28, 2024):** Remove glob support and bundled fsevents: decrease dependency count from 13 to 1. Rewrite in typescript. Bumps minimum node.js requirement to v14+
-- **v3 (Apr 30, 2019):** massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8.16+.
-- **v2 (Dec 29, 2017):** Globs are now posix-style-only. Tons of bugfixes.
-- **v1 (Apr 7, 2015):** Glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
-- **v0.1 (Apr 20, 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
+- **v4 (Sep 2024):** remove glob support and bundled fsevents. Decrease dependency count from 13 to 1. Rewrite in typescript. Bumps minimum node.js requirement to v14+
+- **v3 (Apr 2019):** massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8.16+.
+- **v2 (Dec 2017):** globs are now posix-style-only. Tons of bugfixes.
+- **v1 (Apr 2015):** glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
+- **v0.1 (Apr 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
 
 Details in [`.github/full_changelog.md`](.github/full_changelog.md).
 

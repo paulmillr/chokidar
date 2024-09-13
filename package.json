@@ -1,12 +1,9 @@
 {
   "name": "chokidar",
   "description": "Minimal and efficient cross-platform file watching library",
-  "version": "4.0.0-beta",
+  "version": "4.0.0",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
-  "engines": {
-    "node": ">= 14.16.0"
-  },
   "files": [
     "index.js",
     "index.d.ts",
@@ -31,7 +28,6 @@
       "require": "./handler.js"
     }
   },
-  "sideEffects": false,
   "dependencies": {
     "readdirp": "^4.0.1"
   },
@@ -45,6 +41,10 @@
     "sinon-chai": "3.7.0",
     "typescript": "5.5.2",
     "upath": "2.0.1"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">= 14.16.0"
   },
   "repository": {
     "type": "git",
