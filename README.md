@@ -98,17 +98,18 @@ let watchedPaths = watcher.getWatched();
 // Un-watch some files.
 await watcher.unwatch('new-file');
 
-// Stop watching.
-// The method is async!
-watcher.close().then(() => console.log('closed'));
+// Stop watching. The method is async!
+await watcher.close().then(() => console.log('closed'));
 
 // Full list of options. See below for descriptions.
 // Do not use this example!
 chokidar.watch('file', {
   persistent: true,
 
-  ignored: (file, _stats) => file.endsWith('.txt'),
-  ignoreInitial: false,
+  // ignore .txt files
+  ignored: (file) => file.endsWith('.txt'),
+  // watch only .txt files
+  // ignored: (file, _stats) => _stats?.isFile() && !file.endsWith('.txt'),
 
   awaitWriteFinish: true, // emit single event when chunked writes are completed
   atomic: true // emit proper events when "atomic writes" (mv _tmp file) are used
@@ -126,9 +127,10 @@ chokidar.watch('file', {
   depth: 99,
 
   followSymlinks: true,
+  ignoreInitial: false,
+  ignorePermissionErrors: false,
   usePolling: false,
   alwaysStat: false,
-  ignorePermissionErrors: false,
 });
 
 ```
@@ -148,10 +150,9 @@ after `ready`, even if the process continues to run.
 
 #### Path filtering
 
-* `ignored` ([anymatch](https://github.com/es128/anymatch)-compatible definition)
-Defines files/paths to be ignored. The whole relative or absolute path is
-tested, not just filename. If a function with two arguments is provided, it
-gets called twice per path - once with a single argument (the path), second
+* `ignored` function, regex, or path. Defines files/paths to be ignored.
+The whole relative or absolute path is tested, not just filename. If a function with two arguments
+is provided, it gets called twice per path - once with a single argument (the path), second
 time with two arguments (the path and the
 [`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
 object of that path).
