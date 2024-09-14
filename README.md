@@ -34,6 +34,7 @@ has proven itself in production environments.
 
 **Sep 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
 support for globs, adds support for ESM / Common.js modules, and bumps minimum node.js version from v8 to v14.
+Check out [upgrading](#upgrading).
 
 ## Getting started
 
@@ -106,23 +107,28 @@ watcher.close().then(() => console.log('closed'));
 chokidar.watch('file', {
   persistent: true,
 
-  ignored: (file) => file.endsWith('.txt'),
+  ignored: (file, _stats) => file.endsWith('.txt'),
   ignoreInitial: false,
-  followSymlinks: true,
-  cwd: '.',
 
-  usePolling: false,
+  awaitWriteFinish: true, // emit single event when chunked writes are completed
+  atomic: true // emit proper events when "atomic writes" (mv _tmp file) are used
+
+  // The options also allow specifying custom intervals in ms
+  // awaitWriteFinish: {
+  //   stabilityThreshold: 2000,
+  //   pollInterval: 100
+  // },
+  // atomic: 100,
   interval: 100,
   binaryInterval: 300,
-  alwaysStat: false,
-  depth: 99,
-  awaitWriteFinish: {
-    stabilityThreshold: 2000,
-    pollInterval: 100
-  },
 
+  cwd: '.',
+  depth: 99,
+
+  followSymlinks: true,
+  usePolling: false,
+  alwaysStat: false,
   ignorePermissionErrors: false,
-  atomic: true // or a custom 'atomicity delay', in milliseconds (default 100)
 });
 
 ```
@@ -260,6 +266,9 @@ execute a command on each change, or get a stdio stream of change events.
 - **v0.1 (Apr 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
 
 Details in [`.github/full_changelog.md`](.github/full_changelog.md).
+
+
+### Upgrading
 
 If you've used globs before and want do replicate the functionality with v4:
 

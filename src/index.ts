@@ -963,14 +963,17 @@ export class FSWatcher extends EventEmitter {
 
 /**
  * Instantiates watcher with paths to be tracked.
- * @param paths file/directory paths
- * @param options chokidar opts
+ * @param paths file / directory paths
+ * @param options opts, such as `atomic`, `awaitWriteFinish`, `ignored`, and others
  * @returns an instance of FSWatcher for chaining.
+ * @example
+ * const watcher = watch('.').on('all', (event, path) => { console.log(event, path); });
+ * watch('.', { atomic: true, awaitWriteFinish: true, ignored: (f, stats) => stats?.isFile() && !f.endsWith('.js') })
  */
-export const watch = (paths: string | string[], options?: ChokidarOptions): FSWatcher => {
+export function watch(paths: string | string[], options: ChokidarOptions = {}): FSWatcher {
   const watcher = new FSWatcher(options);
   watcher.add(paths);
   return watcher;
-};
+}
 
 export default { watch, FSWatcher };
