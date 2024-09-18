@@ -291,9 +291,14 @@ const FsWatchFileInstances = new Map();
  * @param fullPath absolute path
  * @param options options to be passed to fs_watchFile
  * @param handlers container for event listener functions
- * @returns {Function} closer
+ * @returns closer
  */
-const setFsWatchFileListener = (path: Path, fullPath: Path, options: any, handlers: any) => {
+const setFsWatchFileListener = (
+  path: Path,
+  fullPath: Path,
+  options: any,
+  handlers: any
+): (() => void) => {
   const { listener, rawEmitter } = handlers;
   let cont = FsWatchFileInstances.get(fullPath);
 
@@ -400,9 +405,9 @@ export class NodeFsHandler {
 
   /**
    * Watch a file and emit add event if warranted.
-   * @returns {Function} closer for the watcher instance
+   * @returns closer for the watcher instance
    */
-  _handleFile(file: Path, stats: Stats, initialAdd: boolean) {
+  _handleFile(file: Path, stats: Stats, initialAdd: boolean): (() => void) | undefined {
     if (this.fsw.closed) {
       return;
     }
@@ -615,7 +620,7 @@ export class NodeFsHandler {
    * @param target child path targeted for watch
    * @param wh Common watch helpers for this path
    * @param realpath
-   * @returns {Promise<Function>} closer for the watcher instance.
+   * @returns closer for the watcher instance.
    */
   async _handleDir(
     dir: string,
@@ -625,7 +630,7 @@ export class NodeFsHandler {
     target: string,
     wh: WatchHelper,
     realpath: string
-  ) {
+  ): Promise<(() => void) | undefined> {
     const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
     const tracked = parentDir.has(sysPath.basename(dir));
     if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
