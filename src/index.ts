@@ -52,7 +52,7 @@ export type FSWInstanceOptions = BasicOpts & {
 };
 
 export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
-export type EmitArgs = [EventName, Path, any?, any?, any?];
+export type EmitArgs = [EventName, Path | Error, any?, any?, any?];
 export type MatchFunction = (val: string, stats?: Stats) => boolean;
 export interface MatcherObject {
   path: string;
@@ -213,8 +213,7 @@ class DirEntry {
   constructor(dir: Path, removeWatcher: any) {
     this.path = dir;
     this._removeWatcher = removeWatcher;
-    /** @type {Set<Path>} */
-    this.items = new Set();
+    this.items = new Set<Path>();
   }
 
   add(item: string) {
@@ -277,7 +276,6 @@ export class WatchHelper {
     this.path = path = path.replace(REPLACER_RE, '');
     this.watchPath = watchPath;
     this.fullWatchPath = sysPath.resolve(watchPath);
-    /** @type {object|boolean} */
     this.dirParts = [];
     this.dirParts.forEach((parts) => {
       if (parts.length > 1) parts.pop();
@@ -525,9 +523,8 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Close watchers and remove all listeners from watched paths.
-   * @returns {Promise<void>}.
    */
-  close() {
+  close(): Promise<void> | undefined {
     if (this.closed) return this._closePromise;
     this.closed = true;
 
@@ -560,14 +557,13 @@ export class FSWatcher extends EventEmitter {
 
   /**
    * Expose list of watched paths
-   * @returns {Object} for chaining
+   * @returns for chaining
    */
-  getWatched() {
-    const watchList: Object = {};
+  getWatched(): Record<string, string[]> {
+    const watchList: Record<string, string[]> = {};
     this._watched.forEach((entry, dir) => {
       const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
       const index = key || ONE_DOT;
-      // @ts-ignore
       watchList[index] = entry.getChildren().sort();
     });
     return watchList;
@@ -595,7 +591,6 @@ export class FSWatcher extends EventEmitter {
     const opts = this.options;
     if (isWindows) path = sysPath.normalize(path);
     if (opts.cwd) path = sysPath.relative(opts.cwd, path);
-    /** @type Array<any> */
     const args: EmitArgs = [event, path];
     if (stats != null) args.push(stats);
 
@@ -631,7 +626,6 @@ export class FSWatcher extends EventEmitter {
       const awfEmit = (err: Error, stats: Stats) => {
         if (err) {
           event = args[0] = EV.ERROR;
-          // @ts-ignore
           args[1] = err;
           this.emitWithAll(event, args);
         } else if (stats) {
@@ -697,17 +691,25 @@ export class FSWatcher extends EventEmitter {
    * @param actionType type being throttled
    * @param path being acted upon
    * @param timeout duration of time to suppress duplicate actions
-   * @returns {Object|false} tracking object or false if action should be suppressed
+   * @returns tracking object or false if action should be suppressed
    */
-  _throttle(actionType: ThrottleType, path: Path, timeout: number) {
+  _throttle(
+    actionType: ThrottleType,
+    path: Path,
+    timeout: number
+  ):
+    | {
+        timeoutObject: any;
+        clear: () => any;
+        count: number;
+      }
+    | false {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, new Map());
     }
 
-    /** @type {Map<Path, Object>} */
     const action = this._throttled.get(actionType);
     if (!action) throw new Error('invalid throttle');
-    /** @type {Object} */
     const actionPath = action.get(path);
 
     if (actionPath) {
