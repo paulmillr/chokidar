@@ -448,6 +448,7 @@ export class FSWatcher extends EventEmitter {
   add(paths_: Path | Path[], _origAdd?: string, _internal?: boolean): FSWatcher {
     const { cwd } = this.options;
     this.closed = false;
+    this._closePromise = undefined;
     let paths = unifyPaths(paths_);
     if (cwd) {
       paths = paths.map((path) => {
@@ -524,13 +525,15 @@ export class FSWatcher extends EventEmitter {
   /**
    * Close watchers and remove all listeners from watched paths.
    */
-  close(): Promise<void> | undefined {
-    if (this.closed) return this._closePromise;
+  close(): Promise<void> {
+    if (this._closePromise) {
+      return this._closePromise;
+    }
     this.closed = true;
 
     // Memory management.
     this.removeAllListeners();
-    const closers: any[] = [];
+    const closers: Array<Promise<void>> = [];
     this._closers.forEach((closerList) =>
       closerList.forEach((closer) => {
         const promise = closer();
