@@ -144,9 +144,7 @@ recursively.
 #### Persistence
 
 * `persistent` (default: `true`). Indicates whether the process
-should continue to run as long as files are being watched. If set to
-`false` when using `fsevents` to watch, no more events will be emitted
-after `ready`, even if the process continues to run.
+should continue to run as long as files are being watched.
 
 #### Path filtering
 
@@ -180,10 +178,6 @@ to true (1) or false (0) in order to override this option.
   * `binaryInterval` (default: `300`). Interval of file system
   polling for binary files.
   ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
-* `useFsEvents` (default: `true` on MacOS). Whether to use the
-`fsevents` watching interface if available. When set to `true` explicitly
-and `fsevents` is available this supercedes the `usePolling` setting. When
-set to `false` on MacOS, `usePolling: true` becomes the default.
 * `alwaysStat` (default: `false`). If relying upon the
 [`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
 object that may get passed with `add`, `addDir`, and `change` events, set
@@ -254,7 +248,7 @@ execute a command on each change, or get a stdio stream of change events.
   `Error: watch /home/ ENOSPC`
     * This means Chokidar ran out of file handles and you'll need to increase their count by executing the following command in Terminal:
   `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
-* Upgrade to latest chokidar, to prevent fsevents-related issues:
+* If using 3.x, upgrade to latest chokidar to prevent fsevents-related issues:
     * `npm WARN optional dep failed, continuing fsevents@n.n.n`
     * `TypeError: fsevents is not a constructor`
 

@@ -140,7 +140,7 @@ const FsWatchInstances = new Map<string, FsWatchContainer>();
  * @param listener main event handler
  * @param errHandler emits info about errors
  * @param emitRaw emits raw event data
- * @returns new fsevents instance
+ * @returns {NativeFsWatcher}
  */
 function createFsWatchInstance(
   path: string,
@@ -148,7 +148,7 @@ function createFsWatchInstance(
   listener: WatchHandlers['listener'],
   errHandler: WatchHandlers['errHandler'],
   emitRaw: WatchHandlers['rawEmitter']
-) {
+): NativeFsWatcher | undefined {
   const handleEvent: WatchListener<string> = (rawEvent, evPath: string | null) => {
     listener(path);
     emitRaw(rawEvent, evPath!, { watchedPath: path });
@@ -169,6 +169,7 @@ function createFsWatchInstance(
     );
   } catch (error) {
     errHandler(error);
+    return undefined;
   }
 }
 
