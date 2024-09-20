@@ -41,7 +41,7 @@ type BasicOpts = {
 
 export type Throttler = {
   timeoutObject: any;
-  clear: () => any;
+  clear: () => void;
   count: number;
 }
 
@@ -310,12 +310,12 @@ export class FSWatcher extends EventEmitter {
   _closers: Map<string, Array<any>>;
   _ignoredPaths: Set<Matcher>;
   _throttled: Map<ThrottleType, Map<any, any>>;
-  _streams: Set<any>;
+  _streams: Set<ReaddirpStream>;
   _symlinkPaths: Map<Path, string | boolean>;
   _watched: Map<string, DirEntry>;
 
-  _pendingWrites: Map<any, any>;
-  _pendingUnlinks: Map<any, any>;
+  _pendingWrites: Map<string, any>;
+  _pendingUnlinks: Map<string, any>;
   _readyCount: number;
   _emitReady: () => void;
   _closePromise?: Promise<void>;
