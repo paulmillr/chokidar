@@ -39,6 +39,12 @@ type BasicOpts = {
   // ioLimit?: number; // Limit parallel IO operations (CPU usage + OS limits)
 };
 
+export type Throttler = {
+  timeoutObject: NodeJS.Timeout;
+  clear: () => void;
+  count: number;
+};
+
 export type ChokidarOptions = Partial<
   BasicOpts & {
     ignored: Matcher | Matcher[];
@@ -142,20 +148,8 @@ function anymatch(matchers: Matcher[], testString: string | undefined): boolean 
   return matchPatterns(patterns, testString);
 }
 
-const flatten = (list: any[], result = []) => {
-  list.forEach((item) => {
-    if (Array.isArray(item)) {
-      flatten(item, result);
-    } else {
-      // @ts-ignore
-      result.push(item);
-    }
-  });
-  return result;
-};
-
 const unifyPaths = (paths_: Path | Path[]) => {
-  const paths = flatten(arrify(paths_));
+  const paths = arrify(paths_).flat();
   if (!paths.every((p) => typeof p === STRING_TYPE)) {
     throw new TypeError(`Non-string provided as watch path: ${paths}`);
   }
@@ -186,11 +180,11 @@ const normalizePathToUnix = (path: Path) => toUnix(sysPath.normalize(toUnix(path
 // TODO: refactor
 const normalizeIgnored =
   (cwd = '') =>
-  (path: any): any => {
+  (path: unknown): string => {
     if (typeof path === 'string') {
       return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
     } else {
-      return path;
+      return path as string;
     }
   };
 
@@ -207,10 +201,10 @@ const EMPTY_SET = Object.freeze(new Set<string>());
  */
 class DirEntry {
   path: Path;
-  _removeWatcher: any;
+  _removeWatcher: (dir: string, base: string) => void;
   items: Set<Path>;
 
-  constructor(dir: Path, removeWatcher: any) {
+  constructor(dir: Path, removeWatcher: (dir: string, base: string) => void) {
     this.path = dir;
     this._removeWatcher = removeWatcher;
     this.items = new Set<Path>();
@@ -270,7 +264,7 @@ export class WatchHelper {
   followSymlinks: boolean;
   statMethod: 'stat' | 'lstat';
 
-  constructor(path: string, follow: boolean, fsw: any) {
+  constructor(path: string, follow: boolean, fsw: FSWatcher) {
     this.fsw = fsw;
     const watchPath = path;
     this.path = path = path.replace(REPLACER_RE, '');
@@ -316,12 +310,12 @@ export class FSWatcher extends EventEmitter {
   _closers: Map<string, Array<any>>;
   _ignoredPaths: Set<Matcher>;
   _throttled: Map<ThrottleType, Map<any, any>>;
-  _streams: Set<any>;
+  _streams: Set<ReaddirpStream>;
   _symlinkPaths: Map<Path, string | boolean>;
   _watched: Map<string, DirEntry>;
 
-  _pendingWrites: Map<any, any>;
-  _pendingUnlinks: Map<any, any>;
+  _pendingWrites: Map<string, any>;
+  _pendingUnlinks: Map<string, EmitArgs>;
   _readyCount: number;
   _emitReady: () => void;
   _closePromise?: Promise<void>;
@@ -626,7 +620,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     if (awf && (event === EV.ADD || event === EV.CHANGE) && this._readyEmitted) {
-      const awfEmit = (err: Error, stats: Stats) => {
+      const awfEmit = (err?: Error, stats?: Stats) => {
         if (err) {
           event = args[0] = EV.ERROR;
           args[1] = err;
@@ -696,17 +690,7 @@ export class FSWatcher extends EventEmitter {
    * @param timeout duration of time to suppress duplicate actions
    * @returns tracking object or false if action should be suppressed
    */
-  _throttle(
-    actionType: ThrottleType,
-    path: Path,
-    timeout: number
-  ):
-    | {
-        timeoutObject: any;
-        clear: () => any;
-        count: number;
-      }
-    | false {
+  _throttle(actionType: ThrottleType, path: Path, timeout: number): Throttler | false {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, new Map());
     }
@@ -721,7 +705,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     // eslint-disable-next-line prefer-const
-    let timeoutObject: any;
+    let timeoutObject: NodeJS.Timeout;
     const clear = () => {
       const item = action.get(path);
       const count = item ? item.count : 0;
@@ -748,11 +732,16 @@ export class FSWatcher extends EventEmitter {
    * @param event
    * @param awfEmit Callback to be called when ready for event to be emitted.
    */
-  _awaitWriteFinish(path: Path, threshold: number, event: EventName, awfEmit: any) {
+  _awaitWriteFinish(
+    path: Path,
+    threshold: number,
+    event: EventName,
+    awfEmit: (err?: Error, stat?: Stats) => void
+  ) {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== 'object') return;
     const pollInterval = awf.pollInterval as unknown as number;
-    let timeoutHandler: any;
+    let timeoutHandler: NodeJS.Timeout;
 
     let fullPath = path;
     if (this.options.cwd && !sysPath.isAbsolute(path)) {
