@@ -39,6 +39,12 @@ type BasicOpts = {
   // ioLimit?: number; // Limit parallel IO operations (CPU usage + OS limits)
 };
 
+export type Throttler = {
+  timeoutObject: any;
+  clear: () => any;
+  count: number;
+}
+
 export type ChokidarOptions = Partial<
   BasicOpts & {
     ignored: Matcher | Matcher[];
@@ -142,20 +148,8 @@ function anymatch(matchers: Matcher[], testString: string | undefined): boolean 
   return matchPatterns(patterns, testString);
 }
 
-const flatten = (list: any[], result = []) => {
-  list.forEach((item) => {
-    if (Array.isArray(item)) {
-      flatten(item, result);
-    } else {
-      // @ts-ignore
-      result.push(item);
-    }
-  });
-  return result;
-};
-
 const unifyPaths = (paths_: Path | Path[]) => {
-  const paths = flatten(arrify(paths_));
+  const paths = arrify(paths_).flat();
   if (!paths.every((p) => typeof p === STRING_TYPE)) {
     throw new TypeError(`Non-string provided as watch path: ${paths}`);
   }
@@ -626,7 +620,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     if (awf && (event === EV.ADD || event === EV.CHANGE) && this._readyEmitted) {
-      const awfEmit = (err: Error, stats: Stats) => {
+      const awfEmit = (err?: Error, stats?: Stats) => {
         if (err) {
           event = args[0] = EV.ERROR;
           args[1] = err;
@@ -701,11 +695,7 @@ export class FSWatcher extends EventEmitter {
     path: Path,
     timeout: number
   ):
-    | {
-        timeoutObject: any;
-        clear: () => any;
-        count: number;
-      }
+    | Throttler
     | false {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, new Map());
@@ -748,7 +738,7 @@ export class FSWatcher extends EventEmitter {
    * @param event
    * @param awfEmit Callback to be called when ready for event to be emitted.
    */
-  _awaitWriteFinish(path: Path, threshold: number, event: EventName, awfEmit: any) {
+  _awaitWriteFinish(path: Path, threshold: number, event: EventName, awfEmit: (err?: Error, stat?: Stats) => void) {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== 'object') return;
     const pollInterval = awf.pollInterval as unknown as number;

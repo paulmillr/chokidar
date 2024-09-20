@@ -3,7 +3,7 @@ import type { WatchListener, WatchEventType, Stats, FSWatcher as NativeFsWatcher
 import { open, stat, lstat, realpath as fsrealpath } from 'fs/promises';
 import * as sysPath from 'path';
 import { type as osType } from 'os';
-import type { FSWatcher, WatchHelper, FSWInstanceOptions } from './index.js';
+import type { FSWatcher, WatchHelper, FSWInstanceOptions, Throttler } from './index.js';
 import type { EntryInfo } from 'readdirp';
 
 export type Path = string;
@@ -107,12 +107,12 @@ const clearItem = (cont: Record<string, unknown>) => (key: string) => {
   }
 };
 
-const delFromSet = (main: any, prop: any, item: any) => {
-  const container = main[prop];
+const delFromSet = (main: Record<string, unknown> | Set<unknown>, prop: string, item: unknown) => {
+  const container = (main as Record<string, unknown>)[prop];
   if (container instanceof Set) {
     container.delete(item);
   } else if (container === item) {
-    delete main[prop];
+    delete (main as Record<string, unknown>)[prop];
   }
 };
 
@@ -362,10 +362,10 @@ const setFsWatchFileListener = (
  */
 export class NodeFsHandler {
   fsw: FSWatcher;
-  _boundHandleError: any;
+  _boundHandleError: (error: unknown) => void;
   constructor(fsW: FSWatcher) {
     this.fsw = fsW;
-    this._boundHandleError = (error: Error) => fsW._handleError(error);
+    this._boundHandleError = (error) => fsW._handleError(error as Error);
   }
 
   /**
@@ -530,12 +530,12 @@ export class NodeFsHandler {
     target: Path,
     dir: Path,
     depth: number,
-    throttler: any
+    throttler: Throttler
   ) {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, '');
 
-    throttler = this.fsw._throttle('readdir', directory, 1000);
+    throttler = this.fsw._throttle('readdir', directory, 1000) as Throttler;
     if (!throttler) return;
 
     const previous = this.fsw._getWatchedDir(wh.path);
@@ -641,7 +641,7 @@ export class NodeFsHandler {
     // ensure dir is tracked (harmless if redundant)
     parentDir.add(sysPath.basename(dir));
     this.fsw._getWatchedDir(dir);
-    let throttler: any;
+    let throttler!: Throttler;
     let closer;
 
     const oDepth = this.fsw.options.depth;
