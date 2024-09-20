@@ -40,7 +40,7 @@ type BasicOpts = {
 };
 
 export type Throttler = {
-  timeoutObject: any;
+  timeoutObject: NodeJS.Timeout;
   clear: () => void;
   count: number;
 };

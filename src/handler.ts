@@ -297,8 +297,8 @@ const FsWatchFileInstances = new Map<string, any>();
 const setFsWatchFileListener = (
   path: Path,
   fullPath: Path,
-  options: any,
-  handlers: any
+  options: Partial<FSWInstanceOptions>,
+  handlers: Pick<WatchHandlers, 'rawEmitter' | 'listener'>
 ): (() => void) => {
   const { listener, rawEmitter } = handlers;
   let cont = FsWatchFileInstances.get(fullPath);
@@ -307,7 +307,7 @@ const setFsWatchFileListener = (
   // let rawEmitters = new Set();
 
   const copts = cont && cont.options;
-  if (copts && (copts.persistent < options.persistent || copts.interval > options.interval)) {
+  if (copts && (copts.persistent < options.persistent! || copts.interval > options.interval!)) {
     // "Upgrade" the watcher to persistence or a quicker interval.
     // This creates some unlikely edge case issues if the user mixes
     // settings in a very weird way, but solving for those cases
