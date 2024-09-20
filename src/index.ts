@@ -43,7 +43,7 @@ export type Throttler = {
   timeoutObject: any;
   clear: () => void;
   count: number;
-}
+};
 
 export type ChokidarOptions = Partial<
   BasicOpts & {
@@ -690,13 +690,7 @@ export class FSWatcher extends EventEmitter {
    * @param timeout duration of time to suppress duplicate actions
    * @returns tracking object or false if action should be suppressed
    */
-  _throttle(
-    actionType: ThrottleType,
-    path: Path,
-    timeout: number
-  ):
-    | Throttler
-    | false {
+  _throttle(actionType: ThrottleType, path: Path, timeout: number): Throttler | false {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, new Map());
     }
@@ -738,7 +732,12 @@ export class FSWatcher extends EventEmitter {
    * @param event
    * @param awfEmit Callback to be called when ready for event to be emitted.
    */
-  _awaitWriteFinish(path: Path, threshold: number, event: EventName, awfEmit: (err?: Error, stat?: Stats) => void) {
+  _awaitWriteFinish(
+    path: Path,
+    threshold: number,
+    event: EventName,
+    awfEmit: (err?: Error, stat?: Stats) => void
+  ) {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== 'object') return;
     const pollInterval = awf.pollInterval as unknown as number;
