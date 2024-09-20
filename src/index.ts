@@ -186,11 +186,11 @@ const normalizePathToUnix = (path: Path) => toUnix(sysPath.normalize(toUnix(path
 // TODO: refactor
 const normalizeIgnored =
   (cwd = '') =>
-  (path: any): any => {
+  (path: unknown): string => {
     if (typeof path === 'string') {
       return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
     } else {
-      return path;
+      return path as string;
     }
   };
 
@@ -207,10 +207,10 @@ const EMPTY_SET = Object.freeze(new Set<string>());
  */
 class DirEntry {
   path: Path;
-  _removeWatcher: any;
+  _removeWatcher: (dir: string, base: string) => void;
   items: Set<Path>;
 
-  constructor(dir: Path, removeWatcher: any) {
+  constructor(dir: Path, removeWatcher: (dir: string, base: string) => void) {
     this.path = dir;
     this._removeWatcher = removeWatcher;
     this.items = new Set<Path>();
@@ -270,7 +270,7 @@ export class WatchHelper {
   followSymlinks: boolean;
   statMethod: 'stat' | 'lstat';
 
-  constructor(path: string, follow: boolean, fsw: any) {
+  constructor(path: string, follow: boolean, fsw: FSWatcher) {
     this.fsw = fsw;
     const watchPath = path;
     this.path = path = path.replace(REPLACER_RE, '');

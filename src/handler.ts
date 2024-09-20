@@ -12,7 +12,7 @@ export const STR_DATA = 'data';
 export const STR_END = 'end';
 export const STR_CLOSE = 'close';
 export const EMPTY_FN = () => {};
-export const IDENTITY_FN = (val: any) => val;
+export const IDENTITY_FN = (val: unknown) => val;
 
 const pl = process.platform;
 export const isWindows = pl === 'win32';
@@ -82,7 +82,7 @@ const isBinaryPath = (filePath: string) =>
   binaryExtensions.has(sysPath.extname(filePath).slice(1).toLowerCase());
 
 // TODO: emit errors properly. Example: EMFILE on Macos.
-const foreach = (val: any, fn: any) => {
+const foreach = <V extends unknown>(val: V, fn: (arg: V) => unknown) => {
   if (val instanceof Set) {
     val.forEach(fn);
   } else {
@@ -90,15 +90,15 @@ const foreach = (val: any, fn: any) => {
   }
 };
 
-const addAndConvert = (main: any, prop: any, item: any) => {
-  let container = main[prop];
+const addAndConvert = (main: Record<string, unknown>, prop: string, item: unknown) => {
+  let container = (main as Record<string, unknown>)[prop];
   if (!(container instanceof Set)) {
-    main[prop] = container = new Set([container]);
+    (main as Record<string, unknown>)[prop] = container = new Set([container]);
   }
-  container.add(item);
+  (container as Set<unknown>).add(item);
 };
 
-const clearItem = (cont: any) => (key: string) => {
+const clearItem = (cont: Record<string, unknown>) => (key: string) => {
   const set = cont[key];
   if (set instanceof Set) {
     set.clear();
@@ -116,7 +116,7 @@ const delFromSet = (main: any, prop: any, item: any) => {
   }
 };
 
-const isEmptySet = (val: any) => (val instanceof Set ? val.size === 0 : !val);
+const isEmptySet = (val: unknown) => (val instanceof Set ? val.size === 0 : !val);
 
 // fs_watch helpers
 
@@ -180,9 +180,9 @@ function createFsWatchInstance(
 const fsWatchBroadcast = (
   fullPath: Path,
   listenerType: string,
-  val1?: any,
-  val2?: any,
-  val3?: any
+  val1?: unknown,
+  val2?: unknown,
+  val3?: unknown
 ) => {
   const cont = FsWatchInstances.get(fullPath);
   if (!cont) return;
@@ -283,7 +283,7 @@ const setFsWatchListener = (
 
 // object to hold per-process fs_watchFile instances
 // (may be shared across chokidar FSWatcher instances)
-const FsWatchFileInstances = new Map();
+const FsWatchFileInstances = new Map<string, any>();
 
 /**
  * Instantiates the fs_watchFile interface or binds listeners
@@ -330,12 +330,12 @@ const setFsWatchFileListener = (
       rawEmitters: rawEmitter,
       options,
       watcher: watchFile(fullPath, options, (curr, prev) => {
-        foreach(cont.rawEmitters, (rawEmitter: any) => {
+        foreach(cont.rawEmitters, (rawEmitter) => {
           rawEmitter(EV.CHANGE, fullPath, { curr, prev });
         });
         const currmtime = curr.mtimeMs;
         if (curr.size !== prev.size || currmtime > prev.mtimeMs || currmtime === 0) {
-          foreach(cont.listeners, (listener: any) => listener(path, curr));
+          foreach(cont.listeners, (listener) => listener(path, curr));
         }
       }),
     };
