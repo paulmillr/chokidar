@@ -315,7 +315,7 @@ export class FSWatcher extends EventEmitter {
   _watched: Map<string, DirEntry>;
 
   _pendingWrites: Map<string, any>;
-  _pendingUnlinks: Map<string, any>;
+  _pendingUnlinks: Map<string, EmitArgs>;
   _readyCount: number;
   _emitReady: () => void;
   _closePromise?: Promise<void>;
@@ -705,7 +705,7 @@ export class FSWatcher extends EventEmitter {
     }
 
     // eslint-disable-next-line prefer-const
-    let timeoutObject: any;
+    let timeoutObject: NodeJS.Timeout;
     const clear = () => {
       const item = action.get(path);
       const count = item ? item.count : 0;
@@ -741,7 +741,7 @@ export class FSWatcher extends EventEmitter {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== 'object') return;
     const pollInterval = awf.pollInterval as unknown as number;
-    let timeoutHandler: any;
+    let timeoutHandler: NodeJS.Timeout;
 
     let fullPath = path;
     if (this.options.cwd && !sysPath.isAbsolute(path)) {
