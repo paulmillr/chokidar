@@ -277,7 +277,7 @@ chok.watch('./directory');
 
 // other way
 import { glob } from 'node:fs/promises';
-const watcher = watch(await glob('**/*.js'));
+const watcher = watch(await Array.fromAsync(glob('**/*.js')));
 
 // unwatching
 // v3
