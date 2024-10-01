@@ -5,8 +5,9 @@
     "outDir": "esm",
     "module": "es2020",
     "moduleResolution": "bundler",
-    "strict": true,
-    "noImplicitReturns": false
+    "noImplicitReturns": false,
+    "sourceMap": false,
+    "declarationMap": false
   },
   "include": [
     "src"

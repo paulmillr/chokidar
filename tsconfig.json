@@ -3,8 +3,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "outDir": ".",
-    "strict": true,
-    "noImplicitReturns": false
+    "noImplicitReturns": false,
+    "sourceMap": false,
+    "declarationMap": false
   },
   "include": [
     "src"
