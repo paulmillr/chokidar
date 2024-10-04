@@ -236,23 +236,23 @@ system being watched by this `FSWatcher` instance. The object's keys are all the
 directories (using absolute paths unless the `cwd` option was used), and the
 values are arrays of the names of the items contained in each directory.
 
-## CLI
+### CLI
 
-If you need a CLI interface for your file watching, check out
-third party [chokidar-cli](https://github.com/open-cli-tools/chokidar-cli), allowing you to
-execute a command on each change, or get a stdio stream of change events.
+Check out third party [chokidar-cli](https://github.com/open-cli-tools/chokidar-cli),
+which allows to execute a command on each change, or get a stdio stream of change events.
 
 ## Troubleshooting
 
-* `EMFILE` and `ENOSP` errors mean that Chokidar ran out of file handles. To resolve the problem:
-    * Execute `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
-    * If executing the command isn't possible, use [graceful-fs](https://www.npmjs.com/package/graceful-fs),
-      which can monkey-patch native `fs` module used by chokidar
-    * Examples of error: `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
-    * Another example: `Error: watch /home/ ENOSPC`
-* If using 3.x, upgrade to latest chokidar to prevent fsevents-related issues:
-    * `npm WARN optional dep failed, continuing fsevents@n.n.n`
-    * `TypeError: fsevents is not a constructor`
+Sometimes, Chokidar runs out of file handles, causing `EMFILE` and `ENOSP` errors:
+
+* `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
+* `Error: watch /home/ ENOSPC`
+
+This can be solved by tuning OS params, or by using [graceful-fs](https://www.npmjs.com/package/graceful-fs),
+which can monkey-patch native `fs` module used by chokidar.
+To tune OS, execute `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
+
+All fsevents-related issues (`WARN optional dep failed`, `fsevents is not a constructor`) are solved by upgrading to v4+.
 
 ## Changelog
 
