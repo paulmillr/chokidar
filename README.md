@@ -245,7 +245,8 @@ execute a command on each change, or get a stdio stream of change events.
 
 * `EMFILE` and `ENOSP` errors mean that Chokidar ran out of file handles. To resolve the problem:
     * Execute `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
-    * If executing the command isn't possible, use [graceful-fs](https://www.npmjs.com/package/graceful-fs)
+    * If executing the command isn't possible, use [graceful-fs](https://www.npmjs.com/package/graceful-fs),
+      which can monkey-patch native `fs` module used by chokidar
     * Examples of error: `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
     * Another example: `Error: watch /home/ ENOSPC`
 * If using 3.x, upgrade to latest chokidar to prevent fsevents-related issues:
