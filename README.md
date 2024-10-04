@@ -112,7 +112,7 @@ chokidar.watch('file', {
   // ignored: (file, _stats) => _stats?.isFile() && !file.endsWith('.txt'),
 
   awaitWriteFinish: true, // emit single event when chunked writes are completed
-  atomic: true // emit proper events when "atomic writes" (mv _tmp file) are used
+  atomic: true, // emit proper events when "atomic writes" (mv _tmp file) are used
 
   // The options also allow specifying custom intervals in ms
   // awaitWriteFinish: {
@@ -120,6 +120,7 @@ chokidar.watch('file', {
   //   pollInterval: 100
   // },
   // atomic: 100,
+
   interval: 100,
   binaryInterval: 300,
 
