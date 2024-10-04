@@ -249,7 +249,14 @@ Sometimes, Chokidar runs out of file handles, causing `EMFILE` and `ENOSP` error
 * `Error: watch /home/ ENOSPC`
 
 This can be solved by tuning OS params, or by using [graceful-fs](https://www.npmjs.com/package/graceful-fs),
-which can monkey-patch native `fs` module used by chokidar.
+which can monkey-patch native `fs` module used by chokidar:
+
+```js
+const realFs = require('fs');
+const gracefulFs = require('graceful-fs');
+gracefulFs.gracefulify(realFs);
+```
+
 To tune OS, execute `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
 
 All fsevents-related issues (`WARN optional dep failed`, `fsevents is not a constructor`) are solved by upgrading to v4+.
