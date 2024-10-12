@@ -248,16 +248,15 @@ Sometimes, Chokidar runs out of file handles, causing `EMFILE` and `ENOSP` error
 * `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
 * `Error: watch /home/ ENOSPC`
 
-This can be solved by tuning OS params, or by using [graceful-fs](https://www.npmjs.com/package/graceful-fs),
-which can monkey-patch native `fs` module used by chokidar:
+There are two things that can cause it.
 
-```js
-const realFs = require('fs');
-const gracefulFs = require('graceful-fs');
-gracefulFs.gracefulify(realFs);
-```
-
-To tune OS, execute `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`
+1. Exhausted file handles for generic fs operations
+    - Can be solved by using [graceful-fs](https://www.npmjs.com/package/graceful-fs),
+      which can monkey-patch native `fs` module used by chokidar: `let fs = require('fs'); let grfs = require('graceful-fs'); grfs.gracefulify(fs);`
+    - Can also be solved by tuning OS: `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`.
+2. Exhausted file handles for `fs.watch`
+    - Can't seem to be solved by graceful-fs or OS tuning
+    - It's possible to start using `usePolling: true`, which will switch backend to resource-intensive `fs.watchFile`
 
 All fsevents-related issues (`WARN optional dep failed`, `fsevents is not a constructor`) are solved by upgrading to v4+.
 
