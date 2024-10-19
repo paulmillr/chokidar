@@ -18,6 +18,7 @@ const pl = process.platform;
 export const isWindows = pl === 'win32';
 export const isMacos = pl === 'darwin';
 export const isLinux = pl === 'linux';
+export const isFreeBSD = pl === 'freebsd';
 export const isIBMi = osType() === 'OS400';
 
 export const EVENTS = {
@@ -433,7 +434,7 @@ export class NodeFsHandler {
           if (!at || at <= mt || mt !== prevStats.mtimeMs) {
             this.fsw._emit(EV.CHANGE, file, newStats);
           }
-          if ((isMacos || isLinux) && prevStats.ino !== newStats.ino) {
+          if ((isMacos || isLinux || isFreeBSD) && prevStats.ino !== newStats.ino) {
             this.fsw._closeFile(path);
             prevStats = newStats;
             const closer = this._watchWithNodeFs(file, listener);
