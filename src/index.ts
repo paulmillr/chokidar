@@ -13,6 +13,7 @@ import {
   EMPTY_FN,
   STR_CLOSE,
   STR_END,
+  WatchHandlers,
 } from './handler.js';
 
 type AWF = {
@@ -58,7 +59,8 @@ export type FSWInstanceOptions = BasicOpts & {
 };
 
 export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
-export type EmitArgs = [EventName, Path | Error, any?, any?, any?];
+export type EmitArgs = [Path | Error, Stats?];
+export type EmitArgsWithName = [EventName, ...EmitArgs];
 export type MatchFunction = (val: string, stats?: Stats) => boolean;
 export interface MatcherObject {
   path: string;
@@ -295,6 +297,17 @@ export class WatchHelper {
   }
 }
 
+export interface FSWatcherKnownEventMap {
+  [EV.READY]: [];
+  [EV.RAW]: Parameters<WatchHandlers['rawEmitter']>;
+  [EV.ERROR]: Parameters<WatchHandlers['errHandler']>;
+  [EV.ALL]: [EventName, ...EmitArgs];
+}
+
+export type FSWatcherEventMap = FSWatcherKnownEventMap & {
+  [k in Exclude<EventName, keyof FSWatcherKnownEventMap>]: EmitArgs;
+};
+
 /**
  * Watches files & directories for changes. Emitted events:
  * `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `all`, `error`
@@ -303,7 +316,7 @@ export class WatchHelper {
  *       .add(directories)
  *       .on('add', path => log('File', path, 'was added'))
  */
-export class FSWatcher extends EventEmitter {
+export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   closed: boolean;
   options: FSWInstanceOptions;
 
@@ -315,13 +328,13 @@ export class FSWatcher extends EventEmitter {
   _watched: Map<string, DirEntry>;
 
   _pendingWrites: Map<string, any>;
-  _pendingUnlinks: Map<string, EmitArgs>;
+  _pendingUnlinks: Map<string, EmitArgsWithName>;
   _readyCount: number;
   _emitReady: () => void;
   _closePromise?: Promise<void>;
   _userIgnored?: MatchFunction;
   _readyEmitted: boolean;
-  _emitRaw: () => void;
+  _emitRaw: WatchHandlers['rawEmitter'];
   _boundRemove: (dir: string, item: string) => void;
 
   _nodeFsHandler: NodeFsHandler;
@@ -567,8 +580,8 @@ export class FSWatcher extends EventEmitter {
   }
 
   emitWithAll(event: EventName, args: EmitArgs) {
-    this.emit(...args);
-    if (event !== EV.ERROR) this.emit(EV.ALL, ...args);
+    this.emit(event, ...args);
+    if (event !== EV.ERROR) this.emit(EV.ALL, event, ...args);
   }
 
   // Common helpers
@@ -588,7 +601,7 @@ export class FSWatcher extends EventEmitter {
     const opts = this.options;
     if (isWindows) path = sysPath.normalize(path);
     if (opts.cwd) path = sysPath.relative(opts.cwd, path);
-    const args: EmitArgs = [event, path];
+    const args: EmitArgs = [path];
     if (stats != null) args.push(stats);
 
     const awf = opts.awaitWriteFinish;
@@ -600,10 +613,10 @@ export class FSWatcher extends EventEmitter {
 
     if (opts.atomic) {
       if (event === EV.UNLINK) {
-        this._pendingUnlinks.set(path, args);
+        this._pendingUnlinks.set(path, [event, ...args]);
         setTimeout(
           () => {
-            this._pendingUnlinks.forEach((entry: EmitArgs, path: Path) => {
+            this._pendingUnlinks.forEach((entry: EmitArgsWithName, path: Path) => {
               this.emit(...entry);
               this.emit(EV.ALL, ...entry);
               this._pendingUnlinks.delete(path);
@@ -614,7 +627,7 @@ export class FSWatcher extends EventEmitter {
         return this;
       }
       if (event === EV.ADD && this._pendingUnlinks.has(path)) {
-        event = args[0] = EV.CHANGE;
+        event = EV.CHANGE;
         this._pendingUnlinks.delete(path);
       }
     }
@@ -622,13 +635,13 @@ export class FSWatcher extends EventEmitter {
     if (awf && (event === EV.ADD || event === EV.CHANGE) && this._readyEmitted) {
       const awfEmit = (err?: Error, stats?: Stats) => {
         if (err) {
-          event = args[0] = EV.ERROR;
-          args[1] = err;
+          event = EV.ERROR;
+          args[0] = err;
           this.emitWithAll(event, args);
         } else if (stats) {
           // if stats doesn't exist the file must have been deleted
-          if (args.length > 2) {
-            args[2] = stats;
+          if (args.length > 1) {
+            args[1] = stats;
           } else {
             args.push(stats);
           }
