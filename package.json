@@ -7,12 +7,8 @@
   "files": [
     "index.js",
     "index.d.ts",
-    "index.d.ts.map",
-    "index.js.map",
     "handler.js",
     "handler.d.ts",
-    "handler.d.ts.map",
-    "handler.js.map",
     "esm"
   ],
   "main": "./index.js",
