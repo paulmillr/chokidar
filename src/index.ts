@@ -75,7 +75,7 @@ const TWO_DOTS = '..';
 const STRING_TYPE = 'string';
 const BACK_SLASH_RE = /\\/g;
 const DOUBLE_SLASH_RE = /\/\//;
-const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
+const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp|\.bck$/;
 const REPLACER_RE = /^\.[/\\]/;
 
 function arrify<T>(item: T | T[]): T[] {

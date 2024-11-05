@@ -1354,19 +1354,22 @@ const runTests = (baseopts) => {
         options.atomic = true;
         options.ignoreInitial = true;
       });
-      it('should ignore vim/emacs/Sublime swapfiles', async () => {
+      it('should ignore vim/emacs/Sublime/Helix swapfiles', async () => {
         const spy = await aspy(chokidar_watch(currentDir, options), EV.ALL);
         await write(getFixturePath('.change.txt.swp'), 'a'); // vim
         await write(getFixturePath('add.txt~'), 'a'); // vim/emacs
         await write(getFixturePath('.subl5f4.tmp'), 'a'); // sublime
+        await write(getFixturePath('helix.txt00klQi.bck'), 'a'); // helix
         await delay(300);
         await write(getFixturePath('.change.txt.swp'), 'c');
         await write(getFixturePath('add.txt~'), 'c');
         await write(getFixturePath('.subl5f4.tmp'), 'c');
+        await write(getFixturePath('helix.txt00klQi.bck'), 'c');
         await delay(300);
         await fs_unlink(getFixturePath('.change.txt.swp'));
         await fs_unlink(getFixturePath('add.txt~'));
         await fs_unlink(getFixturePath('.subl5f4.tmp'));
+        await fs_unlink(getFixturePath('helix.txt00klQi.bck'));
         await delay(300);
         spy.should.not.have.been.called;
       });
