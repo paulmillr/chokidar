@@ -925,6 +925,13 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * Closes all watchers for a path
    */
   _closePath(path: Path) {
+    // Close all watchers that are descendants of the path
+    const descendants = this._getWatchedDir(path).getChildren();
+    descendants.forEach((entry) => {
+      const p = sysPath.join(path, entry);
+      this._closePath(p);
+    });
+
     this._closeFile(path);
     const dir = sysPath.dirname(path);
     this._getWatchedDir(dir).remove(sysPath.basename(path));
