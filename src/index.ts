@@ -1,16 +1,16 @@
-import { stat as statcb, Stats } from 'fs';
-import { stat, readdir } from 'fs/promises';
 import { EventEmitter } from 'events';
+import { stat as statcb, Stats } from 'fs';
+import { readdir, stat } from 'fs/promises';
 import * as sysPath from 'path';
-import { readdirp, ReaddirpStream, ReaddirpOptions, EntryInfo } from 'readdirp';
+import { EntryInfo, readdirp, ReaddirpOptions, ReaddirpStream } from 'readdirp';
 import {
-  NodeFsHandler,
-  EventName,
-  Path,
-  EVENTS as EV,
-  isWindows,
-  isIBMi,
   EMPTY_FN,
+  EVENTS as EV,
+  EventName,
+  isIBMi,
+  isWindows,
+  NodeFsHandler,
+  Path,
   STR_CLOSE,
   STR_END,
   WatchHandlers,
@@ -511,7 +511,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
         path = sysPath.resolve(path);
       }
 
-      this._closePath(path);
+      this._closePath(path, true);
 
       this._addIgnoredPath(path);
       if (this._watched.has(path)) {
@@ -924,7 +924,16 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   /**
    * Closes all watchers for a path
    */
-  _closePath(path: Path) {
+  _closePath(path: Path, recursive = false) {
+    if (recursive) {
+      // Close all watchers that are descendants of the path
+      const descendants = this._getWatchedDir(path).getChildren();
+      descendants.forEach((entry) => {
+        const p = sysPath.join(path, entry);
+        this._closePath(p);
+      });
+    }
+
     // Close all watchers that are descendants of the path
     const descendants = this._getWatchedDir(path).getChildren();
     descendants.forEach((entry) => {
