@@ -679,23 +679,21 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     return this;
   }
 
-  /**
-   * Common handler for errors
-   * @returns The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
-   */
-  _handleError(error: Error): Error | boolean {
-    const code = error && (error as Error & { code: string }).code;
-    if (
-      error &&
-      code !== 'ENOENT' &&
-      code !== 'ENOTDIR' &&
-      (!this.options.ignorePermissionErrors || (code !== 'EPERM' && code !== 'EACCES'))
-    ) {
-      this.emit(EV.ERROR, error);
-    }
-    return error || this.closed;
+/**
+ * Common handler for errors
+ * @param {Error} error
+ * @returns {Error|Boolean} The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
+ */
+_handleError(error) {
+  const code = error && error.code;
+  if (error && code !== 'ENOENT' && code !== 'ENOTDIR' &&
+    code !== 'UNKNOWN' && // Add this line to ignore UNKNOWN errors
+    (!this.options.ignorePermissionErrors || (code !== 'EPERM' && code !== 'EACCES'))
+  ) {
+    this.emit(EV_ERROR, error);
   }
-
+  return error || this.closed;
+}
   /**
    * Helper utility for throttling
    * @param actionType type being throttled
