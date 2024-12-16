@@ -4,6 +4,7 @@
 /node_modules/
 /test-fixtures/
 /*.d.ts
+/*.map
 /index.js
 /handler.js
 /esm
