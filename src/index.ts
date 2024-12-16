@@ -1,3 +1,4 @@
+/*! chokidar - MIT License (c) 2012 Paul Miller (paulmillr.com) */
 import { stat as statcb, Stats } from 'fs';
 import { stat, readdir } from 'fs/promises';
 import { EventEmitter } from 'events';
