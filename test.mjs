@@ -1829,6 +1829,23 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.calledWith(EV.UNLINK);
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
+    it('should emit add events for new paths if they were previously unwatched', async () => {
+      const spy = sinon.spy();
+      const watchPaths = [getFixturePath('subdir')];
+      const watcher = chokidar_watch(watchPaths, { ...options, ignoreInitial: false });
+      await waitForWatcher(watcher);
+      await write(getFixturePath('subdir/add.txt'), dateNow());
+
+      await delay();
+      watcher.unwatch(getFixturePath('subdir'));
+
+      await delay();
+      watcher.on(EV.ALL, spy).add(getFixturePath('subdir'));
+
+      await waitFor([spy]);
+      spy.should.have.been.calledWith(EV.ADD);
+      if (!macosFswatch) spy.should.have.been.calledTwice;
+    });
   });
   describe('env variable option override', () => {
     describe('CHOKIDAR_USEPOLLING', () => {
