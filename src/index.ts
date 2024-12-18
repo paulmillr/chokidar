@@ -303,6 +303,8 @@ export interface FSWatcherKnownEventMap {
   [EV.RAW]: Parameters<WatchHandlers['rawEmitter']>;
   [EV.ERROR]: Parameters<WatchHandlers['errHandler']>;
   [EV.ALL]: [EventName, ...EmitArgs];
+  [EV.UNLINK]: [path: string];
+  [EV.UNLINK_DIR]: [path: string];
 }
 
 export type FSWatcherEventMap = FSWatcherKnownEventMap & {
