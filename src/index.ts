@@ -60,8 +60,9 @@ export type FSWInstanceOptions = BasicOpts & {
 };
 
 export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
-export type EmitArgs = [Path | Error, Stats?];
-export type EmitArgsWithName = [EventName, ...EmitArgs];
+export type EmitArgs = [path: Path, stats?: Stats];
+export type EmitErrorArgs = [error: Error, stats?: Stats];
+export type EmitArgsWithName = [event: EventName, ...EmitArgs];
 export type MatchFunction = (val: string, stats?: Stats) => boolean;
 export interface MatcherObject {
   path: string;
@@ -302,7 +303,7 @@ export interface FSWatcherKnownEventMap {
   [EV.READY]: [];
   [EV.RAW]: Parameters<WatchHandlers['rawEmitter']>;
   [EV.ERROR]: Parameters<WatchHandlers['errHandler']>;
-  [EV.ALL]: [EventName, ...EmitArgs];
+  [EV.ALL]: [event: EventName, ...EmitArgs];
 }
 
 export type FSWatcherEventMap = FSWatcherKnownEventMap & {
@@ -602,7 +603,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     const opts = this.options;
     if (isWindows) path = sysPath.normalize(path);
     if (opts.cwd) path = sysPath.relative(opts.cwd, path);
-    const args: EmitArgs = [path];
+    const args: EmitArgs | EmitErrorArgs = [path];
     if (stats != null) args.push(stats);
 
     const awf = opts.awaitWriteFinish;
@@ -637,7 +638,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       const awfEmit = (err?: Error, stats?: Stats) => {
         if (err) {
           event = EV.ERROR;
-          args[0] = err;
+          (args as unknown as EmitErrorArgs)[0] = err;
           this.emitWithAll(event, args);
         } else if (stats) {
           // if stats doesn't exist the file must have been deleted
