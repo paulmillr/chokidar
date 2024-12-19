@@ -513,7 +513,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
         path = sysPath.resolve(path);
       }
 
-      this._closePath(path);
+      this._closePath(path, true);
 
       this._addIgnoredPath(path);
       if (this._watched.has(path)) {
@@ -926,7 +926,16 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   /**
    * Closes all watchers for a path
    */
-  _closePath(path: Path) {
+  _closePath(path: Path, recursive = false) {
+    if (recursive) {
+      // Close all watchers that are descendants of the path
+      const descendants = this._getWatchedDir(path).getChildren();
+      descendants.forEach((entry) => {
+        const p = sysPath.join(path, entry);
+        this._closePath(p, recursive);
+      });
+    }
+
     this._closeFile(path);
     const dir = sysPath.dirname(path);
     this._getWatchedDir(dir).remove(sysPath.basename(path));
