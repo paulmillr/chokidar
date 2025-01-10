@@ -11,15 +11,15 @@ export type Path = string;
 export const STR_DATA = 'data';
 export const STR_END = 'end';
 export const STR_CLOSE = 'close';
-export const EMPTY_FN = () => {};
-export const IDENTITY_FN = (val: unknown) => val;
+export const EMPTY_FN = (): void => {};
+export const IDENTITY_FN = (val: unknown): unknown => val;
 
 const pl = process.platform;
-export const isWindows = pl === 'win32';
-export const isMacos = pl === 'darwin';
-export const isLinux = pl === 'linux';
-export const isFreeBSD = pl === 'freebsd';
-export const isIBMi = osType() === 'OS400';
+export const isWindows: boolean = pl === 'win32';
+export const isMacos: boolean = pl === 'darwin';
+export const isLinux: boolean = pl === 'linux';
+export const isFreeBSD: boolean = pl === 'freebsd';
+export const isIBMi: boolean = osType() === 'OS400';
 
 export const EVENTS = {
   ALL: 'all',
@@ -375,7 +375,10 @@ export class NodeFsHandler {
    * @param listener on fs change
    * @returns closer for the watcher instance
    */
-  _watchWithNodeFs(path: string, listener: (path: string, newStats?: any) => void | Promise<void>) {
+  _watchWithNodeFs(
+    path: string,
+    listener: (path: string, newStats?: any) => void | Promise<void>
+  ): (() => void) | undefined {
     const opts = this.fsw.options;
     const directory = sysPath.dirname(path);
     const basename = sysPath.basename(path);
@@ -532,7 +535,7 @@ export class NodeFsHandler {
     dir: Path,
     depth: number,
     throttler: Throttler
-  ) {
+  ): Promise<unknown> | undefined {
     // Normalize the directory name on Windows
     directory = sysPath.join(directory, '');
 
@@ -677,7 +680,7 @@ export class NodeFsHandler {
     priorWh: WatchHelper | undefined,
     depth: number,
     target?: string
-  ) {
+  ): Promise<string | false | undefined> {
     const ready = this.fsw._emitReady;
     if (this.fsw._isIgnored(path) || this.fsw.closed) {
       ready();

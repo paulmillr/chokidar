@@ -5,7 +5,8 @@
     "outDir": ".",
     "noImplicitReturns": false,
     "sourceMap": false,
-    "declarationMap": false
+    "declarationMap": false,
+    "isolatedDeclarations": true
   },
   "include": [
     "src"

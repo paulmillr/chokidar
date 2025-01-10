@@ -214,13 +214,13 @@ class DirEntry {
     this.items = new Set<Path>();
   }
 
-  add(item: string) {
+  add(item: string): void {
     const { items } = this;
     if (!items) return;
     if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
   }
 
-  async remove(item: string) {
+  async remove(item: string): Promise<void> {
     const { items } = this;
     if (!items) return;
     items.delete(item);
@@ -236,7 +236,7 @@ class DirEntry {
     }
   }
 
-  has(item: string) {
+  has(item: string): boolean | undefined {
     const { items } = this;
     if (!items) return;
     return items.has(item);
@@ -248,7 +248,7 @@ class DirEntry {
     return [...items.values()];
   }
 
-  dispose() {
+  dispose(): void {
     this.items.clear();
     this.path = '';
     this._removeWatcher = EMPTY_FN;
@@ -581,7 +581,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     return watchList;
   }
 
-  emitWithAll(event: EventName, args: EmitArgs) {
+  emitWithAll(event: EventName, args: EmitArgs): void {
     this.emit(event, ...args);
     if (event !== EV.ERROR) this.emit(EV.ALL, event, ...args);
   }
@@ -597,7 +597,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * @param stats arguments to be passed with event
    * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
    */
-  async _emit(event: EventName, path: Path, stats?: Stats) {
+  async _emit(event: EventName, path: Path, stats?: Stats): Promise<this | undefined> {
     if (this.closed) return;
 
     const opts = this.options;
@@ -735,7 +735,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     return thr;
   }
 
-  _incrReadyCount() {
+  _incrReadyCount(): number {
     return this._readyCount++;
   }
 
@@ -752,7 +752,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     threshold: number,
     event: EventName,
     awfEmit: (err?: Error, stat?: Stats) => void
-  ) {
+  ): void {
     const awf = this.options.awaitWriteFinish;
     if (typeof awf !== 'object') return;
     const pollInterval = awf.pollInterval as unknown as number;
@@ -821,7 +821,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     return this._userIgnored(path, stats);
   }
 
-  _isntIgnored(path: Path, stat?: Stats) {
+  _isntIgnored(path: Path, stat?: Stats): boolean {
     return !this._isIgnored(path, stat);
   }
 
@@ -926,7 +926,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   /**
    * Closes all watchers for a path
    */
-  _closePath(path: Path) {
+  _closePath(path: Path): void {
     this._closeFile(path);
     const dir = sysPath.dirname(path);
     this._getWatchedDir(dir).remove(sysPath.basename(path));
@@ -935,14 +935,14 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   /**
    * Closes only file-specific watchers
    */
-  _closeFile(path: Path) {
+  _closeFile(path: Path): void {
     const closers = this._closers.get(path);
     if (!closers) return;
     closers.forEach((closer) => closer());
     this._closers.delete(path);
   }
 
-  _addPathCloser(path: Path, closer: () => void) {
+  _addPathCloser(path: Path, closer: () => void): void {
     if (!closer) return;
     let list = this._closers.get(path);
     if (!list) {
@@ -952,7 +952,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     list.push(closer);
   }
 
-  _readdirp(root: Path, opts?: Partial<ReaddirpOptions>) {
+  _readdirp(root: Path, opts?: Partial<ReaddirpOptions>): ReaddirpStream | undefined {
     if (this.closed) return;
     const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts, depth: 0 };
     let stream: ReaddirpStream | undefined = readdirp(root, options);
@@ -985,4 +985,4 @@ export function watch(paths: string | string[], options: ChokidarOptions = {}): 
   return watcher;
 }
 
-export default { watch, FSWatcher };
+export default { watch: watch as typeof watch, FSWatcher: FSWatcher as typeof FSWatcher };
