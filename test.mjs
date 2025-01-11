@@ -2109,7 +2109,11 @@ describe('chokidar', async () => {
   });
 
   after(async () => {
-    await rm(FIXTURES_PATH, {recursive: true, force: true});
+    try {
+      await rm(FIXTURES_PATH, {recursive: true, force: true});
+    } catch (error) {
+
+    }
   });
 
   beforeEach(() => {
