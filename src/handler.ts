@@ -1,8 +1,8 @@
-import { watchFile, unwatchFile, watch as fs_watch } from 'fs';
-import type { WatchListener, WatchEventType, Stats, FSWatcher as NativeFsWatcher } from 'fs';
-import { open, stat, lstat, realpath as fsrealpath } from 'fs/promises';
-import * as sysPath from 'path';
-import { type as osType } from 'os';
+import { watchFile, unwatchFile, watch as fs_watch } from 'node:fs';
+import type { WatchListener, WatchEventType, Stats, FSWatcher as NativeFsWatcher } from 'node:fs';
+import { open, stat, lstat, realpath as fsrealpath } from 'node:fs/promises';
+import * as sysPath from 'node:path';
+import { type as osType } from 'node:os';
 import type { FSWatcher, WatchHelper, FSWInstanceOptions, Throttler } from './index.js';
 import type { EntryInfo } from 'readdirp';
 

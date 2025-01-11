@@ -1,8 +1,8 @@
 /*! chokidar - MIT License (c) 2012 Paul Miller (paulmillr.com) */
-import { stat as statcb, Stats } from 'fs';
-import { stat, readdir } from 'fs/promises';
-import { EventEmitter } from 'events';
-import * as sysPath from 'path';
+import { stat as statcb, Stats } from 'node:fs';
+import { stat, readdir } from 'node:fs/promises';
+import { EventEmitter } from 'node:events';
+import * as sysPath from 'node:path';
 import { readdirp, ReaddirpStream, ReaddirpOptions, EntryInfo } from 'readdirp';
 import {
   NodeFsHandler,
