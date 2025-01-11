@@ -1,7 +1,7 @@
-import fs from 'node:fs';
+import fs, { existsSync } from 'node:fs';
 import sysPath from 'node:path';
 import {describe, it, before, after, beforeEach, afterEach} from 'node:test';
-import {fileURLToPath, pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL, URL} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
 import chai from 'chai';
@@ -12,12 +12,11 @@ import upath from 'upath';
 
 import chokidar from './esm/index.js';
 import { EVENTS as EV, isWindows, isMacos, isIBMi } from './esm/handler.js';
+import { tmpdir } from 'node:os';
 
-import { URL } from 'url'; // in Browser, the URL in native accessible on window
-
-const __filename = fileURLToPath(new URL('', import.meta.url));
-// Will contain trailing slash
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const imetaurl = import.meta.url;
+const __filename = fileURLToPath(new URL('', imetaurl));
+const __dirname = fileURLToPath(new URL('.', imetaurl)); // Will contain trailing slash
 
 const {expect} = chai;
 chai.use(sinonChai);
@@ -30,9 +29,7 @@ const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
-
-const FIXTURES_PATH_REL = 'test-fixtures';
-const FIXTURES_PATH = sysPath.join(__dirname, FIXTURES_PATH_REL);
+const FIXTURES_PATH = sysPath.join(tmpdir(), 'chokidar-' + Date.now())
 const allWatchers = [];
 const PERM_ARR = 0o755; // rwe, r+e, r+e
 const TEST_TIMEOUT = 8000;
@@ -1897,13 +1894,12 @@ const runTests = (baseopts) => {
     }
   });
   describe('reproduction of bug in issue #1040', () => {
-    it('should detect change on symlink folders when consolidateThreshhold is reach', async () => {
-      const id = subdirId.toString();
-
-      const fixturesPathRel = sysPath.join(FIXTURES_PATH_REL, id, 'test-case-1040');
+    it('should detect change on symlink folders when consolidateThreshhold is reached', async () => {
+      const CURR = sysPath.join(FIXTURES_PATH, subdirId.toString());
+      const fixturesPathRel = sysPath.join(CURR, 'test-case-1040');
       const linkPath = sysPath.join(fixturesPathRel, 'symlinkFolder');
       const packagesPath = sysPath.join(fixturesPathRel, 'packages');
-      await fs_mkdir(fixturesPathRel);
+      await fs_mkdir(fixturesPathRel, { recursive: true });
       await fs_mkdir(linkPath);
       await fs_mkdir(packagesPath);
 
@@ -1927,7 +1923,7 @@ const runTests = (baseopts) => {
       const eventsWaiter = waitForEvents(watcher, 1);
 
       // Update a random generated file to fire an event
-      const randomFilePath = sysPath.join(fixturesPathRel, 'packages', 'folder17', 'file17.js');
+      const randomFilePath = sysPath.join(packagesPath, 'folder17', 'file17.js');
       await write(sysPath.resolve(randomFilePath), 'file content changer zeri ezhriez');
 
       // Wait chokidar watch
@@ -1941,18 +1937,19 @@ const runTests = (baseopts) => {
   describe('reproduction of bug in issue #1024', () => {
     it('should detect changes to folders, even if they were deleted before', async () => {
       const id = subdirId.toString();
-      const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
+      const absoluteWatchedDir = sysPath.join(FIXTURES_PATH, id, 'test');
+      const relativeWatcherDir = sysPath.join(id, 'test');
       const watcher = chokidar.watch(relativeWatcherDir, {
-        persistent: true,
+        persistent: true
       });
       try {
         const eventsWaiter = waitForEvents(watcher, 5);
-        const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
-        const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
+        const testSubDir = sysPath.join(absoluteWatchedDir, 'dir');
+        const testSubDirFile = sysPath.join(absoluteWatchedDir, 'dir', 'file');
 
         // Command sequence from https://github.com/paulmillr/chokidar/issues/1042.
         await delay();
-        await fs_mkdir(relativeWatcherDir);
+        await fs_mkdir(absoluteWatchedDir);
         await fs_mkdir(testSubDir);
         // The following delay is essential otherwise the call of mkdir and rmdir will be equalize
         await delay(300);
@@ -1967,11 +1964,11 @@ const runTests = (baseopts) => {
         const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
-          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test')}`,
-          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
-          `[ALL] unlinkDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
-          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test', 'dir')}`,
-          `[ALL] add: ${sysPath.join('test-fixtures', id, 'test', 'dir', 'file')}`,
+          `[ALL] addDir: ${sysPath.join(id, 'test')}`,
+          `[ALL] addDir: ${sysPath.join(id, 'test', 'dir')}`,
+          `[ALL] unlinkDir: ${sysPath.join(id, 'test', 'dir')}`,
+          `[ALL] addDir: ${sysPath.join(id, 'test', 'dir')}`,
+          `[ALL] add: ${sysPath.join(id, 'test', 'dir', 'file')}`,
         ]);
       } finally {
         watcher.close();
@@ -1980,8 +1977,8 @@ const runTests = (baseopts) => {
 
     it('should detect changes to symlink folders, even if they were deleted before', async () => {
       const id = subdirId.toString();
-      const relativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test');
-      const linkedRelativeWatcherDir = sysPath.join(FIXTURES_PATH_REL, id, 'test-link');
+      const relativeWatcherDir = sysPath.join(id, 'test');
+      const linkedRelativeWatcherDir = sysPath.join(id, 'test-link');
       await fs_symlink(
         sysPath.resolve(relativeWatcherDir),
         linkedRelativeWatcherDir,
@@ -2013,11 +2010,11 @@ const runTests = (baseopts) => {
         const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
-          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link')}`,
-          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
-          `[ALL] unlinkDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
-          `[ALL] addDir: ${sysPath.join('test-fixtures', id, 'test-link', 'dir')}`,
-          `[ALL] add: ${sysPath.join('test-fixtures', id, 'test-link', 'dir', 'file')}`,
+          `[ALL] addDir: ${sysPath.join(id, 'test-link')}`,
+          `[ALL] addDir: ${sysPath.join(id, 'test-link', 'dir')}`,
+          `[ALL] unlinkDir: ${sysPath.join(id, 'test-link', 'dir')}`,
+          `[ALL] addDir: ${sysPath.join(id, 'test-link', 'dir')}`,
+          `[ALL] add: ${sysPath.join(id, 'test-link', 'dir', 'file')}`,
         ]);
       } finally {
         watcher.close();
@@ -2092,12 +2089,15 @@ const runTests = (baseopts) => {
 
 describe('chokidar', async () => {
   before(async () => {
-    await rimraf(FIXTURES_PATH);
+    try {
+      await rimraf(FIXTURES_PATH);
+      await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM_ARR });
+    } catch (error) {}
+    process.chdir(FIXTURES_PATH);
     const _content = fs.readFileSync(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
     const testCount = itCount * 3;
-    fs.mkdirSync(currentDir, PERM_ARR);
     while (subdirId++ < testCount) {
       currentDir = getFixturePath('');
       fs.mkdirSync(currentDir, PERM_ARR);
