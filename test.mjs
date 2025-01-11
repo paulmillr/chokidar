@@ -5,7 +5,6 @@ import {fileURLToPath, pathToFileURL, URL} from 'node:url';
 import {promisify} from 'node:util';
 import childProcess from 'node:child_process';
 import chai from 'chai';
-import {rimraf} from 'rimraf';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
 import upath from 'upath';
@@ -23,16 +22,17 @@ chai.use(sinonChai);
 chai.should();
 
 const exec = promisify(childProcess.exec);
+const rm = promisify(fs.rm);
+const read = promisify(fs.readFile);
 const write = promisify(fs.writeFile);
 const fs_symlink = promisify(fs.symlink);
 const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
-const fs_writeFile = promisify(fs.writeFile);
 const FIXTURES_PATH = sysPath.join(tmpdir(), 'chokidar-' + Date.now())
 const allWatchers = [];
-const PERM_ARR = 0o755; // rwe, r+e, r+e
+const PERM = 0o755; // rwe, r+e, r+e
 const TEST_TIMEOUT = 8000;
 let subdirId = 0;
 let currentDir;
@@ -283,14 +283,14 @@ const runTests = (baseopts) => {
       const test9Path = getFixturePath('add9.txt');
       const testb9Path = getFixturePath('b/add9.txt');
       const testc9Path = getFixturePath('c/add9.txt');
-      await fs_mkdir(getFixturePath('b'), PERM_ARR);
-      await fs_mkdir(getFixturePath('c'), PERM_ARR);
-      await fs_mkdir(getFixturePath('d'), PERM_ARR);
-      await fs_mkdir(getFixturePath('e'), PERM_ARR);
-      await fs_mkdir(getFixturePath('f'), PERM_ARR);
-      await fs_mkdir(getFixturePath('g'), PERM_ARR);
-      await fs_mkdir(getFixturePath('h'), PERM_ARR);
-      await fs_mkdir(getFixturePath('i'), PERM_ARR);
+      await fs_mkdir(getFixturePath('b'), PERM);
+      await fs_mkdir(getFixturePath('c'), PERM);
+      await fs_mkdir(getFixturePath('d'), PERM);
+      await fs_mkdir(getFixturePath('e'), PERM);
+      await fs_mkdir(getFixturePath('f'), PERM);
+      await fs_mkdir(getFixturePath('g'), PERM);
+      await fs_mkdir(getFixturePath('h'), PERM);
+      await fs_mkdir(getFixturePath('i'), PERM);
 
       await delay();
 
@@ -380,7 +380,7 @@ const runTests = (baseopts) => {
       const spy = sinon.spy(function addDirSpy(){});
       watcher.on(EV.ADD_DIR, spy);
       spy.should.not.have.been.called;
-      await fs_mkdir(testDir, PERM_ARR);
+      await fs_mkdir(testDir, PERM);
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testDir);
@@ -415,7 +415,7 @@ const runTests = (baseopts) => {
       const testDir = getFixturePath('subdir');
       const spy = sinon.spy(function unlinkDirSpy(){});
 
-      await fs_mkdir(testDir, PERM_ARR);
+      await fs_mkdir(testDir, PERM);
       await delay(300);
       watcher.on(EV.UNLINK_DIR, spy);
 
@@ -432,14 +432,14 @@ const runTests = (baseopts) => {
       const testDir3 = getFixturePath('subdir/subdir2/subdir3');
       const spy = sinon.spy(function unlinkDirSpy(){});
 
-      await fs_mkdir(testDir, PERM_ARR);
-      await fs_mkdir(testDir2, PERM_ARR);
-      await fs_mkdir(testDir3, PERM_ARR);
+      await fs_mkdir(testDir, PERM);
+      await fs_mkdir(testDir2, PERM);
+      await fs_mkdir(testDir3, PERM);
       await delay(300);
 
       watcher.on(EV.UNLINK_DIR, spy);
 
-      await rimraf(testDir2);
+      await rm(testDir2, {recursive: true});
       await waitFor([[spy, 2]]);
 
       spy.should.have.been.calledWith(testDir2);
@@ -521,7 +521,7 @@ const runTests = (baseopts) => {
       const spy = sinon.spy(function addSpy(){});
       watcher.on(EV.ADD, spy);
       spy.should.not.have.been.called;
-      await fs_mkdir(testDir, PERM_ARR);
+      await fs_mkdir(testDir, PERM);
       await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
@@ -535,16 +535,16 @@ const runTests = (baseopts) => {
       const parentPath = getFixturePath('subdir2');
       const subPath = getFixturePath('subdir2/subsub');
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD_DIR, addSpy);
-      await fs_mkdir(parentPath, PERM_ARR);
+      await fs_mkdir(parentPath, PERM);
 
       await delay(win32Polling ? 900 : 300);
       await fs_rmdir(parentPath);
       await waitFor([unlinkSpy.withArgs(parentPath)]);
       unlinkSpy.should.have.been.calledWith(parentPath);
-      await fs_mkdir(parentPath, PERM_ARR);
+      await fs_mkdir(parentPath, PERM);
 
       await delay(win32Polling ? 2200 : 1200);
-      await fs_mkdir(subPath, PERM_ARR);
+      await fs_mkdir(subPath, PERM);
       await waitFor([[addSpy, 3]]);
       addSpy.should.have.been.calledWith(parentPath);
       addSpy.should.have.been.calledWith(subPath);
@@ -554,7 +554,7 @@ const runTests = (baseopts) => {
       const unlinkSpy = sinon.spy(function unlinkSpy(){});
       const addSpy = sinon.spy(function addSpy(){});
       const testPath = getFixturePath('dirFile');
-      await fs_mkdir(testPath, PERM_ARR);
+      await fs_mkdir(testPath, PERM);
       await delay(300);
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD, addSpy);
 
@@ -578,7 +578,7 @@ const runTests = (baseopts) => {
       await delay(300);
       await fs_unlink(testPath);
       await delay(300);
-      await fs_mkdir(testPath, PERM_ARR);
+      await fs_mkdir(testPath, PERM);
 
       await waitFor([addSpy, unlinkSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
@@ -681,9 +681,9 @@ const runTests = (baseopts) => {
         const testPath = getFixturePath('unlink.txt');
         const otherDirPath = getFixturePath('other-dir');
         const otherPath = getFixturePath('other-dir/other.txt');
-        await fs_mkdir(otherDirPath, PERM_ARR);
+        await fs_mkdir(otherDirPath, PERM);
         const watcher = chokidar_watch([testPath, otherPath], options);
-        // intentionally for this test don't write fs.writeFileSync(otherPath, 'other');
+        // intentionally for this test don't write write(otherPath, 'other');
         const spy = await aspy(watcher, EV.UNLINK);
 
         await delay();
@@ -697,7 +697,7 @@ const runTests = (baseopts) => {
         const addSpy = sinon.spy(function addSpy(){});
         const testPath = getFixturePath('unlink.txt');
         const otherPath = getFixturePath('other.txt');
-        await fs_writeFile(otherPath, 'other');
+        await write(otherPath, 'other');
         const watcher = chokidar_watch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -722,8 +722,8 @@ const runTests = (baseopts) => {
         const testPath = getFixturePath('unlink.txt');
         const otherDirPath = getFixturePath('other-dir');
         const otherPath = getFixturePath('other-dir/other.txt');
-        await fs_mkdir(otherDirPath, PERM_ARR);
-        // intentionally for this test don't write fs.writeFileSync(otherPath, 'other');
+        await fs_mkdir(otherDirPath, PERM);
+        // intentionally for this test don't write write(otherPath, 'other');
         const watcher = chokidar_watch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -747,7 +747,7 @@ const runTests = (baseopts) => {
         const addSpy = sinon.spy(function addSpy(){});
         const testPath = getFixturePath('unlink.txt');
         const otherPath = getFixturePath('other.txt');
-        // intentionally for this test don't write fs.writeFileSync(otherPath, 'other');
+        // intentionally for this test don't write write(otherPath, 'other');
         const watcher = chokidar_watch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -771,7 +771,7 @@ const runTests = (baseopts) => {
         const addSpy = sinon.spy(function addSpy(){});
         const testPath = getFixturePath('unlink.txt');
         const otherPath = getFixturePath('other.txt');
-        await fs_writeFile(otherPath, 'other');
+        await write(otherPath, 'other');
         const watcher = chokidar_watch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -800,8 +800,8 @@ const runTests = (baseopts) => {
         const testPath = getFixturePath('unlink.txt');
         const otherPath = getFixturePath('other.txt');
         const other2Path = getFixturePath('other2.txt');
-        await fs_writeFile(otherPath, 'other');
-        // intentionally for this test don't write fs.writeFileSync(other2Path, 'other2');
+        await write(otherPath, 'other');
+        // intentionally for this test don't write write(other2Path, 'other2');
         const watcher = chokidar_watch([testPath, otherPath, other2Path], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -827,7 +827,7 @@ const runTests = (baseopts) => {
       const testPath = getFixturePath('subdir/add.txt');
       const renamedDir = getFixturePath('subdir-renamed');
       const expectedPath = sysPath.join(renamedDir, 'add.txt');
-      await fs_mkdir(testDir, PERM_ARR);
+      await fs_mkdir(testDir, PERM);
       await write(testPath, dateNow());
       const watcher = chokidar_watch(currentDir, options);
       const spy = await aspy(watcher, EV.ADD);
@@ -857,7 +857,7 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.called;
 
       await delay();
-      await fs_mkdir(testDir, PERM_ARR);
+      await fs_mkdir(testDir, PERM);
       await waitFor([spy.withArgs(EV.ADD_DIR)]);
       await write(testPath, 'hello');
       await waitFor([spy.withArgs(EV.ADD)]);
@@ -886,11 +886,11 @@ const runTests = (baseopts) => {
       const matchingDir = getFixturePath('notag');
       const matchingFile = getFixturePath('notag/b.txt');
       const matchingFile2 = getFixturePath('notal');
-      await fs_mkdir(testDir, PERM_ARR);
-      await fs_writeFile(filePath, 'b');
-      await fs_mkdir(matchingDir, PERM_ARR);
-      await fs_writeFile(matchingFile, 'c');
-      await fs_writeFile(matchingFile2, 'd');
+      await fs_mkdir(testDir, PERM);
+      await write(filePath, 'b');
+      await fs_mkdir(matchingDir, PERM);
+      await write(matchingFile, 'c');
+      await write(matchingFile2, 'd');
       const watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -912,10 +912,10 @@ const runTests = (baseopts) => {
       const matchingDir = getFixturePath('notag');
       const matchingFile = getFixturePath('notag/a.txt');
       const matchingFile2 = getFixturePath('notal');
-      await fs_writeFile(filePath, 'b');
-      await fs_mkdir(matchingDir, PERM_ARR);
-      await fs_writeFile(matchingFile, 'c');
-      await fs_writeFile(matchingFile2, 'd');
+      await write(filePath, 'b');
+      await fs_mkdir(matchingDir, PERM);
+      await write(matchingFile, 'c');
+      await write(matchingFile2, 'd');
       const watcher = chokidar_watch(watchPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -936,7 +936,7 @@ const runTests = (baseopts) => {
     beforeEach(async () => {
       linkedDir = sysPath.resolve(currentDir, '..', `${subdirId}-link`);
       await fs_symlink(currentDir, linkedDir, isWindows ? 'dir' : null);
-      await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
+      await fs_mkdir(getFixturePath('subdir'), PERM);
       await write(getFixturePath('subdir/add.txt'), 'b');
       return true;
     });
@@ -1070,8 +1070,8 @@ const runTests = (baseopts) => {
       const linkedPath = getFixturePath('outside');
       const linkedFilePath = sysPath.join(linkedPath, 'text.txt');
       const linkPath = getFixturePath('subdir/subsub');
-      await fs_mkdir(linkedPath, PERM_ARR);
-      await fs_writeFile(linkedFilePath, 'b');
+      await fs_mkdir(linkedPath, PERM);
+      await write(linkedFilePath, 'b');
       await fs_symlink(linkedPath, linkPath);
       const watcher2 = chokidar_watch(getFixturePath('subdir'), options);
       await waitForWatcher(watcher2);
@@ -1146,8 +1146,8 @@ const runTests = (baseopts) => {
           spy.should.have.been.calledWith(currentDir);
         });
         it('should emit `addDir` events for preexisting dirs', async () => {
-          await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
-          await fs_mkdir(getFixturePath('subdir/subsub'), PERM_ARR);
+          await fs_mkdir(getFixturePath('subdir'), PERM);
+          await fs_mkdir(getFixturePath('subdir/subsub'), PERM);
           const watcher = chokidar_watch(currentDir, options);
           const spy = await aspy(watcher, EV.ADD_DIR);
           spy.should.have.been.calledWith(currentDir);
@@ -1176,7 +1176,7 @@ const runTests = (baseopts) => {
           const testPath = getFixturePath('subdir/add.txt');
           const spy = await aspy(chokidar_watch(currentDir, options), EV.ADD);
           spy.should.not.have.been.called;
-          await fs_mkdir(testDir, PERM_ARR);
+          await fs_mkdir(testDir, PERM);
           await write(testPath, dateNow());
           await waitFor([spy]);
           spy.should.have.been.calledOnce;
@@ -1194,7 +1194,7 @@ const runTests = (baseopts) => {
         it('should not emit for preexisting dirs when depth is 0', async () => {
           options.depth = 0;
           const testPath = getFixturePath('add.txt');
-          await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
+          await fs_mkdir(getFixturePath('subdir'), PERM);
 
           await delay(200);
           const spy = await aspy(chokidar_watch(currentDir, options), EV.ALL);
@@ -1214,10 +1214,10 @@ const runTests = (baseopts) => {
           return stats.isDirectory();
         };
         const testDir = getFixturePath('subdir');
-        await fs_mkdir(testDir, PERM_ARR);
-        await fs_writeFile(sysPath.join(testDir, 'add.txt'), '');
-        await fs_mkdir(sysPath.join(testDir, 'subsub'), PERM_ARR);
-        await fs_writeFile(sysPath.join(testDir, 'subsub', 'ab.txt'), '');
+        await fs_mkdir(testDir, PERM);
+        await write(sysPath.join(testDir, 'add.txt'), '');
+        await fs_mkdir(sysPath.join(testDir, 'subsub'), PERM);
+        await write(sysPath.join(testDir, 'subsub', 'ab.txt'), '');
         const watcher = chokidar_watch(testDir, options);
         const spy = await aspy(watcher, EV.ADD);
         spy.should.have.been.calledOnce;
@@ -1231,8 +1231,8 @@ const runTests = (baseopts) => {
         const testDir = getFixturePath('subdir');
         const testFile = sysPath.join(testDir, 'add.txt');
         options.ignored = testDir;
-        await fs_mkdir(testDir, PERM_ARR);
-        await fs_writeFile(testFile, 'b');
+        await fs_mkdir(testDir, PERM);
+        await write(testFile, 'b');
         const watcher = chokidar_watch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
 
@@ -1248,7 +1248,7 @@ const runTests = (baseopts) => {
         options.cwd = currentDir;
         options.ignored = /add/;
 
-        await fs_writeFile(getFixturePath('add.txt'), 'b');
+        await write(getFixturePath('add.txt'), 'b');
         const watcher = chokidar_watch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
 
@@ -1265,10 +1265,10 @@ const runTests = (baseopts) => {
     });
     describe('depth', () => {
       beforeEach(async () => {
-        await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
+        await fs_mkdir(getFixturePath('subdir'), PERM);
         await write(getFixturePath('subdir/add.txt'), 'b');
         await delay();
-        await fs_mkdir(getFixturePath('subdir/subsub'), PERM_ARR);
+        await fs_mkdir(getFixturePath('subdir/subsub'), PERM);
         await write(getFixturePath('subdir/subsub/ab.txt'), 'b');
         await delay();
       });
@@ -1336,7 +1336,7 @@ const runTests = (baseopts) => {
         const unlinkSpy = spy.withArgs(EV.UNLINK_DIR);
         spy.should.have.been.calledWith(EV.ADD_DIR, currentDir);
         spy.should.have.been.calledWith(EV.ADD_DIR, getFixturePath('subdir'));
-        await fs_mkdir(subdir2, PERM_ARR);
+        await fs_mkdir(subdir2, PERM);
         await waitFor([[addSpy, 3]]);
         addSpy.should.have.been.calledThrice;
 
@@ -1398,7 +1398,7 @@ const runTests = (baseopts) => {
         const testDir = getFixturePath('subdir');
         const renamedDir = getFixturePath('subdir-renamed');
 
-        await fs_mkdir(testDir, PERM_ARR);
+        await fs_mkdir(testDir, PERM);
         const watcher = chokidar_watch('.', options);
 
         await new Promise((resolve) => {
@@ -1446,14 +1446,14 @@ const runTests = (baseopts) => {
         const files = [
           '.'
         ];
-        await fs_writeFile(getFixturePath('change.txt'), 'hello');
-        await fs_writeFile(getFixturePath('ignored.txt'), 'ignored');
-        await fs_writeFile(getFixturePath('ignored-option.txt'), 'ignored option');
+        await write(getFixturePath('change.txt'), 'hello');
+        await write(getFixturePath('ignored.txt'), 'ignored');
+        await write(getFixturePath('ignored-option.txt'), 'ignored option');
         const watcher = chokidar_watch(files, options);
 
         const spy = await aspy(watcher, EV.ALL);
-        await fs_writeFile(getFixturePath('ignored.txt'), dateNow());
-        await fs_writeFile(getFixturePath('ignored-option.txt'), dateNow());
+        await write(getFixturePath('ignored.txt'), dateNow());
+        await write(getFixturePath('ignored-option.txt'), dateNow());
         await fs_unlink(getFixturePath('ignored.txt'));
         await fs_unlink(getFixturePath('ignored-option.txt'));
         await delay();
@@ -1721,7 +1721,7 @@ const runTests = (baseopts) => {
         '..': [subdirId.toString()],
         'subdir': []
       };
-      await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
+      await fs_mkdir(getFixturePath('subdir'), PERM);
       const watcher = chokidar_watch(currentDir, options);
       await waitForWatcher(watcher);
       expect(watcher.getWatched()).to.deep.equal(expected);
@@ -1730,7 +1730,7 @@ const runTests = (baseopts) => {
   describe('unwatch', () => {
     beforeEach(async () => {
       options.ignoreInitial = true;
-      await fs_mkdir(getFixturePath('subdir'), PERM_ARR);
+      await fs_mkdir(getFixturePath('subdir'), PERM);
       await delay();
     });
     it('should stop watching unwatched paths', async () => {
@@ -1905,7 +1905,7 @@ const runTests = (baseopts) => {
       await fs_mkdir(packagesPath);
 
       // Init chokidar
-      const watcher = chokidar.watch([]);
+      const watcher = chokidar_watch([]);
 
       // Add more than 10 folders to cap consolidateThreshhold
       for (let i = 0 ; i < 20 ; i += 1) {
@@ -1940,7 +1940,7 @@ const runTests = (baseopts) => {
       const id = subdirId.toString();
       const absoluteWatchedDir = sysPath.join(FIXTURES_PATH, id, 'test');
       const relativeWatcherDir = sysPath.join(id, 'test');
-      const watcher = chokidar.watch(relativeWatcherDir, {
+      const watcher = chokidar_watch(relativeWatcherDir, {
         persistent: true
       });
       try {
@@ -1986,7 +1986,7 @@ const runTests = (baseopts) => {
         isWindows ? 'dir' : null
       );
       await delay();
-      const watcher = chokidar.watch(linkedRelativeWatcherDir, {
+      const watcher = chokidar_watch(linkedRelativeWatcherDir, {
         persistent: true,
       });
       try {
@@ -2091,25 +2091,25 @@ const runTests = (baseopts) => {
 describe('chokidar', async () => {
   before(async () => {
     try {
-      await rimraf(FIXTURES_PATH);
-      await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM_ARR });
+      await rm(FIXTURES_PATH, {recursive: true, force: true});
+      await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
     } catch (error) {}
     process.chdir(FIXTURES_PATH);
-    const _content = fs.readFileSync(__filename, 'utf-8');
+    const _content = await read(__filename, 'utf-8');
     const _only = _content.match(/\sit\.only\(/g);
     const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
     const testCount = itCount * 3;
     while (subdirId++ < testCount) {
       currentDir = getFixturePath('');
-      await fs_mkdir(currentDir, PERM_ARR);
-      await fs_writeFile(sysPath.join(currentDir, 'change.txt'), 'b');
-      await fs_writeFile(sysPath.join(currentDir, 'unlink.txt'), 'b');
+      await fs_mkdir(currentDir, PERM);
+      await write(sysPath.join(currentDir, 'change.txt'), 'b');
+      await write(sysPath.join(currentDir, 'unlink.txt'), 'b');
     }
     subdirId = 0;
   });
 
   after(async () => {
-    await rimraf(FIXTURES_PATH);
+    await rm(FIXTURES_PATH, {recursive: true, force: true});
   });
 
   beforeEach(() => {
@@ -2118,10 +2118,7 @@ describe('chokidar', async () => {
   });
 
   afterEach(async () => {
-    let watcher;
-    while ((watcher = allWatchers.pop())) {
-      await watcher.close();
-    }
+    await Promise.allSettled(allWatchers.map(w => w.close()));
   });
 
   it('should expose public API methods', () => {
