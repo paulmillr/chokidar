@@ -1,0 +1,53 @@
+name: Run JS tests
+
+on:
+  - push
+  - pull_request
+jobs:
+  bun:
+    name: Bun
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4
+      - uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
+      - run: bun install
+      - run: bun run build
+      - run: bun index.test.js
+  deno:
+    name: Deno
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4
+      - uses: denoland/setup-deno@909cc5acb0fdd60627fb858598759246509fa755 # v2.0.2
+      - run: deno install
+      - run: deno run build
+      - run: deno --allow-env --allow-write --allow-read index.test.js
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4
+      - uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65 # v4
+        with:
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm run lint --if-present
+  node:
+    name: Node v${{ matrix.version }} @ ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [18, 20, 22]
+        os: [ubuntu-latest, windows-latest, macOS-latest]
+    steps:
+      - uses: actions/checkout@1e31de5234b9f8995739874a8ce0492dc87873e2 # v4
+      - name: Use Node.js ${{ matrix.version }}
+        uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65 # v4
+        with:
+          node-version: ${{ matrix.version }}
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test
