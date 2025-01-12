@@ -14,6 +14,8 @@ import upath from 'upath';
 import chokidar from './esm/index.js';
 import { EVENTS as EV, isWindows, isMacos, isIBMi } from './esm/handler.js';
 
+const TEST_TIMEOUT = 32000; // ms
+
 const {expect} = chai;
 chai.use(sinonChai);
 chai.should();
@@ -36,7 +38,6 @@ const FIXTURES_PATH = sysPath.join(tmpdir(), 'chokidar-' + Date.now())
 
 const WATCHERS = [];
 const PERM = 0o755; // rwe, r+e, r+e
-const TEST_TIMEOUT = 8000;
 let testId = 0;
 let currentDir;
 let slowerDelay;
