@@ -12,7 +12,7 @@ jobs:
       - uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
       - run: bun install
       - run: bun run build
-      - run: bun index.test.js
+      - run: bun test.mjs
   deno:
     name: Deno
     runs-on: ubuntu-latest
@@ -21,7 +21,7 @@ jobs:
       - uses: denoland/setup-deno@909cc5acb0fdd60627fb858598759246509fa755 # v2.0.2
       - run: deno install
       - run: deno run build
-      - run: deno --allow-env --allow-write --allow-read index.test.js
+      - run: deno --allow-env --allow-write --allow-read test.mjs
   lint:
     name: Lint
     runs-on: ubuntu-latest
