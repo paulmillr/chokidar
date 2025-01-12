@@ -5,6 +5,7 @@ on:
   - pull_request
 jobs:
   bun:
+    needs: node
     name: Bun
     runs-on: ubuntu-latest
     steps:
@@ -14,6 +15,7 @@ jobs:
       - run: bun run build
       - run: bun test.mjs
   deno:
+    needs: bun
     name: Deno
     runs-on: ubuntu-latest
     steps:
