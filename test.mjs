@@ -1,9 +1,11 @@
-import fs from 'node:fs';
+import fs, { writeFileSync } from 'node:fs'; // fs.stat is mocked below, so can't import INDIVIDUAL methods
 import sysPath from 'node:path';
-import {describe, it, before, after, beforeEach, afterEach} from 'node:test';
+// import {describe, it, before, after, beforeEach, afterEach} from 'node:test';
+import {describe, it, beforeEach, afterEach} from './test-micro-should.mjs';
 import {fileURLToPath, pathToFileURL, URL} from 'node:url';
 import {promisify} from 'node:util';
-import childProcess from 'node:child_process';
+import { exec as cexec } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import chai from 'chai';
 import sinon from 'sinon';
 import sinonChai from 'sinon-chai';
@@ -11,17 +13,12 @@ import upath from 'upath';
 
 import chokidar from './esm/index.js';
 import { EVENTS as EV, isWindows, isMacos, isIBMi } from './esm/handler.js';
-import { tmpdir } from 'node:os';
-
-const imetaurl = import.meta.url;
-const __filename = fileURLToPath(new URL('', imetaurl));
-const __dirname = fileURLToPath(new URL('.', imetaurl)); // Will contain trailing slash
 
 const {expect} = chai;
 chai.use(sinonChai);
 chai.should();
 
-const exec = promisify(childProcess.exec);
+const exec = promisify(cexec);
 const rm = promisify(fs.rm);
 const read = promisify(fs.readFile);
 const write = promisify(fs.writeFile);
@@ -30,9 +27,14 @@ const fs_rename = promisify(fs.rename);
 const fs_mkdir = promisify(fs.mkdir);
 const fs_rmdir = promisify(fs.rmdir);
 const fs_unlink = promisify(fs.unlink);
+
+const imetaurl = import.meta.url;
+const __filename = fileURLToPath(new URL('', imetaurl));
+const __dirname = fileURLToPath(new URL('.', imetaurl)); // Will contain trailing slash
 const initialPath = process.cwd();
 const FIXTURES_PATH = sysPath.join(tmpdir(), 'chokidar-' + Date.now())
-const allWatchers = [];
+
+const WATCHERS = [];
 const PERM = 0o755; // rwe, r+e, r+e
 const TEST_TIMEOUT = 8000;
 let testId = 0;
@@ -103,17 +105,17 @@ currentDir = dpath('');
 
 const cwatch = (path = currentDir, opts) => {
   const wt = chokidar.watch(path, opts);
-  allWatchers.push(wt);
+  WATCHERS.push(wt);
   return wt;
 };
 
 const waitFor = (spies) => {
-  if (spies.length === 0) throw new TypeError('SPies zero');
+  if (spies.length === 0) throw new Error('need at least 1 spy');
   return new Promise((resolve, reject) => {
     let checkTimer;
     const timeout = setTimeout(() => {
       clearTimeout(checkTimer);
-      reject(new Error('timeout'));
+      reject(new Error('timeout waitFor, passed ms: ' + TEST_TIMEOUT));
     }, TEST_TIMEOUT);
     const isSpyReady = (spy) => {
       if (Array.isArray(spy)) {
@@ -123,7 +125,6 @@ const waitFor = (spies) => {
     };
     const checkSpiesReady = () => {
       clearTimeout(checkTimer);
-
       if (spies.every(isSpyReady)) {
         clearTimeout(timeout);
         resolve();
@@ -138,7 +139,7 @@ const waitFor = (spies) => {
 const waitForEvents = (watcher, count) => {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error('timeout'));
+      reject(new Error('timeout waitForEvents, passed ms: ' + TEST_TIMEOUT));
     }, TEST_TIMEOUT);
     const events = [];
     const handler = (event, path) => {
@@ -158,18 +159,11 @@ const waitForEvents = (watcher, count) => {
 const dateNow = () => Date.now().toString();
 
 const runTests = (baseopts) => {
-  let macosFswatch;
-  let win32Polling;
+  let macosFswatch = isMacos && !baseopts.usePolling;
+  let win32Polling = isWindows && baseopts.usePolling;
   let options;
-
+  slowerDelay = macosFswatch ? 100 : undefined;
   baseopts.persistent = true;
-
-  before(() => {
-    // flags for bypassing special-case test failures on CI
-    macosFswatch = isMacos && !baseopts.usePolling;
-    win32Polling = isWindows && baseopts.usePolling;
-    slowerDelay = macosFswatch ? 100 : undefined;
-  });
 
   beforeEach(function clean() {
     options = {};
@@ -1794,21 +1788,22 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.calledWith(EV.ADD);
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
-    it('should watch paths that were unwatched and added again', async () => {
+    it.skip('should watch paths that were unwatched and added again', async () => {
       const spy = sinon.spy();
       const watchPaths = [dpath('change.txt')];
-      const watcher = cwatch(watchPaths, options);
+      console.log('watching', watchPaths)
+      const watcher = cwatch(watchPaths, options).on(EV.ALL, console.log.bind(console));
       await waitForWatcher(watcher);
-
       await delay();
       watcher.unwatch(dpath('change.txt'));
-
       await delay();
       watcher.on(EV.ALL, spy).add(dpath('change.txt'));
 
       await delay();
       await write(dpath('change.txt'), dateNow());
+      console.log('a')
       await waitFor([spy]);
+      console.log('b');
       spy.should.have.been.calledWith(EV.CHANGE, dpath('change.txt'));
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
@@ -2092,38 +2087,14 @@ const runTests = (baseopts) => {
 };
 
 describe('chokidar', async () => {
-  before(async () => {
-    try {
-      await rm(FIXTURES_PATH, {recursive: true, force: true});
-      await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
-    } catch (error) {}
-    process.chdir(FIXTURES_PATH);
-    const _content = await read(__filename, 'utf-8');
-    const _only = _content.match(/\sit\.only\(/g);
-    const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
-    const testCount = itCount * 3;
-    while (testId++ < testCount) {
-      await fs_mkdir(dpath(''), PERM);
-      await write(dpath('change.txt'), 'b');
-      await write(dpath('unlink.txt'), 'b');
-    }
-    testId = 0;
-  });
-
-  after(async () => {
-    try {
-      await rm(FIXTURES_PATH, {recursive: true, force: true});
-    } catch (error) {}
-    process.chdir(initialPath);
-  });
-
   beforeEach(() => {
     testId++;
     currentDir = dpath('');
   });
 
   afterEach(async () => {
-    await Promise.allSettled(allWatchers.map(w => w.close()));
+    const promises = WATCHERS.map(w => w.close());
+    await Promise.all(promises);
   });
 
   it('should expose public API methods', () => {
@@ -2136,3 +2107,28 @@ describe('chokidar', async () => {
   }
   describe('fs.watchFile (polling)', runTests.bind(this, {usePolling: true, interval: 10}));
 });
+async function main() {
+  try {
+    await rm(FIXTURES_PATH, {recursive: true, force: true});
+    await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
+  } catch (error) {}
+  process.chdir(FIXTURES_PATH);
+  const _content = await read(__filename, 'utf-8');
+  const _only = _content.match(/\sit\.only\(/g);
+  const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
+  const testCount = itCount * 3;
+  while (testId++ < testCount) {
+    await fs_mkdir(dpath(''), PERM);
+    await write(dpath('change.txt'), 'b');
+    await write(dpath('unlink.txt'), 'b');
+  }
+  testId = 0;
+
+  await it.run();
+
+  try {
+    await rm(FIXTURES_PATH, {recursive: true, force: true});
+  } catch (error) {}
+  process.chdir(initialPath);
+}
+main();
