@@ -53,7 +53,7 @@
     "build": "tsc && tsc -p tsconfig.esm.json",
     "lint": "prettier --check src",
     "format": "prettier --write src",
-    "test": "node --test"
+    "test": "node test.mjs"
   },
   "keywords": [
     "fs",

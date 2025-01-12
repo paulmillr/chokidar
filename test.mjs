@@ -2096,6 +2096,7 @@ describe('chokidar', async () => {
   afterEach(async () => {
     const promises = WATCHERS.map(w => w.close());
     await Promise.all(promises);
+    await rm(currentDir, { recursive: true});
   });
 
   it('should expose public API methods', () => {
@@ -2114,6 +2115,8 @@ async function main() {
     await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
   } catch (error) {}
   process.chdir(FIXTURES_PATH);
+  // Create many directories before tests.
+  // Creating them in `beforeEach` increases chance of random failures.
   const _content = await read(__filename, 'utf-8');
   const _only = _content.match(/\sit\.only\(/g);
   const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
