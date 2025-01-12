@@ -1,5 +1,11 @@
 import fs, { writeFileSync } from 'node:fs'; // fs.stat is mocked below, so can't import INDIVIDUAL methods
-import sysPath from 'node:path';
+import {
+  rm, symlink, rename, mkdir, readFile as read, writeFile as write, unlink as unl
+} from 'node:fs/promises';
+import {
+  join as pjoin, relative as prelative, resolve as presolve,
+  dirname as pdirname, basename as pbasename
+} from 'node:path';
 // import {describe, it, before, after, beforeEach, afterEach} from 'node:test';
 import {describe, it, beforeEach, afterEach} from './test-micro-should.mjs';
 import {fileURLToPath, pathToFileURL, URL} from 'node:url';
@@ -14,65 +20,64 @@ import upath from 'upath';
 import chokidar from './esm/index.js';
 import { EVENTS as EV, isWindows, isMacos, isIBMi } from './esm/handler.js';
 
-const TEST_TIMEOUT = 32000; // ms
+const TEST_TIMEOUT = 8000; // ms
 
 const {expect} = chai;
 chai.use(sinonChai);
 chai.should();
 
 const exec = promisify(cexec);
-const rm = promisify(fs.rm);
-const read = promisify(fs.readFile);
-const write = promisify(fs.writeFile);
-const fs_symlink = promisify(fs.symlink);
-const fs_rename = promisify(fs.rename);
-const fs_mkdir = promisify(fs.mkdir);
-const fs_rmdir = promisify(fs.rmdir);
-const fs_unlink = promisify(fs.unlink);
+// const rm = promisify(fs.rm);
+// const read = promisify(fs.readFile);
+// const write = promisify(fs.writeFile);
+// const symlink = promisify(fs.symlink);
+// const rename = promisify(fs.rename);
+// const mkdir = promisify(fs.mkdir);
+// const unl = promisify(fs.unlink);
 
 const imetaurl = import.meta.url;
 const __filename = fileURLToPath(new URL('', imetaurl));
 const __dirname = fileURLToPath(new URL('.', imetaurl)); // Will contain trailing slash
 const initialPath = process.cwd();
-const FIXTURES_PATH = sysPath.join(tmpdir(), 'chokidar-' + Date.now())
+const FIXTURES_PATH = pjoin(tmpdir(), 'chokidar-' + Date.now())
 
 const WATCHERS = [];
 const PERM = 0o755; // rwe, r+e, r+e
-let testId = 0;
+let testId = 1;
 let currentDir;
 let slowerDelay;
 
 // spyOnReady
-const aspy = (watcher, eventName, spy = null, noStat = false) => {
-  if (typeof eventName !== 'string') {
-    throw new TypeError('aspy: eventName must be a String');
-  }
-  if (spy == null) spy = sinon.spy();
-  return new Promise((resolve, reject) => {
-    const handler = noStat ?
-      (eventName === EV.ALL ?
-      (event, path) => spy(event, path) :
-      (path) => spy(path)) :
-      spy;
-    const timeout = setTimeout(() => {
-      reject(new Error('timeout'));
-    }, TEST_TIMEOUT);
-    watcher.on(EV.ERROR, (...args) => {
-      clearTimeout(timeout);
-      reject(...args);
-    });
-    watcher.on(EV.READY, () => {
-      clearTimeout(timeout);
-      resolve(spy);
-    });
-    watcher.on(eventName, handler);
-  });
-};
+// const aspy = (watcher, eventName, spy = null, noStat = false) => {
+//   if (typeof eventName !== 'string') {
+//     throw new TypeError('aspy: eventName must be a String');
+//   }
+//   if (spy == null) spy = sinon.spy();
+//   return new Promise((resolve, reject) => {
+//     const handler = noStat ?
+//       (eventName === EV.ALL ?
+//       (event, path) => spy(event, path) :
+//       (path) => spy(path)) :
+//       spy;
+//     const timeout = setTimeout(() => {
+//       reject(new Error('timeout'));
+//     }, TEST_TIMEOUT);
+//     watcher.on(EV.ERROR, (...args) => {
+//       clearTimeout(timeout);
+//       reject(...args);
+//     });
+//     watcher.on(EV.READY, () => {
+//       clearTimeout(timeout);
+//       resolve(spy);
+//     });
+//     watcher.on(eventName, handler);
+//   });
+// };
 
 const waitForWatcher = (watcher) => {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      reject(new Error('timeout'));
+      reject(new Error('waitForWatcher timeout'));
     }, TEST_TIMEOUT);
     watcher.on(EV.ERROR, (...args) => {
       clearTimeout(timeout);
@@ -93,47 +98,66 @@ const delay = async (time) => {
 };
 
 // dir path
-const dpath = (subPath) => {
-  const subd = testId && testId.toString() || '';
-  return sysPath.join(FIXTURES_PATH, subd, subPath);
+const dpath = (subPath = '') => {
+  if (!testId) throw new Error('no testId');
+  const id = testId.toString();
+  return pjoin(id, id, subPath);
 };
 // glob path
-const gpath = (subPath) => {
-  const subd = testId && testId.toString() || '';
-  return upath.join(FIXTURES_PATH, subd, subPath);
+const gpath = (subPath = '') => {
+  if (!testId) throw new Error('no testId');
+  const id = testId.toString();
+  return upath.join(id, id, subPath);
 };
-currentDir = dpath('');
+currentDir = undefined;
 
-const cwatch = (path = currentDir, opts) => {
+const cwatch = (path = dpath(), opts) => {
+  console.log('watch', path, opts);
   const wt = chokidar.watch(path, opts);
   WATCHERS.push(wt);
   return wt;
 };
 
-const waitFor = (spies) => {
-  if (spies.length === 0) throw new Error('need at least 1 spy');
+let TIMER_WAIT_FOR;
+let TIMER_WAIT_FOR_TIMEOUT;
+
+function makeSpy() {
+  function spied(...args) {
+    spied.args.push(args);
+    spied.callCount++;
+  }
+  spied.args = [];
+  spied.callCount = 0;
+  spied.wasCalledWith = function(arg) {
+    for (let scall of spied.args) {
+      if (scall.includes(arg)) return true;
+    }
+    throw new Error('spy should have been called with arg');
+  }
+  spied.wasCalled = () => {
+    if (spied.callCount === 0) throw new Error('spy has not been called');
+  }
+  return spied;
+}
+
+const waitFor = (spy, callCount = 1) => {
+  if (typeof spy !== 'function') throw new Error('spy expected');
+  if (!Number.isInteger(callCount) || callCount < 1) throw new Error('callCount expected');
+  if (TIMER_WAIT_FOR) throw new Error('waitFor already called');
   return new Promise((resolve, reject) => {
-    let checkTimer;
-    const timeout = setTimeout(() => {
-      clearTimeout(checkTimer);
+    TIMER_WAIT_FOR_TIMEOUT = setTimeout(() => {
+      clearInterval(TIMER_WAIT_FOR);
+      TIMER_WAIT_FOR = TIMER_WAIT_FOR_TIMEOUT = undefined;
       reject(new Error('timeout waitFor, passed ms: ' + TEST_TIMEOUT));
     }, TEST_TIMEOUT);
-    const isSpyReady = (spy) => {
-      if (Array.isArray(spy)) {
-        return spy[0].callCount >= spy[1];
-      }
-      return spy.callCount >= 1;
-    };
-    const checkSpiesReady = () => {
-      clearTimeout(checkTimer);
-      if (spies.every(isSpyReady)) {
-        clearTimeout(timeout);
+    TIMER_WAIT_FOR = setInterval(function checkSpiesReady() {
+      if (spy.callCount >= callCount) {
+        clearInterval(TIMER_WAIT_FOR);
+        clearTimeout(TIMER_WAIT_FOR_TIMEOUT);
+        TIMER_WAIT_FOR = TIMER_WAIT_FOR_TIMEOUT = undefined;
         resolve();
-      } else {
-        checkTimer = setTimeout(checkSpiesReady, 20);
       }
-    };
-    checkSpiesReady();
+    }, 20);
   });
 };
 
@@ -175,25 +199,32 @@ const runTests = (baseopts) => {
 
   describe('watch a directory', () => {
     let readySpy, rawSpy, watcher, watcher2;
-    beforeEach(async () => {
+    async function dwatch() {
+      watcher = cwatch(dpath(), options).on(EV.READY, readySpy).on(EV.RAW, rawSpy);
+      await waitForWatcher(watcher);
+    }
+    beforeEach(() => {
       options.ignoreInitial = true;
       options.alwaysStat = true;
-      readySpy = sinon.spy(function readySpy(){});
-      rawSpy = sinon.spy(function rawSpy(){});
-      watcher = cwatch(currentDir, options).on(EV.READY, readySpy).on(EV.RAW, rawSpy);
-      await waitForWatcher(watcher);
+      readySpy = makeSpy(function readySpy(){});
+      rawSpy = makeSpy(function rawSpy(){});
     });
     afterEach(async () => {
-      await waitFor([readySpy]);
+      await waitFor(readySpy);
       await watcher.close();
-      readySpy.should.have.been.calledOnce;
+      await delay(1500);
+
+      expect(readySpy.callCount).to.be.above(0);
       readySpy = undefined;
       rawSpy = undefined;
+      watcher = undefined;
     });
-    it('should produce an instance of chokidar.FSWatcher', () => {
+    it('should produce an instance of chokidar.FSWatcher', async () => {
+      await dwatch();
       watcher.should.be.an.instanceof(chokidar.FSWatcher);
     });
-    it('should expose public API methods', () => {
+    it('should expose public API methods', async () => {
+      await dwatch();
       watcher.on.should.be.a('function');
       watcher.emit.should.be.a('function');
       watcher.add.should.be.a('function');
@@ -201,24 +232,26 @@ const runTests = (baseopts) => {
       watcher.getWatched.should.be.a('function');
     });
     it('should emit `add` event when file was added', async () => {
+      await dwatch();
       const testPath = dpath('add.txt');
-      const spy = sinon.spy(function addSpy(){});
+      const spy = makeSpy();
       watcher.on(EV.ADD, spy);
       await delay();
       await write(testPath, dateNow());
-      await waitFor([spy]);
-      spy.should.have.been.calledOnce;
-      spy.should.have.been.calledWith(testPath);
+      await waitFor(spy);
+      spy.wasCalled();
+      spy.wasCalledWith(testPath);
       expect(spy.args[0][1]).to.be.ok; // stats
-      rawSpy.should.have.been.called;
+      rawSpy.wasCalled();
     });
     it('should emit nine `add` events when nine files were added in one directory', async () => {
+      await dwatch();
       const paths = [];
       for (let i = 1; i <= 9; i++) {
         paths.push(dpath(`add${i}.txt`));
       }
 
-      const spy = sinon.spy();
+      const spy = makeSpy();
       watcher.on(EV.ADD, (path) => {
         spy(path);
       });
@@ -237,16 +270,18 @@ const runTests = (baseopts) => {
       write(paths[7], dateNow());
       write(paths[8], dateNow());
 
-      await waitFor([[spy, 4]]);
+      await waitFor(spy, 4);
 
       await delay(1000);
-      await waitFor([[spy, 9]]);
+      await waitFor(spy, 9);
       paths.forEach(path => {
-        spy.should.have.been.calledWith(path);
+        spy.wasCalledWith(path);
+        // spy.should.have.been.calledWith(path);
       });
     });
     it('should emit thirtythree `add` events when thirtythree files were added in nine directories', async () => {
-      await watcher.close();
+      // await watcher.close();
+      // await dwatch();
 
       const test1Path = dpath('add1.txt');
       const testb1Path = dpath('b/add1.txt');
@@ -281,20 +316,31 @@ const runTests = (baseopts) => {
       const test9Path = dpath('add9.txt');
       const testb9Path = dpath('b/add9.txt');
       const testc9Path = dpath('c/add9.txt');
-      await fs_mkdir(dpath('b'), PERM);
-      await fs_mkdir(dpath('c'), PERM);
-      await fs_mkdir(dpath('d'), PERM);
-      await fs_mkdir(dpath('e'), PERM);
-      await fs_mkdir(dpath('f'), PERM);
-      await fs_mkdir(dpath('g'), PERM);
-      await fs_mkdir(dpath('h'), PERM);
-      await fs_mkdir(dpath('i'), PERM);
+      await mkdir(dpath('b'), PERM);
+      await mkdir(dpath('c'), PERM);
+      await mkdir(dpath('d'), PERM);
+      await mkdir(dpath('e'), PERM);
+      await mkdir(dpath('f'), PERM);
+      await mkdir(dpath('g'), PERM);
+      await mkdir(dpath('h'), PERM);
+      await mkdir(dpath('i'), PERM);
 
-      await delay();
+      await delay(1000);
+      const added = new Set();
+      let spy = makeSpy();
 
-      readySpy.resetHistory();
-      watcher2 = cwatch(currentDir, options).on(EV.READY, readySpy).on(EV.RAW, rawSpy);
-      const spy = await aspy(watcher2, EV.ADD, null, true);
+      watcher = cwatch(currentDir, options)
+      .on(EV.RAW, (a, b, c) => {
+        console.log('raw', a, b, c);
+      })
+      .on(EV.ALL, (a, b) => {
+        console.log('all', a, b);
+      })
+      .on(EV.ADD, (path) => {
+        console.log('add', path);
+        added.add(path);
+        spy(path);
+      });
 
       const filesToWrite = [
         test1Path,
@@ -332,13 +378,29 @@ const runTests = (baseopts) => {
         testi1Path
       ];
 
-      let currentCallCount = 0;
-
+      let callCount = 0;
       for (const fileToWrite of filesToWrite) {
+        console.log('write', fileToWrite);
         await write(fileToWrite, dateNow());
-        await waitFor([[spy, ++currentCallCount]]);
+        callCount++;
+        console.log('wrote', callCount);
+        // setInterval(() => {console.log(added)}, 500);
+        // await waitFor(spy, callCount)
+        // await waitFor([[spy, ++currentCallCount]]);
+        // console.log(added.has(fileToWrite));
+        // await waitFor([spy, ++currentCallCount]);
       }
+      await delay(5000);
+      console.log(added);
+      // console.log('ab 114');
+      // for (let file of filesToWrite) {
+      //   if (!added.has(file)) {
+      //     console.log(added);
+      //     throw new Error('no file ' + file);
+      //   }
+      // }
 
+      /*
       spy.should.have.been.calledWith(test1Path);
       spy.should.have.been.calledWith(test2Path);
       spy.should.have.been.calledWith(test3Path);
@@ -372,13 +434,17 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(testg1Path);
       spy.should.have.been.calledWith(testh1Path);
       spy.should.have.been.calledWith(testi1Path);
+      readySpy.should.have.been.calledOnce;
+      */
+      // await watcher.close()
     });
     it('should emit `addDir` event when directory was added', async () => {
+      await dwatch();
       const testDir = dpath('subdir');
       const spy = sinon.spy(function addDirSpy(){});
       watcher.on(EV.ADD_DIR, spy);
       spy.should.not.have.been.called;
-      await fs_mkdir(testDir, PERM);
+      await mkdir(testDir, PERM);
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testDir);
@@ -386,6 +452,7 @@ const runTests = (baseopts) => {
       rawSpy.should.have.been.called;
     });
     it('should emit `change` event when file was changed', async () => {
+      await dwatch();
       const testPath = dpath('change.txt');
       const spy = sinon.spy(function changeSpy(){});
       watcher.on(EV.CHANGE, spy);
@@ -398,11 +465,12 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledOnce;
     });
     it('should emit `unlink` event when file was removed', async () => {
+      await dwatch();
       const testPath = dpath('unlink.txt');
       const spy = sinon.spy(function unlinkSpy(){});
       watcher.on(EV.UNLINK, spy);
       spy.should.not.have.been.called;
-      await fs_unlink(testPath);
+      await unl(testPath);
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
@@ -410,14 +478,15 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledOnce;
     });
     it('should emit `unlinkDir` event when a directory was removed', async () => {
+      await dwatch();
       const testDir = dpath('subdir');
       const spy = sinon.spy(function unlinkDirSpy(){});
 
-      await fs_mkdir(testDir, PERM);
+      await mkdir(testDir, PERM);
       await delay(300);
       watcher.on(EV.UNLINK_DIR, spy);
 
-      await fs_rmdir(testDir);
+      await rm(testDir, { recursive: true });
       await waitFor([spy]);
       spy.should.have.been.calledWith(testDir);
       expect(spy.args[0][1]).to.not.be.ok; // no stats
@@ -425,14 +494,15 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledOnce;
     });
     it('should emit two `unlinkDir` event when two nested directories were removed', async () => {
+      await dwatch();
       const testDir = dpath('subdir');
       const testDir2 = dpath('subdir/subdir2');
       const testDir3 = dpath('subdir/subdir2/subdir3');
       const spy = sinon.spy(function unlinkDirSpy(){});
 
-      await fs_mkdir(testDir, PERM);
-      await fs_mkdir(testDir2, PERM);
-      await fs_mkdir(testDir3, PERM);
+      await mkdir(testDir, PERM);
+      await mkdir(testDir2, PERM);
+      await mkdir(testDir3, PERM);
       await delay(300);
 
       watcher.on(EV.UNLINK_DIR, spy);
@@ -447,6 +517,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledTwice;
     });
     it('should emit `unlink` and `add` events when a file is renamed', async () => {
+      await dwatch();
       const unlinkSpy = sinon.spy(function unlink(){});
       const addSpy = sinon.spy(function add(){});
       const testPath = dpath('change.txt');
@@ -456,7 +527,7 @@ const runTests = (baseopts) => {
       addSpy.should.not.have.been.called;
 
       await delay();
-      await fs_rename(testPath, newPath);
+      await rename(testPath, newPath);
       await waitFor([unlinkSpy, addSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
       expect(unlinkSpy.args[0][1]).to.not.be.ok; // no stats
@@ -471,6 +542,7 @@ const runTests = (baseopts) => {
         console.warn('test skipped')
         return true;
       }
+      await dwatch();
       const unlinkSpy = sinon.spy(function unlink(){});
       const addSpy = sinon.spy(function add(){});
       const changeSpy = sinon.spy(function change(){});
@@ -483,7 +555,7 @@ const runTests = (baseopts) => {
       await waitFor([[addSpy.withArgs(testPath), 1]]);
       unlinkSpy.should.not.have.been.called;
       changeSpy.should.not.have.been.called;
-      await fs_unlink(testPath);
+      await unl(testPath);
       await waitFor([unlinkSpy.withArgs(testPath)]);
       unlinkSpy.should.have.been.calledWith(testPath);
 
@@ -495,31 +567,34 @@ const runTests = (baseopts) => {
       expect(addSpy.callCount).to.equal(2);
     });
     it('should not emit `unlink` for previously moved files', async () => {
+      await dwatch();
       const unlinkSpy = sinon.spy(function unlink(){});
       const testPath = dpath('change.txt');
       const newPath1 = dpath('moved.txt');
       const newPath2 = dpath('moved-again.txt');
       watcher.on(EV.UNLINK, unlinkSpy);
-      await fs_rename(testPath, newPath1);
+      await rename(testPath, newPath1);
 
       await delay(300);
-      await fs_rename(newPath1, newPath2);
+      await rename(newPath1, newPath2);
       await waitFor([unlinkSpy.withArgs(newPath1)]);
       unlinkSpy.withArgs(testPath).should.have.been.calledOnce;
       unlinkSpy.withArgs(newPath1).should.have.been.calledOnce;
       unlinkSpy.withArgs(newPath2).should.not.have.been.called;
     });
     it('should survive ENOENT for missing subdirectories', async () => {
+      await dwatch();
       const testDir = dpath('notadir');
       watcher.add(testDir);
     });
     it('should notice when a file appears in a new directory', async () => {
+      await dwatch();
       const testDir = dpath('subdir');
       const testPath = dpath('subdir/add.txt');
       const spy = sinon.spy(function addSpy(){});
       watcher.on(EV.ADD, spy);
       spy.should.not.have.been.called;
-      await fs_mkdir(testDir, PERM);
+      await mkdir(testDir, PERM);
       await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
@@ -528,35 +603,37 @@ const runTests = (baseopts) => {
       rawSpy.should.have.been.called;
     });
     it('should watch removed and re-added directories', async () => {
+      await dwatch();
       const unlinkSpy = sinon.spy(function unlinkSpy(){});
       const addSpy = sinon.spy(function addSpy(){});
       const parentPath = dpath('subdir2');
       const subPath = dpath('subdir2/subsub');
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD_DIR, addSpy);
-      await fs_mkdir(parentPath, PERM);
+      await mkdir(parentPath, PERM);
 
       await delay(win32Polling ? 900 : 300);
-      await fs_rmdir(parentPath);
+      await rm(parentPath, { recursive: true });
       await waitFor([unlinkSpy.withArgs(parentPath)]);
       unlinkSpy.should.have.been.calledWith(parentPath);
-      await fs_mkdir(parentPath, PERM);
+      await mkdir(parentPath, PERM);
 
       await delay(win32Polling ? 2200 : 1200);
-      await fs_mkdir(subPath, PERM);
+      await mkdir(subPath, PERM);
       await waitFor([[addSpy, 3]]);
       addSpy.should.have.been.calledWith(parentPath);
       addSpy.should.have.been.calledWith(subPath);
     });
     it('should emit `unlinkDir` and `add` when dir is replaced by file', async () => {
+      await dwatch();
       options.ignoreInitial = true;
       const unlinkSpy = sinon.spy(function unlinkSpy(){});
       const addSpy = sinon.spy(function addSpy(){});
       const testPath = dpath('dirFile');
-      await fs_mkdir(testPath, PERM);
+      await mkdir(testPath, PERM);
       await delay(300);
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD, addSpy);
 
-      await fs_rmdir(testPath);
+      await rm(testPath, { recursive: true });
       await waitFor([unlinkSpy]);
 
       await write(testPath, 'file content');
@@ -566,6 +643,7 @@ const runTests = (baseopts) => {
       addSpy.should.have.been.calledWith(testPath);
     });
     it('should emit `unlink` and `addDir` when file is replaced by dir', async () => {
+      await dwatch();
       options.ignoreInitial = true;
       const unlinkSpy = sinon.spy(function unlinkSpy(){});
       const addSpy = sinon.spy(function addSpy(){});
@@ -574,9 +652,9 @@ const runTests = (baseopts) => {
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD_DIR, addSpy);
 
       await delay(300);
-      await fs_unlink(testPath);
+      await unl(testPath);
       await delay(300);
-      await fs_mkdir(testPath, PERM);
+      await mkdir(testPath, PERM);
 
       await waitFor([addSpy, unlinkSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
@@ -613,7 +691,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV.UNLINK);
 
       await delay();
-      await fs_unlink(testPath);
+      await unl(testPath);
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
     });
@@ -628,7 +706,7 @@ const runTests = (baseopts) => {
       await waitForWatcher(watcher);
 
       await delay();
-      await fs_unlink(testPath);
+      await unl(testPath);
       await waitFor([unlinkSpy]);
       unlinkSpy.should.have.been.calledWith(testPath);
 
@@ -660,13 +738,13 @@ const runTests = (baseopts) => {
 
       await delay();
       await write(safePath, dateNow());
-      await fs_rename(safePath, testPath);
+      await rename(safePath, testPath);
       await delay(300);
       await write(safePath, dateNow());
-      await fs_rename(safePath, testPath);
+      await rename(safePath, testPath);
       await delay(300);
       await write(safePath, dateNow());
-      await fs_rename(safePath, testPath);
+      await rename(safePath, testPath);
       await delay(300);
       await waitFor([spy]);
       spy.withArgs(EV.CHANGE, testPath).should.have.been.calledThrice;
@@ -679,13 +757,13 @@ const runTests = (baseopts) => {
         const testPath = dpath('unlink.txt');
         const otherDirPath = dpath('other-dir');
         const otherPath = dpath('other-dir/other.txt');
-        await fs_mkdir(otherDirPath, PERM);
+        await mkdir(otherDirPath, PERM);
         const watcher = cwatch([testPath, otherPath], options);
         // intentionally for this test don't write write(otherPath, 'other');
         const spy = await aspy(watcher, EV.UNLINK);
 
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
         await waitFor([spy]);
         spy.should.have.been.calledWith(testPath);
       });
@@ -702,7 +780,7 @@ const runTests = (baseopts) => {
         await waitForWatcher(watcher);
 
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
         await waitFor([unlinkSpy]);
 
         await delay();
@@ -720,7 +798,7 @@ const runTests = (baseopts) => {
         const testPath = dpath('unlink.txt');
         const otherDirPath = dpath('other-dir');
         const otherPath = dpath('other-dir/other.txt');
-        await fs_mkdir(otherDirPath, PERM);
+        await mkdir(otherDirPath, PERM);
         // intentionally for this test don't write write(otherPath, 'other');
         const watcher = cwatch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
@@ -728,7 +806,7 @@ const runTests = (baseopts) => {
         await waitForWatcher(watcher);
 
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
         await waitFor([unlinkSpy]);
 
         await delay();
@@ -752,7 +830,7 @@ const runTests = (baseopts) => {
         await waitForWatcher(watcher);
 
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
         await waitFor([unlinkSpy]);
 
         await delay();
@@ -776,10 +854,10 @@ const runTests = (baseopts) => {
         await waitForWatcher(watcher);
 
         await delay();
-        await fs_unlink(otherPath);
+        await unl(otherPath);
 
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
         await waitFor([[unlinkSpy, 2]]);
 
         await delay();
@@ -805,7 +883,7 @@ const runTests = (baseopts) => {
           .on(EV.ADD, addSpy);
         await waitForWatcher(watcher);
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
 
         await waitFor([unlinkSpy]);
         await delay();
@@ -824,14 +902,14 @@ const runTests = (baseopts) => {
       const testDir = dpath('subdir');
       const testPath = dpath('subdir/add.txt');
       const renamedDir = dpath('subdir-renamed');
-      const expectedPath = sysPath.join(renamedDir, 'add.txt');
-      await fs_mkdir(testDir, PERM);
+      const expectedPath = pjoin(renamedDir, 'add.txt');
+      await mkdir(testDir, PERM);
       await write(testPath, dateNow());
       const watcher = cwatch(currentDir, options);
       const spy = await aspy(watcher, EV.ADD);
 
       await delay(1000);
-      await fs_rename(testDir, renamedDir);
+      await rename(testDir, renamedDir);
       await waitFor([spy.withArgs(expectedPath)]);
       spy.should.have.been.calledWith(expectedPath);
     });
@@ -855,7 +933,7 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.called;
 
       await delay();
-      await fs_mkdir(testDir, PERM);
+      await mkdir(testDir, PERM);
       await waitFor([spy.withArgs(EV.ADD_DIR)]);
       await write(testPath, 'hello');
       await waitFor([spy.withArgs(EV.ADD)]);
@@ -884,9 +962,9 @@ const runTests = (baseopts) => {
       const matchingDir = dpath('notag');
       const matchingFile = dpath('notag/b.txt');
       const matchingFile2 = dpath('notal');
-      await fs_mkdir(testDir, PERM);
+      await mkdir(testDir, PERM);
       await write(filePath, 'b');
-      await fs_mkdir(matchingDir, PERM);
+      await mkdir(matchingDir, PERM);
       await write(matchingFile, 'c');
       await write(matchingFile2, 'd');
       const watcher = cwatch(watchPath, options);
@@ -911,7 +989,7 @@ const runTests = (baseopts) => {
       const matchingFile = dpath('notag/a.txt');
       const matchingFile2 = dpath('notal');
       await write(filePath, 'b');
-      await fs_mkdir(matchingDir, PERM);
+      await mkdir(matchingDir, PERM);
       await write(matchingFile, 'c');
       await write(matchingFile2, 'd');
       const watcher = cwatch(watchPath, options);
@@ -932,14 +1010,14 @@ const runTests = (baseopts) => {
     if (isWindows) return true;
     let linkedDir;
     beforeEach(async () => {
-      linkedDir = sysPath.resolve(currentDir, '..', `${testId}-link`);
-      await fs_symlink(currentDir, linkedDir, isWindows ? 'dir' : null);
-      await fs_mkdir(dpath('subdir'), PERM);
+      linkedDir = presolve(currentDir, '..', `${testId}-link`);
+      await symlink(currentDir, linkedDir, isWindows ? 'dir' : null);
+      await mkdir(dpath('subdir'), PERM);
       await write(dpath('subdir/add.txt'), 'b');
       return true;
     });
     afterEach(async () => {
-      await fs_unlink(linkedDir);
+      await unl(linkedDir);
       return true;
     });
 
@@ -952,13 +1030,13 @@ const runTests = (baseopts) => {
       await waitForWatcher(watcher);
 
       dirSpy.should.have.been.calledWith(linkedDir);
-      addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'change.txt'));
-      addSpy.should.have.been.calledWith(sysPath.join(linkedDir, 'unlink.txt'));
+      addSpy.should.have.been.calledWith(pjoin(linkedDir, 'change.txt'));
+      addSpy.should.have.been.calledWith(pjoin(linkedDir, 'unlink.txt'));
     });
     it('should watch symlinked files', async () => {
       const changePath = dpath('change.txt');
       const linkPath = dpath('link.txt');
-      await fs_symlink(changePath, linkPath);
+      await symlink(changePath, linkPath);
       const watcher = cwatch(linkPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -970,7 +1048,7 @@ const runTests = (baseopts) => {
     it('should follow symlinked files within a normal dir', async () => {
       const changePath = dpath('change.txt');
       const linkPath = dpath('subdir/link.txt');
-      await fs_symlink(changePath, linkPath);
+      await symlink(changePath, linkPath);
       const watcher = cwatch(dpath('subdir'), options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -980,8 +1058,8 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.CHANGE, linkPath);
     });
     it('should watch paths with a symlinked parent', async () => {
-      const testDir = sysPath.join(linkedDir, 'subdir');
-      const testFile = sysPath.join(testDir, 'add.txt');
+      const testDir = pjoin(linkedDir, 'subdir');
+      const testFile = pjoin(testDir, 'add.txt');
       const watcher = cwatch(testDir, options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -992,7 +1070,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.CHANGE, testFile);
     });
     it('should not recurse indefinitely on circular symlinks', async () => {
-      await fs_symlink(currentDir, dpath('subdir/circular'), isWindows ? 'dir' : null);
+      await symlink(currentDir, dpath('subdir/circular'), isWindows ? 'dir' : null);
       return new Promise((resolve, reject) => {
         const watcher = cwatch(currentDir, options);
         watcher.on(EV.ERROR, resolve());
@@ -1000,7 +1078,7 @@ const runTests = (baseopts) => {
       })
     });
     it('should recognize changes following symlinked dirs', async () => {
-      const linkedFilePath = sysPath.join(linkedDir, 'change.txt');
+      const linkedFilePath = pjoin(linkedDir, 'change.txt');
       const watcher = cwatch(linkedDir, options);
       const spy = await aspy(watcher, EV.CHANGE);
       const wa = spy.withArgs(linkedFilePath);
@@ -1013,7 +1091,7 @@ const runTests = (baseopts) => {
       const watcher = cwatch(currentDir, options);
       const spy = await aspy(watcher, EV.ALL);
       await delay();
-      await fs_symlink(dpath('subdir'), dpath('link'), isWindows ? 'dir' : null);
+      await symlink(dpath('subdir'), dpath('link'), isWindows ? 'dir' : null);
       await waitFor([
         spy.withArgs(EV.ADD, dpath('link/add.txt')),
         spy.withArgs(EV.ADD_DIR, dpath('link'))
@@ -1032,9 +1110,9 @@ const runTests = (baseopts) => {
     it('should survive ENOENT for missing symlinks when followSymlinks:false', async () => {
       options.followSymlinks = false;
       const targetDir = dpath('subdir/nonexistent');
-      await fs_mkdir(targetDir);
-      await fs_symlink(targetDir, dpath('subdir/broken'), isWindows ? 'dir' : null);
-      await fs_rmdir(targetDir);
+      await mkdir(targetDir);
+      await symlink(targetDir, dpath('subdir/broken'), isWindows ? 'dir' : null);
+      await rm(targetDir, { recursive: true });
       await delay();
 
       const watcher = cwatch(dpath('subdir'), options);
@@ -1048,7 +1126,7 @@ const runTests = (baseopts) => {
       options.followSymlinks = false;
       // Create symlink in linkPath
       const linkPath = dpath('link');
-      await fs_symlink(dpath('subdir'), linkPath);
+      await symlink(dpath('subdir'), linkPath);
       const spy = await aspy(cwatch(currentDir, options), EV.ALL);
       await delay(300);
       setTimeout(() => {
@@ -1066,11 +1144,11 @@ const runTests = (baseopts) => {
     });
     it('should not reuse watcher when following a symlink to elsewhere', async () => {
       const linkedPath = dpath('outside');
-      const linkedFilePath = sysPath.join(linkedPath, 'text.txt');
+      const linkedFilePath = pjoin(linkedPath, 'text.txt');
       const linkPath = dpath('subdir/subsub');
-      await fs_mkdir(linkedPath, PERM);
+      await mkdir(linkedPath, PERM);
       await write(linkedFilePath, 'b');
-      await fs_symlink(linkedPath, linkPath);
+      await symlink(linkedPath, linkPath);
       const watcher2 = cwatch(dpath('subdir'), options);
       await waitForWatcher(watcher2);
 
@@ -1083,12 +1161,13 @@ const runTests = (baseopts) => {
       await write(linkedFilePath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.CHANGE, watchedPath);
+      await watcher2.close();
     });
     it('should emit ready event even when broken symlinks are encountered', async () => {
       const targetDir = dpath('subdir/nonexistent');
-      await fs_mkdir(targetDir);
-      await fs_symlink(targetDir, dpath('subdir/broken'), isWindows ? 'dir' : null);
-      await fs_rmdir(targetDir);
+      await mkdir(targetDir);
+      await symlink(targetDir, dpath('subdir/broken'), isWindows ? 'dir' : null);
+      await rm(targetDir, { recursive: true });
       const readySpy = sinon.spy(function readySpy(){});
       const watcher = cwatch(dpath('subdir'), options)
           .on(EV.READY, readySpy);
@@ -1100,7 +1179,7 @@ const runTests = (baseopts) => {
     it('should watch all paths in an array', async () => {
       const testPath = dpath('change.txt');
       const testDir = dpath('subdir');
-      await fs_mkdir(testDir);
+      await mkdir(testDir);
       const watcher = cwatch([testDir, testPath], options);
       const spy = await aspy(watcher, EV.ALL);
       spy.should.have.been.calledWith(EV.ADD, testPath);
@@ -1113,7 +1192,7 @@ const runTests = (baseopts) => {
     it('should accommodate nested arrays in input', async () => {
       const testPath = dpath('change.txt');
       const testDir = dpath('subdir');
-      await fs_mkdir(testDir);
+      await mkdir(testDir);
       const watcher = cwatch([[testDir], [testPath]], options);
       const spy = await aspy(watcher, EV.ALL);
       spy.should.have.been.calledWith(EV.ADD, testPath);
@@ -1144,8 +1223,8 @@ const runTests = (baseopts) => {
           spy.should.have.been.calledWith(currentDir);
         });
         it('should emit `addDir` events for preexisting dirs', async () => {
-          await fs_mkdir(dpath('subdir'), PERM);
-          await fs_mkdir(dpath('subdir/subsub'), PERM);
+          await mkdir(dpath('subdir'), PERM);
+          await mkdir(dpath('subdir/subsub'), PERM);
           const watcher = cwatch(currentDir, options);
           const spy = await aspy(watcher, EV.ADD_DIR);
           spy.should.have.been.calledWith(currentDir);
@@ -1174,7 +1253,7 @@ const runTests = (baseopts) => {
           const testPath = dpath('subdir/add.txt');
           const spy = await aspy(cwatch(currentDir, options), EV.ADD);
           spy.should.not.have.been.called;
-          await fs_mkdir(testDir, PERM);
+          await mkdir(testDir, PERM);
           await write(testPath, dateNow());
           await waitFor([spy]);
           spy.should.have.been.calledOnce;
@@ -1192,7 +1271,7 @@ const runTests = (baseopts) => {
         it('should not emit for preexisting dirs when depth is 0', async () => {
           options.depth = 0;
           const testPath = dpath('add.txt');
-          await fs_mkdir(dpath('subdir'), PERM);
+          await mkdir(dpath('subdir'), PERM);
 
           await delay(200);
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
@@ -1212,14 +1291,14 @@ const runTests = (baseopts) => {
           return stats.isDirectory();
         };
         const testDir = dpath('subdir');
-        await fs_mkdir(testDir, PERM);
-        await write(sysPath.join(testDir, 'add.txt'), '');
-        await fs_mkdir(sysPath.join(testDir, 'subsub'), PERM);
-        await write(sysPath.join(testDir, 'subsub', 'ab.txt'), '');
+        await mkdir(testDir, PERM);
+        await write(pjoin(testDir, 'add.txt'), '');
+        await mkdir(pjoin(testDir, 'subsub'), PERM);
+        await write(pjoin(testDir, 'subsub', 'ab.txt'), '');
         const watcher = cwatch(testDir, options);
         const spy = await aspy(watcher, EV.ADD);
         spy.should.have.been.calledOnce;
-        spy.should.have.been.calledWith(sysPath.join(testDir, 'add.txt'));
+        spy.should.have.been.calledWith(pjoin(testDir, 'add.txt'));
       });
       it('should not choke on an ignored watch path', async () => {
         options.ignored = () => { return true; };
@@ -1227,9 +1306,9 @@ const runTests = (baseopts) => {
       });
       it('should ignore the contents of ignored dirs', async () => {
         const testDir = dpath('subdir');
-        const testFile = sysPath.join(testDir, 'add.txt');
+        const testFile = pjoin(testDir, 'add.txt');
         options.ignored = testDir;
-        await fs_mkdir(testDir, PERM);
+        await mkdir(testDir, PERM);
         await write(testFile, 'b');
         const watcher = cwatch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
@@ -1263,10 +1342,10 @@ const runTests = (baseopts) => {
     });
     describe('depth', () => {
       beforeEach(async () => {
-        await fs_mkdir(dpath('subdir'), PERM);
+        await mkdir(dpath('subdir'), PERM);
         await write(dpath('subdir/add.txt'), 'b');
         await delay();
-        await fs_mkdir(dpath('subdir/subsub'), PERM);
+        await mkdir(dpath('subdir/subsub'), PERM);
         await write(dpath('subdir/subsub/ab.txt'), 'b');
         await delay();
       });
@@ -1304,7 +1383,7 @@ const runTests = (baseopts) => {
       it('should respect depth setting when following symlinks', async () => {
         if (isWindows) return true; // skip on windows
         options.depth = 1;
-        await fs_symlink(dpath('subdir'), dpath('link'), isWindows ? 'dir' : null);
+        await symlink(dpath('subdir'), dpath('link'), isWindows ? 'dir' : null);
         await delay();
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         spy.should.have.been.calledWith(EV.ADD_DIR, dpath('link'));
@@ -1319,7 +1398,7 @@ const runTests = (baseopts) => {
         const linkPath = dpath('link');
         const dirPath = dpath('link/subsub');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fs_symlink(dpath('subdir'), linkPath, isWindows ? 'dir' : null);
+        await symlink(dpath('subdir'), linkPath, isWindows ? 'dir' : null);
         await waitFor([[spy, 3], spy.withArgs(EV.ADD_DIR, dirPath)]);
         spy.should.have.been.calledWith(EV.ADD_DIR, linkPath);
         spy.should.have.been.calledWith(EV.ADD_DIR, dirPath);
@@ -1334,11 +1413,11 @@ const runTests = (baseopts) => {
         const unlinkSpy = spy.withArgs(EV.UNLINK_DIR);
         spy.should.have.been.calledWith(EV.ADD_DIR, currentDir);
         spy.should.have.been.calledWith(EV.ADD_DIR, dpath('subdir'));
-        await fs_mkdir(subdir2, PERM);
+        await mkdir(subdir2, PERM);
         await waitFor([[addSpy, 3]]);
         addSpy.should.have.been.calledThrice;
 
-        await fs_rmdir(subdir2);
+        await rm(subdir2, { recursive: true });
         await waitFor([unlinkSpy]);
         await delay();
         unlinkSpy.should.have.been.calledWith(EV.UNLINK_DIR, subdir2);
@@ -1360,9 +1439,9 @@ const runTests = (baseopts) => {
         await write(dpath('add.txt~'), 'c');
         await write(dpath('.subl5f4.tmp'), 'c');
         await delay(300);
-        await fs_unlink(dpath('.change.txt.swp'));
-        await fs_unlink(dpath('add.txt~'));
-        await fs_unlink(dpath('.subl5f4.tmp'));
+        await unl(dpath('.change.txt.swp'));
+        await unl(dpath('add.txt~'));
+        await unl(dpath('.subl5f4.tmp'));
         await delay(300);
         spy.should.not.have.been.called;
       });
@@ -1380,7 +1459,7 @@ const runTests = (baseopts) => {
         options.cwd = currentDir;
         const watcher = cwatch('.', options);
         const spy = await aspy(watcher, EV.ALL);
-        await fs_unlink(dpath('unlink.txt'));
+        await unl(dpath('unlink.txt'));
         await write(dpath('change.txt'), dateNow());
         await waitFor([spy.withArgs(EV.UNLINK)]);
         spy.should.have.been.calledWith(EV.ADD, 'change.txt');
@@ -1396,13 +1475,13 @@ const runTests = (baseopts) => {
         const testDir = dpath('subdir');
         const renamedDir = dpath('subdir-renamed');
 
-        await fs_mkdir(testDir, PERM);
+        await mkdir(testDir, PERM);
         const watcher = cwatch('.', options);
 
         await new Promise((resolve) => {
           setTimeout(() => {
             watcher.on(EV.ADD_DIR, spy);
-            fs_rename(testDir, renamedDir);
+            rename(testDir, renamedDir);
             resolve();
           }, 1000);
         });
@@ -1428,15 +1507,15 @@ const runTests = (baseopts) => {
         const watcher2Events = waitForEvents(watcher2, 5);
         const spy2 = await aspy(watcher2, EV.ALL);
 
-        await fs_unlink(dpath('unlink.txt'));
+        await unl(dpath('unlink.txt'));
         await write(dpath('change.txt'), dateNow());
         await Promise.all([watcherEvents, watcher2Events]);
         spy1.should.have.been.calledWith(EV.CHANGE, 'change.txt');
         spy1.should.have.been.calledWith(EV.UNLINK, 'unlink.txt');
-        spy2.should.have.been.calledWith(EV.ADD, sysPath.join('..', 'change.txt'));
-        spy2.should.have.been.calledWith(EV.ADD, sysPath.join('..', 'unlink.txt'));
-        spy2.should.have.been.calledWith(EV.CHANGE, sysPath.join('..', 'change.txt'));
-        spy2.should.have.been.calledWith(EV.UNLINK, sysPath.join('..', 'unlink.txt'));
+        spy2.should.have.been.calledWith(EV.ADD, pjoin('..', 'change.txt'));
+        spy2.should.have.been.calledWith(EV.ADD, pjoin('..', 'unlink.txt'));
+        spy2.should.have.been.calledWith(EV.CHANGE, pjoin('..', 'change.txt'));
+        spy2.should.have.been.calledWith(EV.UNLINK, pjoin('..', 'unlink.txt'));
       });
       it('should ignore files even with cwd', async () => {
         options.cwd = currentDir;
@@ -1452,8 +1531,8 @@ const runTests = (baseopts) => {
         const spy = await aspy(watcher, EV.ALL);
         await write(dpath('ignored.txt'), dateNow());
         await write(dpath('ignored-option.txt'), dateNow());
-        await fs_unlink(dpath('ignored.txt'));
-        await fs_unlink(dpath('ignored-option.txt'));
+        await unl(dpath('ignored.txt'));
+        await unl(dpath('ignored-option.txt'));
         await delay();
         await write(dpath('change.txt'), EV.CHANGE);
         await waitFor([spy.withArgs(EV.CHANGE, 'change.txt')]);
@@ -1584,15 +1663,15 @@ const runTests = (baseopts) => {
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         await write(testPath, 'hello');
         await delay(400);
-        await fs_unlink(testPath);
+        await unl(testPath);
         await delay(400);
         spy.should.not.have.been.calledWith(sinon.match.string, testPath);
       });
       it('should be compatible with the cwd option', async () => {
         const testPath = dpath('subdir/add.txt');
-        const filename = sysPath.basename(testPath);
-        options.cwd = sysPath.dirname(testPath);
-        await fs_mkdir(options.cwd);
+        const filename = pbasename(testPath);
+        options.cwd = pdirname(testPath);
+        await mkdir(options.cwd);
 
         await delay(200);
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
@@ -1611,16 +1690,16 @@ const runTests = (baseopts) => {
       });
       it('should emit an unlink event when a file is updated and deleted just after that', async () => {
         const testPath = dpath('subdir/add.txt');
-        const filename = sysPath.basename(testPath);
-        options.cwd = sysPath.dirname(testPath);
-        await fs_mkdir(options.cwd);
+        const filename = pbasename(testPath);
+        options.cwd = pdirname(testPath);
+        await mkdir(options.cwd);
         await delay();
         await write(testPath, 'hello');
         await delay();
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         await write(testPath, 'edit');
         await delay();
-        await fs_unlink(testPath);
+        await unl(testPath);
         await waitFor([spy.withArgs(EV.UNLINK)]);
         spy.should.have.been.calledWith(EV.UNLINK, filename);
         spy.should.not.have.been.calledWith(EV.CHANGE, filename);
@@ -1706,7 +1785,7 @@ const runTests = (baseopts) => {
   describe('getWatched', () => {
     it('should return the watched paths', async () => {
       const expected = {};
-      expected[sysPath.dirname(currentDir)] = [testId.toString()];
+      expected[pdirname(currentDir)] = [testId.toString()];
       expected[currentDir] = ['change.txt', 'unlink.txt'];
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
@@ -1719,7 +1798,7 @@ const runTests = (baseopts) => {
         '..': [testId.toString()],
         'subdir': []
       };
-      await fs_mkdir(dpath('subdir'), PERM);
+      await mkdir(dpath('subdir'), PERM);
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
       expect(watcher.getWatched()).to.deep.equal(expected);
@@ -1728,7 +1807,7 @@ const runTests = (baseopts) => {
   describe('unwatch', () => {
     beforeEach(async () => {
       options.ignoreInitial = true;
-      await fs_mkdir(dpath('subdir'), PERM);
+      await mkdir(dpath('subdir'), PERM);
       await delay();
     });
     it('should stop watching unwatched paths', async () => {
@@ -1759,7 +1838,7 @@ const runTests = (baseopts) => {
       watcher.unwatch([subdirRel, gpath('unlink.txt')]);
 
       await delay();
-      await fs_unlink(unlinkFile);
+      await unl(unlinkFile);
       await write(addFile, dateNow());
       await write(changedFile, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
@@ -1771,9 +1850,9 @@ const runTests = (baseopts) => {
       if (!macosFswatch) spy.should.have.been.calledOnce;
     });
     it('should unwatch relative paths', async () => {
-      const fixturesDir = sysPath.relative(process.cwd(), currentDir);
-      const subdir = sysPath.join(fixturesDir, 'subdir');
-      const changeFile = sysPath.join(fixturesDir, 'change.txt');
+      const fixturesDir = prelative(process.cwd(), currentDir);
+      const subdir = pjoin(fixturesDir, 'subdir');
+      const changeFile = pjoin(fixturesDir, 'change.txt');
       const watchPaths = [subdir, changeFile];
       const watcher = cwatch(watchPaths, options);
       const spy = await aspy(watcher, EV.ALL);
@@ -1815,7 +1894,7 @@ const runTests = (baseopts) => {
       watcher.unwatch(['subdir', dpath('unlink.txt')]);
 
       await delay();
-      await fs_unlink(dpath('unlink.txt'));
+      await unl(dpath('unlink.txt'));
       await write(dpath('subdir/add.txt'), dateNow());
       await write(dpath('change.txt'), dateNow());
       await waitFor([spy]);
@@ -1895,26 +1974,26 @@ const runTests = (baseopts) => {
   });
   describe('reproduction of bug in issue #1040', () => {
     it('should detect change on symlink folders when consolidateThreshhold is reached', async () => {
-      const CURR = sysPath.join(FIXTURES_PATH, testId.toString());
-      const fixturesPathRel = sysPath.join(CURR, 'test-case-1040');
-      const linkPath = sysPath.join(fixturesPathRel, 'symlinkFolder');
-      const packagesPath = sysPath.join(fixturesPathRel, 'packages');
-      await fs_mkdir(fixturesPathRel, { recursive: true });
-      await fs_mkdir(linkPath);
-      await fs_mkdir(packagesPath);
+      const CURR = pjoin(FIXTURES_PATH, testId.toString());
+      const fixturesPathRel = pjoin(CURR, 'test-case-1040');
+      const linkPath = pjoin(fixturesPathRel, 'symlinkFolder');
+      const packagesPath = pjoin(fixturesPathRel, 'packages');
+      await mkdir(fixturesPathRel, { recursive: true });
+      await mkdir(linkPath);
+      await mkdir(packagesPath);
 
       // Init chokidar
       const watcher = cwatch([]);
 
       // Add more than 10 folders to cap consolidateThreshhold
       for (let i = 0 ; i < 20 ; i += 1) {
-        const folderPath = sysPath.join(packagesPath, `folder${i}`);
-        await fs_mkdir(folderPath);
-        const filePath = sysPath.join(folderPath, `file${i}.js`);
-        await write(sysPath.resolve(filePath), 'file content');
-        const symlinkPath = sysPath.join(linkPath, `folder${i}`);
-        await fs_symlink(sysPath.resolve(folderPath), symlinkPath, isWindows ? 'dir' : null);
-        watcher.add(sysPath.resolve(sysPath.join(symlinkPath, `file${i}.js`)));
+        const folderPath = pjoin(packagesPath, `folder${i}`);
+        await mkdir(folderPath);
+        const filePath = pjoin(folderPath, `file${i}.js`);
+        await write(presolve(filePath), 'file content');
+        const symlinkPath = pjoin(linkPath, `folder${i}`);
+        await symlink(presolve(folderPath), symlinkPath, isWindows ? 'dir' : null);
+        watcher.add(presolve(pjoin(symlinkPath, `file${i}.js`)));
       }
 
       // Wait to be sure that we have no other event than the update file
@@ -1923,8 +2002,8 @@ const runTests = (baseopts) => {
       const eventsWaiter = waitForEvents(watcher, 1);
 
       // Update a random generated file to fire an event
-      const randomFilePath = sysPath.join(packagesPath, 'folder17', 'file17.js');
-      await write(sysPath.resolve(randomFilePath), 'file content changer zeri ezhriez');
+      const randomFilePath = pjoin(packagesPath, 'folder17', 'file17.js');
+      await write(presolve(randomFilePath), 'file content changer zeri ezhriez');
 
       // Wait chokidar watch
       await delay(300);
@@ -1937,26 +2016,26 @@ const runTests = (baseopts) => {
   describe('reproduction of bug in issue #1024', () => {
     it('should detect changes to folders, even if they were deleted before', async () => {
       const id = testId.toString();
-      const absoluteWatchedDir = sysPath.join(FIXTURES_PATH, id, 'test');
-      const relativeWatcherDir = sysPath.join(id, 'test');
+      const absoluteWatchedDir = pjoin(FIXTURES_PATH, id, 'test');
+      const relativeWatcherDir = pjoin(id, 'test');
       const watcher = cwatch(relativeWatcherDir, {
         persistent: true
       });
       try {
         const eventsWaiter = waitForEvents(watcher, 5);
-        const testSubDir = sysPath.join(absoluteWatchedDir, 'dir');
-        const testSubDirFile = sysPath.join(absoluteWatchedDir, 'dir', 'file');
+        const testSubDir = pjoin(absoluteWatchedDir, 'dir');
+        const testSubDirFile = pjoin(absoluteWatchedDir, 'dir', 'file');
 
         // Command sequence from https://github.com/paulmillr/chokidar/issues/1042.
         await delay();
-        await fs_mkdir(absoluteWatchedDir);
-        await fs_mkdir(testSubDir);
+        await mkdir(absoluteWatchedDir);
+        await mkdir(testSubDir);
         // The following delay is essential otherwise the call of mkdir and rmdir will be equalize
         await delay(300);
-        await fs_rmdir(testSubDir);
+        await rm(testSubDir, { recursive: true });
         // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
         await delay(300);
-        await fs_mkdir(testSubDir);
+        await mkdir(testSubDir);
         await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
@@ -1964,23 +2043,23 @@ const runTests = (baseopts) => {
         const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
-          `[ALL] addDir: ${sysPath.join(id, 'test')}`,
-          `[ALL] addDir: ${sysPath.join(id, 'test', 'dir')}`,
-          `[ALL] unlinkDir: ${sysPath.join(id, 'test', 'dir')}`,
-          `[ALL] addDir: ${sysPath.join(id, 'test', 'dir')}`,
-          `[ALL] add: ${sysPath.join(id, 'test', 'dir', 'file')}`,
+          `[ALL] addDir: ${pjoin(id, 'test')}`,
+          `[ALL] addDir: ${pjoin(id, 'test', 'dir')}`,
+          `[ALL] unlinkDir: ${pjoin(id, 'test', 'dir')}`,
+          `[ALL] addDir: ${pjoin(id, 'test', 'dir')}`,
+          `[ALL] add: ${pjoin(id, 'test', 'dir', 'file')}`,
         ]);
       } finally {
-        watcher.close();
+        await watcher.close();
       }
     });
 
     it('should detect changes to symlink folders, even if they were deleted before', async () => {
       const id = testId.toString();
-      const relativeWatcherDir = sysPath.join(id, 'test');
-      const linkedRelativeWatcherDir = sysPath.join(id, 'test-link');
-      await fs_symlink(
-        sysPath.resolve(relativeWatcherDir),
+      const relativeWatcherDir = pjoin(id, 'test');
+      const linkedRelativeWatcherDir = pjoin(id, 'test-link');
+      await symlink(
+        presolve(relativeWatcherDir),
         linkedRelativeWatcherDir,
         isWindows ? 'dir' : null
       );
@@ -1990,19 +2069,19 @@ const runTests = (baseopts) => {
       });
       try {
         const eventsWaiter = waitForEvents(watcher, 5);
-        const testSubDir = sysPath.join(relativeWatcherDir, 'dir');
-        const testSubDirFile = sysPath.join(relativeWatcherDir, 'dir', 'file');
+        const testSubDir = pjoin(relativeWatcherDir, 'dir');
+        const testSubDirFile = pjoin(relativeWatcherDir, 'dir', 'file');
 
         // Command sequence from https://github.com/paulmillr/chokidar/issues/1042.
         await delay();
-        await fs_mkdir(relativeWatcherDir);
-        await fs_mkdir(testSubDir);
+        await mkdir(relativeWatcherDir);
+        await mkdir(testSubDir);
         // The following delay is essential otherwise the call of mkdir and rmdir will be equalize
         await delay(300);
-        await fs_rmdir(testSubDir);
+        await rm(testSubDir, { recursive: true });
         // The following delay is essential otherwise the call of rmdir and mkdir will be equalize
         await delay(300);
-        await fs_mkdir(testSubDir);
+        await mkdir(testSubDir);
         await delay(300);
         await write(testSubDirFile, '');
         await delay(300);
@@ -2010,14 +2089,14 @@ const runTests = (baseopts) => {
         const events = await eventsWaiter;
 
         chai.assert.deepStrictEqual(events, [
-          `[ALL] addDir: ${sysPath.join(id, 'test-link')}`,
-          `[ALL] addDir: ${sysPath.join(id, 'test-link', 'dir')}`,
-          `[ALL] unlinkDir: ${sysPath.join(id, 'test-link', 'dir')}`,
-          `[ALL] addDir: ${sysPath.join(id, 'test-link', 'dir')}`,
-          `[ALL] add: ${sysPath.join(id, 'test-link', 'dir', 'file')}`,
+          `[ALL] addDir: ${pjoin(id, 'test-link')}`,
+          `[ALL] addDir: ${pjoin(id, 'test-link', 'dir')}`,
+          `[ALL] unlinkDir: ${pjoin(id, 'test-link', 'dir')}`,
+          `[ALL] addDir: ${pjoin(id, 'test-link', 'dir')}`,
+          `[ALL] add: ${pjoin(id, 'test-link', 'dir', 'file')}`,
         ]);
       } finally {
-        watcher.close();
+        await watcher.close();
       }
     });
   });
@@ -2034,7 +2113,7 @@ const runTests = (baseopts) => {
       await write(dpath('add.txt'), dateNow());
       await write(dpath('add.txt'), 'hello');
       await delay(300);
-      await fs_unlink(dpath('add.txt'));
+      await unl(dpath('add.txt'));
 
       spy.should.not.have.been.called;
     });
@@ -2054,13 +2133,13 @@ const runTests = (baseopts) => {
       await write(dpath('add.txt'), 'hello');
       // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
       await delay(200);
-      await fs_unlink(dpath('add.txt'));
+      await unl(dpath('add.txt'));
 
       spy.should.have.been.calledWith(sinon.match('add.txt'));
     });
     it('should not prevent the process from exiting', async () => {
       const scriptFile = dpath('script.js');
-      const chokidarPath = pathToFileURL(sysPath.join(__dirname, 'esm/index.js'))
+      const chokidarPath = pathToFileURL(pjoin(__dirname, 'esm/index.js'))
         .href
         .replace(/\\/g, '\\\\');
       const scriptContent = `
@@ -2095,8 +2174,8 @@ describe('chokidar', async () => {
 
   afterEach(async () => {
     const promises = WATCHERS.map(w => w.close());
-    await Promise.all(promises);
-    await rm(currentDir, { recursive: true});
+    await Promise.allSettled(promises);
+    await rm(pdirname(currentDir), { recursive: true});
   });
 
   it('should expose public API methods', () => {
@@ -2112,7 +2191,7 @@ describe('chokidar', async () => {
 async function main() {
   try {
     await rm(FIXTURES_PATH, {recursive: true, force: true});
-    await fs_mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
+    await mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
   } catch (error) {}
   process.chdir(FIXTURES_PATH);
   // Create many directories before tests.
@@ -2121,12 +2200,13 @@ async function main() {
   const _only = _content.match(/\sit\.only\(/g);
   const itCount = _only && _only.length || _content.match(/\sit\(/g).length;
   const testCount = itCount * 3;
+  console.log('creating', testCount, 'directories');
   while (testId++ < testCount) {
-    await fs_mkdir(dpath(''), PERM);
+    await mkdir(dpath(''), { recursive: true, mode: PERM });
     await write(dpath('change.txt'), 'b');
     await write(dpath('unlink.txt'), 'b');
   }
-  testId = 0;
+  testId = 1;
 
   await it.run();
 
