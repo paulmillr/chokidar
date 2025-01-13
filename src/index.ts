@@ -361,6 +361,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     const DEF_AWF = { stabilityThreshold: 2000, pollInterval: 100 };
     const opts: FSWInstanceOptions = {
       // Defaults
+      ..._opts,
       persistent: _opts.persistent ?? true,
       ignoreInitial: _opts.ignoreInitial ?? false,
       ignorePermissionErrors: _opts.ignorePermissionErrors ?? false,
