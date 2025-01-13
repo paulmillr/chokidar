@@ -31,6 +31,7 @@
     "@paulmillr/jsbt": "0.2.1",
     "@types/node": "20.14.8",
     "chai": "4.3.4",
+    "micro-should": "github:paulmillr/micro-should",
     "prettier": "3.1.1",
     "sinon": "12.0.1",
     "sinon-chai": "3.7.0",
@@ -53,7 +54,7 @@
     "build": "tsc && tsc -p tsconfig.esm.json",
     "lint": "prettier --check src",
     "format": "prettier --write src",
-    "test": "node --test"
+    "test": "node test.mjs"
   },
   "keywords": [
     "fs",
