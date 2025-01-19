@@ -17,7 +17,7 @@ import {
   WatchHandlers,
 } from './handler.js';
 
-type AWF = {
+export type AWF = {
   stabilityThreshold: number;
   pollInterval: number;
 };
