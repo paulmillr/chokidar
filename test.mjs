@@ -1,5 +1,6 @@
 import fs from 'node:fs'; // fs.stat is mocked below, so can't import INDIVIDUAL methods
 import * as fsp from 'node:fs/promises';
+import { writeFile as write, readFile as read, rm } from 'node:fs/promises';
 import sysPath from 'node:path';
 import { describe, it, beforeEach, afterEach } from 'micro-should';
 import { fileURLToPath, pathToFileURL, URL } from 'node:url';
@@ -197,7 +198,7 @@ const runTests = (baseopts) => {
       const spy = sinon.spy(function addSpy() {});
       watcher.on(EV.ADD, spy);
       await delay();
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
@@ -215,19 +216,19 @@ const runTests = (baseopts) => {
         spy(path);
       });
 
-      await fsp.writeFile(paths[0], dateNow());
-      await fsp.writeFile(paths[1], dateNow());
-      await fsp.writeFile(paths[2], dateNow());
-      await fsp.writeFile(paths[3], dateNow());
-      await fsp.writeFile(paths[4], dateNow());
+      await write(paths[0], dateNow());
+      await write(paths[1], dateNow());
+      await write(paths[2], dateNow());
+      await write(paths[3], dateNow());
+      await write(paths[4], dateNow());
       await delay(100);
 
-      await fsp.writeFile(paths[5], dateNow());
-      await fsp.writeFile(paths[6], dateNow());
+      await write(paths[5], dateNow());
+      await write(paths[6], dateNow());
 
       await delay(150);
-      await fsp.writeFile(paths[7], dateNow());
-      await fsp.writeFile(paths[8], dateNow());
+      await write(paths[7], dateNow());
+      await write(paths[8], dateNow());
 
       await waitFor([[spy, 4]]);
 
@@ -327,7 +328,7 @@ const runTests = (baseopts) => {
       let currentCallCount = 0;
 
       for (const fileToWrite of filesToWrite) {
-        await fsp.writeFile(fileToWrite, dateNow());
+        await write(fileToWrite, dateNow());
         await waitFor([[spy, ++currentCallCount]]);
       }
 
@@ -382,7 +383,7 @@ const runTests = (baseopts) => {
       const spy = sinon.spy(function changeSpy() {});
       watcher.on(EV.CHANGE, spy);
       spy.should.not.have.been.called;
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
       expect(spy.args[0][1]).to.be.ok; // stats
@@ -429,7 +430,7 @@ const runTests = (baseopts) => {
 
       watcher.on(EV.UNLINK_DIR, spy);
 
-      await fsp.rm(testDir2, { recursive: true });
+      await rm(testDir2, { recursive: true });
       await waitFor([[spy, 2]]);
 
       spy.should.have.been.calledWith(testDir2);
@@ -468,7 +469,7 @@ const runTests = (baseopts) => {
       const changeSpy = sinon.spy(function change() {});
       const testPath = dpath('add.txt');
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD, addSpy).on(EV.CHANGE, changeSpy);
-      await fsp.writeFile(testPath, 'hello');
+      await write(testPath, 'hello');
       await waitFor([[addSpy.withArgs(testPath), 1]]);
       unlinkSpy.should.not.have.been.called;
       changeSpy.should.not.have.been.called;
@@ -477,7 +478,7 @@ const runTests = (baseopts) => {
       unlinkSpy.should.have.been.calledWith(testPath);
 
       await delay(100);
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([[addSpy.withArgs(testPath), 2]]);
       addSpy.should.have.been.calledWith(testPath);
       changeSpy.should.not.have.been.called;
@@ -509,7 +510,7 @@ const runTests = (baseopts) => {
       watcher.on(EV.ADD, spy);
       spy.should.not.have.been.called;
       await fsp.mkdir(testDir, PERM);
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledOnce;
       spy.should.have.been.calledWith(testPath);
@@ -548,7 +549,7 @@ const runTests = (baseopts) => {
       await fsp.rmdir(testPath);
       await waitFor([unlinkSpy]);
 
-      await fsp.writeFile(testPath, 'file content');
+      await write(testPath, 'file content');
       await waitFor([addSpy]);
 
       unlinkSpy.should.have.been.calledWith(testPath);
@@ -559,7 +560,7 @@ const runTests = (baseopts) => {
       const unlinkSpy = sinon.spy(function unlinkSpy() {});
       const addSpy = sinon.spy(function addSpy() {});
       const testPath = dpath('fileDir');
-      await fsp.writeFile(testPath, 'file content');
+      await write(testPath, 'file content');
       watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD_DIR, addSpy);
 
       await delay(300);
@@ -592,7 +593,7 @@ const runTests = (baseopts) => {
       const testPath = dpath('change.txt');
       const watcher = cwatch(testPath, options);
       const spy = await aspy(watcher, EV.CHANGE);
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.always.been.calledWith(testPath);
     });
@@ -620,7 +621,7 @@ const runTests = (baseopts) => {
       unlinkSpy.should.have.been.calledWith(testPath);
 
       await delay();
-      await fsp.writeFile(testPath, 're-added');
+      await write(testPath, 're-added');
       await waitFor([addSpy]);
       addSpy.should.have.been.calledWith(testPath);
     });
@@ -632,8 +633,8 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV.ALL);
 
       await delay();
-      await fsp.writeFile(siblingPath, dateNow());
-      await fsp.writeFile(testPath, dateNow());
+      await write(siblingPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.always.been.calledWith(EV.ADD, testPath);
     });
@@ -641,18 +642,18 @@ const runTests = (baseopts) => {
     it('should detect safe-edit', async () => {
       const testPath = dpath('change.txt');
       const safePath = dpath('tmp.txt');
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       const watcher = cwatch(testPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
       await delay();
-      await fsp.writeFile(safePath, dateNow());
+      await write(safePath, dateNow());
       await fsp.rename(safePath, testPath);
       await delay(300);
-      await fsp.writeFile(safePath, dateNow());
+      await write(safePath, dateNow());
       await fsp.rename(safePath, testPath);
       await delay(300);
-      await fsp.writeFile(safePath, dateNow());
+      await write(safePath, dateNow());
       await fsp.rename(safePath, testPath);
       await delay(300);
       await waitFor([spy]);
@@ -681,7 +682,7 @@ const runTests = (baseopts) => {
         const addSpy = sinon.spy(function addSpy() {});
         const testPath = dpath('unlink.txt');
         const otherPath = dpath('other.txt');
-        await fsp.writeFile(otherPath, 'other');
+        await write(otherPath, 'other');
         const watcher = cwatch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -695,7 +696,7 @@ const runTests = (baseopts) => {
         unlinkSpy.should.have.been.calledWith(testPath);
 
         await delay();
-        await fsp.writeFile(testPath, 're-added');
+        await write(testPath, 're-added');
         await waitFor([addSpy]);
         addSpy.should.have.been.calledWith(testPath);
       });
@@ -721,7 +722,7 @@ const runTests = (baseopts) => {
         unlinkSpy.should.have.been.calledWith(testPath);
 
         await delay();
-        await fsp.writeFile(testPath, 're-added');
+        await write(testPath, 're-added');
         await waitFor([addSpy]);
         addSpy.should.have.been.calledWith(testPath);
       });
@@ -745,7 +746,7 @@ const runTests = (baseopts) => {
         unlinkSpy.should.have.been.calledWith(testPath);
 
         await delay();
-        await fsp.writeFile(testPath, 're-added');
+        await write(testPath, 're-added');
         await waitFor([addSpy]);
         addSpy.should.have.been.calledWith(testPath);
       });
@@ -755,7 +756,7 @@ const runTests = (baseopts) => {
         const addSpy = sinon.spy(function addSpy() {});
         const testPath = dpath('unlink.txt');
         const otherPath = dpath('other.txt');
-        await fsp.writeFile(otherPath, 'other');
+        await write(otherPath, 'other');
         const watcher = cwatch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
           .on(EV.ADD, addSpy);
@@ -773,7 +774,7 @@ const runTests = (baseopts) => {
         unlinkSpy.should.have.been.calledWith(testPath);
 
         await delay();
-        await fsp.writeFile(testPath, 're-added');
+        await write(testPath, 're-added');
         await waitFor([addSpy]);
         addSpy.should.have.been.calledWith(testPath);
       });
@@ -784,7 +785,7 @@ const runTests = (baseopts) => {
         const testPath = dpath('unlink.txt');
         const otherPath = dpath('other.txt');
         const other2Path = dpath('other2.txt');
-        await fsp.writeFile(otherPath, 'other');
+        await write(otherPath, 'other');
         // intentionally for this test don't write write(other2Path, 'other2');
         const watcher = cwatch([testPath, otherPath, other2Path], options)
           .on(EV.UNLINK, unlinkSpy)
@@ -798,7 +799,7 @@ const runTests = (baseopts) => {
         unlinkSpy.should.have.been.calledWith(testPath);
 
         await delay();
-        await fsp.writeFile(testPath, 're-added');
+        await write(testPath, 're-added');
         await waitFor([addSpy]);
         addSpy.should.have.been.calledWith(testPath);
       });
@@ -812,7 +813,7 @@ const runTests = (baseopts) => {
       const renamedDir = dpath('subdir-renamed');
       const expectedPath = sysPath.join(renamedDir, 'add.txt');
       await fsp.mkdir(testDir, PERM);
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       const watcher = cwatch(currentDir, options);
       const spy = await aspy(watcher, EV.ADD);
 
@@ -829,7 +830,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV.ADD);
 
       await delay();
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy]);
       spy.should.have.been.calledWith(testPath);
     });
@@ -843,7 +844,7 @@ const runTests = (baseopts) => {
       await delay();
       await fsp.mkdir(testDir, PERM);
       await waitFor([spy.withArgs(EV.ADD_DIR)]);
-      await fsp.writeFile(testPath, 'hello');
+      await write(testPath, 'hello');
       await waitFor([spy.withArgs(EV.ADD)]);
       spy.should.have.been.calledWith(EV.ADD_DIR, testDir);
       spy.should.have.been.calledWith(EV.ADD, testPath);
@@ -852,13 +853,13 @@ const runTests = (baseopts) => {
   describe('not watch glob patterns', () => {
     it('should not confuse glob-like filenames with globs', async () => {
       const filePath = dpath('nota[glob].txt');
-      await fsp.writeFile(filePath, 'b');
+      await write(filePath, 'b');
       await delay();
       const spy = await aspy(cwatch(currentDir, options), EV.ALL);
       spy.should.have.been.calledWith(EV.ADD, filePath);
 
       await delay();
-      await fsp.writeFile(filePath, dateNow());
+      await write(filePath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV.CHANGE, filePath);
     });
@@ -871,10 +872,10 @@ const runTests = (baseopts) => {
       const matchingFile = dpath('notag/b.txt');
       const matchingFile2 = dpath('notal');
       await fsp.mkdir(testDir, PERM);
-      await fsp.writeFile(filePath, 'b');
+      await write(filePath, 'b');
       await fsp.mkdir(matchingDir, PERM);
-      await fsp.writeFile(matchingFile, 'c');
-      await fsp.writeFile(matchingFile2, 'd');
+      await write(matchingFile, 'c');
+      await write(matchingFile2, 'd');
       const watcher = cwatch(watchPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -883,7 +884,7 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.calledWith(EV.ADD, matchingFile);
       spy.should.not.have.been.calledWith(EV.ADD, matchingFile2);
       await delay();
-      await fsp.writeFile(filePath, dateNow());
+      await write(filePath, dateNow());
 
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV.CHANGE, filePath);
@@ -896,10 +897,10 @@ const runTests = (baseopts) => {
       const matchingDir = dpath('notag');
       const matchingFile = dpath('notag/a.txt');
       const matchingFile2 = dpath('notal');
-      await fsp.writeFile(filePath, 'b');
+      await write(filePath, 'b');
       await fsp.mkdir(matchingDir, PERM);
-      await fsp.writeFile(matchingFile, 'c');
-      await fsp.writeFile(matchingFile2, 'd');
+      await write(matchingFile, 'c');
+      await write(matchingFile2, 'd');
       const watcher = cwatch(watchPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
@@ -908,7 +909,7 @@ const runTests = (baseopts) => {
       spy.should.not.have.been.calledWith(EV.ADD, matchingFile);
       spy.should.not.have.been.calledWith(EV.ADD, matchingFile2);
       await delay();
-      await fsp.writeFile(filePath, dateNow());
+      await write(filePath, dateNow());
 
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       spy.should.have.been.calledWith(EV.CHANGE, filePath);
@@ -921,7 +922,7 @@ const runTests = (baseopts) => {
       linkedDir = sysPath.resolve(currentDir, '..', `${testId}-link`);
       await fsp.symlink(currentDir, linkedDir, isWindows ? 'dir' : null);
       await fsp.mkdir(dpath('subdir'), PERM);
-      await fsp.writeFile(dpath('subdir/add.txt'), 'b');
+      await write(dpath('subdir/add.txt'), 'b');
       return true;
     });
     afterEach(async () => {
@@ -946,7 +947,7 @@ const runTests = (baseopts) => {
       const watcher = cwatch(linkPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
-      await fsp.writeFile(changePath, dateNow());
+      await write(changePath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.ADD, linkPath);
       spy.should.have.been.calledWith(EV.CHANGE, linkPath);
@@ -958,7 +959,7 @@ const runTests = (baseopts) => {
       const watcher = cwatch(dpath('subdir'), options);
       const spy = await aspy(watcher, EV.ALL);
 
-      await fsp.writeFile(changePath, dateNow());
+      await write(changePath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE, linkPath)]);
       spy.should.have.been.calledWith(EV.ADD, linkPath);
       spy.should.have.been.calledWith(EV.CHANGE, linkPath);
@@ -971,7 +972,7 @@ const runTests = (baseopts) => {
 
       spy.should.have.been.calledWith(EV.ADD_DIR, testDir);
       spy.should.have.been.calledWith(EV.ADD, testFile);
-      await fsp.writeFile(dpath('subdir/add.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.CHANGE, testFile);
     });
@@ -991,7 +992,7 @@ const runTests = (baseopts) => {
       const watcher = cwatch(linkedDir, options);
       const spy = await aspy(watcher, EV.CHANGE);
       const wa = spy.withArgs(linkedFilePath);
-      await fsp.writeFile(dpath('change.txt'), dateNow());
+      await write(dpath('change.txt'), dateNow());
       await waitFor([wa]);
       spy.should.have.been.calledWith(linkedFilePath);
     });
@@ -1059,7 +1060,7 @@ const runTests = (baseopts) => {
       const linkedFilePath = sysPath.join(linkedPath, 'text.txt');
       const linkPath = dpath('subdir/subsub');
       await fsp.mkdir(linkedPath, PERM);
-      await fsp.writeFile(linkedFilePath, 'b');
+      await write(linkedFilePath, 'b');
       await fsp.symlink(linkedPath, linkPath);
       const watcher2 = cwatch(dpath('subdir'), options);
       await waitForWatcher(watcher2);
@@ -1070,7 +1071,7 @@ const runTests = (baseopts) => {
       const spy = await aspy(watcher, EV.ALL);
 
       await delay();
-      await fsp.writeFile(linkedFilePath, dateNow());
+      await write(linkedFilePath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.CHANGE, watchedPath);
     });
@@ -1095,7 +1096,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.ADD, testPath);
       spy.should.have.been.calledWith(EV.ADD_DIR, testDir);
       spy.should.not.have.been.calledWith(EV.ADD, dpath('unlink.txt'));
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.CHANGE, testPath);
     });
@@ -1108,7 +1109,7 @@ const runTests = (baseopts) => {
       spy.should.have.been.calledWith(EV.ADD, testPath);
       spy.should.have.been.calledWith(EV.ADD_DIR, testDir);
       spy.should.not.have.been.calledWith(EV.ADD, dpath('unlink.txt'));
-      await fsp.writeFile(testPath, dateNow());
+      await write(testPath, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       spy.should.have.been.calledWith(EV.CHANGE, testPath);
     });
@@ -1170,7 +1171,7 @@ const runTests = (baseopts) => {
           const spy = await aspy(cwatch(currentDir, options), EV.ADD);
           spy.should.not.have.been.called;
           await fsp.mkdir(testDir, PERM);
-          await fsp.writeFile(testPath, dateNow());
+          await write(testPath, dateNow());
           await waitFor([spy]);
           spy.should.have.been.calledOnce;
           spy.should.have.been.calledWith(testPath);
@@ -1179,7 +1180,7 @@ const runTests = (baseopts) => {
           const testPath = dpath('change.txt');
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
           spy.should.not.have.been.called;
-          await fsp.writeFile(testPath, dateNow());
+          await write(testPath, dateNow());
           await waitFor([spy.withArgs(EV.CHANGE, testPath)]);
           spy.should.have.been.calledWith(EV.CHANGE, testPath);
           spy.should.not.have.been.calledWith(EV.ADD);
@@ -1191,7 +1192,7 @@ const runTests = (baseopts) => {
 
           await delay(200);
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-          await fsp.writeFile(testPath, dateNow());
+          await write(testPath, dateNow());
           await waitFor([spy]);
 
           await delay(200);
@@ -1208,9 +1209,9 @@ const runTests = (baseopts) => {
         };
         const testDir = dpath('subdir');
         await fsp.mkdir(testDir, PERM);
-        await fsp.writeFile(sysPath.join(testDir, 'add.txt'), '');
+        await write(sysPath.join(testDir, 'add.txt'), '');
         await fsp.mkdir(sysPath.join(testDir, 'subsub'), PERM);
-        await fsp.writeFile(sysPath.join(testDir, 'subsub', 'ab.txt'), '');
+        await write(sysPath.join(testDir, 'subsub', 'ab.txt'), '');
         const watcher = cwatch(testDir, options);
         const spy = await aspy(watcher, EV.ADD);
         spy.should.have.been.calledOnce;
@@ -1227,12 +1228,12 @@ const runTests = (baseopts) => {
         const testFile = sysPath.join(testDir, 'add.txt');
         options.ignored = testDir;
         await fsp.mkdir(testDir, PERM);
-        await fsp.writeFile(testFile, 'b');
+        await write(testFile, 'b');
         const watcher = cwatch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
 
         await delay();
-        await fsp.writeFile(testFile, dateNow());
+        await write(testFile, dateNow());
 
         await delay(300);
         spy.should.not.have.been.calledWith(EV.ADD_DIR, testDir);
@@ -1243,13 +1244,13 @@ const runTests = (baseopts) => {
         options.cwd = currentDir;
         options.ignored = /add/;
 
-        await fsp.writeFile(dpath('add.txt'), 'b');
+        await write(dpath('add.txt'), 'b');
         const watcher = cwatch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
 
         await delay();
-        await fsp.writeFile(dpath('add.txt'), dateNow());
-        await fsp.writeFile(dpath('change.txt'), dateNow());
+        await write(dpath('add.txt'), dateNow());
+        await write(dpath('change.txt'), dateNow());
 
         await waitFor([spy.withArgs(EV.CHANGE, 'change.txt')]);
         spy.should.not.have.been.calledWith(EV.ADD, 'add.txt');
@@ -1261,17 +1262,17 @@ const runTests = (baseopts) => {
     describe('depth', () => {
       beforeEach(async () => {
         await fsp.mkdir(dpath('subdir'), PERM);
-        await fsp.writeFile(dpath('subdir/add.txt'), 'b');
+        await write(dpath('subdir/add.txt'), 'b');
         await delay();
         await fsp.mkdir(dpath('subdir/subsub'), PERM);
-        await fsp.writeFile(dpath('subdir/subsub/ab.txt'), 'b');
+        await write(dpath('subdir/subsub/ab.txt'), 'b');
         await delay();
       });
       it('should not recurse if depth is 0', async () => {
         options.depth = 0;
         const watcher = cwatch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
-        await fsp.writeFile(dpath('subdir/add.txt'), dateNow());
+        await write(dpath('subdir/add.txt'), dateNow());
         await waitFor([[spy, 4]]);
         spy.should.have.been.calledWith(EV.ADD_DIR, currentDir);
         spy.should.have.been.calledWith(EV.ADD_DIR, dpath('subdir'));
@@ -1287,9 +1288,9 @@ const runTests = (baseopts) => {
         const ignoredPath = dpath('subdir/subsub/ab.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         await delay();
-        await fsp.writeFile(dpath('change.txt'), dateNow());
-        await fsp.writeFile(addPath, dateNow());
-        await fsp.writeFile(ignoredPath, dateNow());
+        await write(dpath('change.txt'), dateNow());
+        await write(addPath, dateNow());
+        await write(ignoredPath, dateNow());
         await waitFor([spy.withArgs(EV.CHANGE, addPath), spy.withArgs(EV.CHANGE, changePath)]);
         spy.should.have.been.calledWith(EV.ADD_DIR, dpath('subdir/subsub'));
         spy.should.have.been.calledWith(EV.CHANGE, changePath);
@@ -1349,13 +1350,13 @@ const runTests = (baseopts) => {
       });
       it('should ignore vim/emacs/Sublime swapfiles', async () => {
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(dpath('.change.txt.swp'), 'a'); // vim
-        await fsp.writeFile(dpath('add.txt~'), 'a'); // vim/emacs
-        await fsp.writeFile(dpath('.subl5f4.tmp'), 'a'); // sublime
+        await write(dpath('.change.txt.swp'), 'a'); // vim
+        await write(dpath('add.txt~'), 'a'); // vim/emacs
+        await write(dpath('.subl5f4.tmp'), 'a'); // sublime
         await delay(300);
-        await fsp.writeFile(dpath('.change.txt.swp'), 'c');
-        await fsp.writeFile(dpath('add.txt~'), 'c');
-        await fsp.writeFile(dpath('.subl5f4.tmp'), 'c');
+        await write(dpath('.change.txt.swp'), 'c');
+        await write(dpath('add.txt~'), 'c');
+        await write(dpath('.subl5f4.tmp'), 'c');
         await delay(300);
         await fsp.unlink(dpath('.change.txt.swp'));
         await fsp.unlink(dpath('add.txt~'));
@@ -1365,7 +1366,7 @@ const runTests = (baseopts) => {
       });
       it('should ignore stale tilde files', async () => {
         options.ignoreInitial = false;
-        await fsp.writeFile(dpath('old.txt~'), 'a');
+        await write(dpath('old.txt~'), 'a');
         await delay();
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         spy.should.not.have.been.calledWith(dpath('old.txt'));
@@ -1378,7 +1379,7 @@ const runTests = (baseopts) => {
         const watcher = cwatch('.', options);
         const spy = await aspy(watcher, EV.ALL);
         await fsp.unlink(dpath('unlink.txt'));
-        await fsp.writeFile(dpath('change.txt'), dateNow());
+        await write(dpath('change.txt'), dateNow());
         await waitFor([spy.withArgs(EV.UNLINK)]);
         spy.should.have.been.calledWith(EV.ADD, 'change.txt');
         spy.should.have.been.calledWith(EV.ADD, 'unlink.txt');
@@ -1426,7 +1427,7 @@ const runTests = (baseopts) => {
         const spy2 = await aspy(watcher2, EV.ALL);
 
         await fsp.unlink(dpath('unlink.txt'));
-        await fsp.writeFile(dpath('change.txt'), dateNow());
+        await write(dpath('change.txt'), dateNow());
         await Promise.all([watcherEvents, watcher2Events]);
         spy1.should.have.been.calledWith(EV.CHANGE, 'change.txt');
         spy1.should.have.been.calledWith(EV.UNLINK, 'unlink.txt');
@@ -1439,18 +1440,18 @@ const runTests = (baseopts) => {
         options.cwd = currentDir;
         options.ignored = ['ignored-option.txt', 'ignored.txt'];
         const files = ['.'];
-        await fsp.writeFile(dpath('change.txt'), 'hello');
-        await fsp.writeFile(dpath('ignored.txt'), 'ignored');
-        await fsp.writeFile(dpath('ignored-option.txt'), 'ignored option');
+        await write(dpath('change.txt'), 'hello');
+        await write(dpath('ignored.txt'), 'ignored');
+        await write(dpath('ignored-option.txt'), 'ignored option');
         const watcher = cwatch(files, options);
 
         const spy = await aspy(watcher, EV.ALL);
-        await fsp.writeFile(dpath('ignored.txt'), dateNow());
-        await fsp.writeFile(dpath('ignored-option.txt'), dateNow());
+        await write(dpath('ignored.txt'), dateNow());
+        await write(dpath('ignored-option.txt'), dateNow());
         await fsp.unlink(dpath('ignored.txt'));
         await fsp.unlink(dpath('ignored-option.txt'));
         await delay();
-        await fsp.writeFile(dpath('change.txt'), EV.CHANGE);
+        await write(dpath('change.txt'), EV.CHANGE);
         await waitFor([spy.withArgs(EV.CHANGE, 'change.txt')]);
         spy.should.have.been.calledWith(EV.ADD, 'change.txt');
         spy.should.not.have.been.calledWith(EV.ADD, 'ignored.txt');
@@ -1466,7 +1467,7 @@ const runTests = (baseopts) => {
       let filePath;
       beforeEach(async () => {
         filePath = dpath('add.txt');
-        await fsp.writeFile(filePath, 'b', { mode: 128 });
+        await write(filePath, 'b', { mode: 128 });
         await delay();
       });
       describe('false', () => {
@@ -1478,7 +1479,7 @@ const runTests = (baseopts) => {
           if (isWindows) return true;
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
           spy.should.not.have.been.calledWith(EV.ADD, filePath);
-          await fsp.writeFile(filePath, dateNow());
+          await write(filePath, dateNow());
 
           await delay(200);
           spy.should.not.have.been.calledWith(EV.CHANGE, filePath);
@@ -1512,14 +1513,14 @@ const runTests = (baseopts) => {
       it('should not emit add event before a file is fully written', async () => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
         await delay(200);
         spy.should.not.have.been.calledWith(EV.ADD);
       });
       it('should wait for the file to be fully written before emitting the add event', async () => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
 
         await delay(300);
         spy.should.not.have.been.called;
@@ -1529,7 +1530,7 @@ const runTests = (baseopts) => {
       it('should emit with the final stats', async () => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'hello ');
+        await write(testPath, 'hello ');
 
         await delay(300);
         fs.appendFileSync(testPath, 'world!');
@@ -1541,16 +1542,16 @@ const runTests = (baseopts) => {
       it('should not emit change event while a file has not been fully written', async () => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
         await delay(100);
-        await fsp.writeFile(testPath, 'edit');
+        await write(testPath, 'edit');
         await delay(200);
         spy.should.not.have.been.calledWith(EV.CHANGE, testPath);
       });
       it('should not emit change event before an existing file is fully updated', async () => {
         const testPath = dpath('change.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
         await delay(300);
         spy.should.not.have.been.calledWith(EV.CHANGE, testPath);
       });
@@ -1568,18 +1569,18 @@ const runTests = (baseopts) => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         await delay();
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
 
         await waitFor([spy]);
         spy.should.have.been.calledWith(EV.ADD, testPath);
-        await fsp.writeFile(testPath, 'edit');
+        await write(testPath, 'edit');
         await waitFor([spy.withArgs(EV.CHANGE)]);
         spy.should.have.been.calledWith(EV.CHANGE, testPath);
       });
       it('should not raise any event for a file that was deleted before fully written', async () => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
         await delay(400);
         await fsp.unlink(testPath);
         await delay(400);
@@ -1595,7 +1596,7 @@ const runTests = (baseopts) => {
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
 
         await delay(400);
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
 
         await waitFor([spy.withArgs(EV.ADD)]);
         spy.should.have.been.calledWith(EV.ADD, filename);
@@ -1612,10 +1613,10 @@ const runTests = (baseopts) => {
         options.cwd = sysPath.dirname(testPath);
         await fsp.mkdir(options.cwd);
         await delay();
-        await fsp.writeFile(testPath, 'hello');
+        await write(testPath, 'hello');
         await delay();
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await fsp.writeFile(testPath, 'edit');
+        await write(testPath, 'edit');
         await delay();
         await fsp.unlink(testPath);
         await waitFor([spy.withArgs(EV.UNLINK)]);
@@ -1740,8 +1741,8 @@ const runTests = (baseopts) => {
       watcher.unwatch(dpath('subdir'));
 
       await delay();
-      await fsp.writeFile(dpath('subdir/add.txt'), dateNow());
-      await fsp.writeFile(dpath('change.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), dateNow());
+      await write(dpath('change.txt'), dateNow());
       await waitFor([spy]);
 
       await delay(300);
@@ -1762,8 +1763,8 @@ const runTests = (baseopts) => {
 
       await delay();
       await fsp.unlink(unlinkFile);
-      await fsp.writeFile(addFile, dateNow());
-      await fsp.writeFile(changedFile, dateNow());
+      await write(addFile, dateNow());
+      await write(changedFile, dateNow());
       await waitFor([spy.withArgs(EV.CHANGE)]);
 
       await delay(300);
@@ -1782,8 +1783,8 @@ const runTests = (baseopts) => {
 
       await delay();
       watcher.unwatch(subdir);
-      await fsp.writeFile(dpath('subdir/add.txt'), dateNow());
-      await fsp.writeFile(dpath('change.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), dateNow());
+      await write(dpath('change.txt'), dateNow());
       await waitFor([spy]);
 
       await delay(300);
@@ -1803,7 +1804,7 @@ const runTests = (baseopts) => {
       watcher.on(EV.ALL, spy).add(dpath('change.txt'));
 
       await delay();
-      await fsp.writeFile(dpath('change.txt'), dateNow());
+      await write(dpath('change.txt'), dateNow());
       console.log('a');
       await waitFor([spy]);
       console.log('b');
@@ -1818,8 +1819,8 @@ const runTests = (baseopts) => {
 
       await delay();
       await fsp.unlink(dpath('unlink.txt'));
-      await fsp.writeFile(dpath('subdir/add.txt'), dateNow());
-      await fsp.writeFile(dpath('change.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), dateNow());
+      await write(dpath('change.txt'), dateNow());
       await waitFor([spy]);
 
       await delay(300);
@@ -1913,7 +1914,7 @@ const runTests = (baseopts) => {
         const folderPath = sysPath.join(packagesPath, `folder${i}`);
         await fsp.mkdir(folderPath);
         const filePath = sysPath.join(folderPath, `file${i}.js`);
-        await fsp.writeFile(sysPath.resolve(filePath), 'file content');
+        await write(sysPath.resolve(filePath), 'file content');
         const symlinkPath = sysPath.join(linkPath, `folder${i}`);
         await fsp.symlink(sysPath.resolve(folderPath), symlinkPath, isWindows ? 'dir' : null);
         watcher.add(sysPath.resolve(sysPath.join(symlinkPath, `file${i}.js`)));
@@ -1926,7 +1927,7 @@ const runTests = (baseopts) => {
 
       // Update a random generated file to fire an event
       const randomFilePath = sysPath.join(packagesPath, 'folder17', 'file17.js');
-      await fsp.writeFile(sysPath.resolve(randomFilePath), 'file content changer zeri ezhriez');
+      await write(sysPath.resolve(randomFilePath), 'file content changer zeri ezhriez');
 
       // Wait chokidar watch
       await delay(300);
@@ -1960,7 +1961,7 @@ const runTests = (baseopts) => {
         await delay(300);
         await fsp.mkdir(testSubDir);
         await delay(300);
-        await fsp.writeFile(testSubDirFile, '');
+        await write(testSubDirFile, '');
         await delay(300);
 
         const events = await eventsWaiter;
@@ -2006,7 +2007,7 @@ const runTests = (baseopts) => {
         await delay(300);
         await fsp.mkdir(testSubDir);
         await delay(300);
-        await fsp.writeFile(testSubDirFile, '');
+        await write(testSubDirFile, '');
         await delay(300);
 
         const events = await eventsWaiter;
@@ -2033,8 +2034,8 @@ const runTests = (baseopts) => {
       watcher.on(EV.ALL, spy);
       await watcher.close();
 
-      await fsp.writeFile(dpath('add.txt'), dateNow());
-      await fsp.writeFile(dpath('add.txt'), 'hello');
+      await write(dpath('add.txt'), dateNow());
+      await write(dpath('add.txt'), 'hello');
       await delay(300);
       await fsp.unlink(dpath('add.txt'));
 
@@ -2050,7 +2051,7 @@ const runTests = (baseopts) => {
       watcher2.on(EV.ADD, spy);
       await watcher1.close();
 
-      await fsp.writeFile(dpath('add.txt'), 'hello');
+      await write(dpath('add.txt'), 'hello');
       // Ensures EV_ADD is called. Immediately removing the file causes it to be skipped
       await delay(200);
       await fsp.unlink(dpath('add.txt'));
@@ -2072,7 +2073,7 @@ const runTests = (baseopts) => {
           process.stdout.write("closed");
         });
       })();`;
-      await fsp.writeFile(scriptFile, scriptContent);
+      await write(scriptFile, scriptContent);
       const obj = await exec(`node ${scriptFile}`);
       const { stdout } = obj;
       expect(stdout.toString()).to.equal('closed');
@@ -2096,7 +2097,7 @@ describe('chokidar', async () => {
   afterEach(async () => {
     const promises = WATCHERS.map((w) => w.close());
     await Promise.all(promises);
-    await fsp.rm(currentDir, { recursive: true });
+    await rm(currentDir, { recursive: true });
   });
 
   it('should expose public API methods', () => {
@@ -2111,27 +2112,27 @@ describe('chokidar', async () => {
 });
 async function main() {
   try {
-    await fsp.rm(FIXTURES_PATH, { recursive: true, force: true });
+    await rm(FIXTURES_PATH, { recursive: true, force: true });
     await fsp.mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
   } catch (error) {}
   process.chdir(FIXTURES_PATH);
   // Create many directories before tests.
   // Creating them in `beforeEach` increases chance of random failures.
-  const _content = await fsp.readFile(__filename, 'utf-8');
+  const _content = await read(__filename, 'utf-8');
   const _only = _content.match(/\sit\.only\(/g);
   const itCount = (_only && _only.length) || _content.match(/\sit\(/g).length;
   const testCount = itCount * 3;
   while (testId++ < testCount) {
     await fsp.mkdir(dpath(''), PERM);
-    await fsp.writeFile(dpath('change.txt'), 'b');
-    await fsp.writeFile(dpath('unlink.txt'), 'b');
+    await write(dpath('change.txt'), 'b');
+    await write(dpath('unlink.txt'), 'b');
   }
   testId = 0;
 
   await it.run(true);
 
   try {
-    await fsp.rm(FIXTURES_PATH, { recursive: true, force: true });
+    await rm(FIXTURES_PATH, { recursive: true, force: true });
   } catch (error) {}
   process.chdir(initialPath);
 }
