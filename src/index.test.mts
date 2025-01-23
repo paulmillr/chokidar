@@ -1632,53 +1632,6 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         spy.should.have.been.calledWith(EV.UNLINK, filename);
         spy.should.not.have.been.calledWith(EV.CHANGE, filename);
       });
-      describe.skip('race condition', () => {
-        // Reproduces bug https://github.com/paulmillr/chokidar/issues/546, which was causing an
-        // uncaught exception. The race condition is likelier to happen when stat() is slow.
-        const _realStat = fs.stat;
-        let statStub: sinon.SinonSpy;
-
-        beforeEach(() => {
-          options.awaitWriteFinish = { pollInterval: 50, stabilityThreshold: 50 };
-          options.ignoreInitial = true;
-
-          // Stub fs.stat() to take a while to return.
-          statStub = sinon.stub(fs, 'stat').callsFake(async (path, cb) => {
-            await delay(250);
-            _realStat(path, cb as () => void);
-          });
-        });
-
-        afterEach(() => {
-          // Restore fs.stat() back to normal.
-          sinon.restore();
-        });
-
-        it('should handle unlink that happens while waiting for stat to return', async () => {
-          const testPath = dpath('add.txt');
-          const watcher = cwatch(currentDir, options);
-          const spy = await aspy(watcher, EV.ALL);
-          await fsp.writeFile(testPath, 'hello');
-          await waitFor([spy]);
-          spy.should.have.been.calledWith(EV.ADD, testPath);
-          statStub.resetHistory();
-          await fsp.writeFile(testPath, 'edit');
-          await delay();
-          // There will be a stat() call after we notice the change, plus pollInterval.
-          // After waiting a bit less, wait specifically for that stat() call.
-          statStub.resetHistory();
-          await waitFor([statStub]);
-          // Once stat call is made, it will take some time to return. Meanwhile, unlink
-          // the file and wait for that to be noticed.
-          await fsp.unlink(testPath);
-          await waitFor([spy.withArgs(EV.UNLINK)]);
-          await delay();
-          // Wait a while after unlink to ensure stat() had time to return. That's where
-          // an uncaught exception used to happen.
-          spy.should.have.been.calledWith(EV.UNLINK, testPath);
-          spy.should.not.have.been.calledWith(EV.CHANGE);
-        });
-      });
     });
   });
   describe('getWatched', () => {
