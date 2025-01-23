@@ -9,7 +9,8 @@
     "index.d.ts",
     "handler.js",
     "handler.d.ts",
-    "esm"
+    "esm",
+    "!**/*.test.*"
   ],
   "main": "./index.js",
   "module": "./esm/index.js",
@@ -29,7 +30,10 @@
   },
   "devDependencies": {
     "@paulmillr/jsbt": "0.2.1",
+    "@types/chai": "^5.0.1",
     "@types/node": "20.14.8",
+    "@types/sinon": "^17.0.3",
+    "@types/sinon-chai": "^4.0.0",
     "chai": "4.3.4",
     "micro-should": "0.5.0",
     "prettier": "3.1.1",
@@ -54,7 +58,7 @@
     "build": "tsc && tsc -p tsconfig.esm.json",
     "lint": "prettier --check src",
     "format": "prettier --write src",
-    "test": "node test.mjs"
+    "test": "node index.test.mjs"
   },
   "keywords": [
     "fs",

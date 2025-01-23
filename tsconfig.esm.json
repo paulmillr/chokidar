@@ -5,6 +5,7 @@
     "outDir": "esm",
     "module": "es2020",
     "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
     "noImplicitReturns": false,
     "sourceMap": false,
     "declarationMap": false,
