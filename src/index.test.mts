@@ -1424,7 +1424,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         });
         options2.cwd = dpath('subdir');
         const watcher = cwatch(gpath('.'), options);
-        const watcherEvents = waitForEvents(watcher, 3);
+        const watcherEvents = waitForEvents(watcher, 5);
         const spy1 = await aspy(watcher, EV.ALL);
 
         await delay();
