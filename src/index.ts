@@ -2,7 +2,7 @@
 import { EventEmitter } from 'node:events';
 import { stat as statcb, Stats } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
-import * as sysPath from 'node:path';
+import * as sp from 'node:path';
 import { type EntryInfo, readdirp, type ReaddirpOptions, ReaddirpStream } from 'readdirp';
 import {
   EMPTY_FN,
@@ -95,11 +95,11 @@ function createPattern(matcher: Matcher): MatchFunction {
     return (string) => {
       if (matcher.path === string) return true;
       if (matcher.recursive) {
-        const relative = sysPath.relative(matcher.path, string);
+        const relative = sp.relative(matcher.path, string);
         if (!relative) {
           return false;
         }
-        return !relative.startsWith('..') && !sysPath.isAbsolute(relative);
+        return !relative.startsWith('..') && !sp.isAbsolute(relative);
       }
       return false;
     };
@@ -109,7 +109,7 @@ function createPattern(matcher: Matcher): MatchFunction {
 
 function normalizePath(path: Path): Path {
   if (typeof path !== 'string') throw new Error('string expected');
-  path = sysPath.normalize(path);
+  path = sp.normalize(path);
   path = path.replace(/\\/g, '/');
   let prepend = false;
   if (path.startsWith('//')) prepend = true;
@@ -179,24 +179,24 @@ const toUnix = (string: string) => {
 
 // Our version of upath.normalize
 // TODO: this is not equal to path-normalize module - investigate why
-const normalizePathToUnix = (path: Path) => toUnix(sysPath.normalize(toUnix(path)));
+const normalizePathToUnix = (path: Path) => toUnix(sp.normalize(toUnix(path)));
 
 // TODO: refactor
 const normalizeIgnored =
   (cwd = '') =>
   (path: unknown): string => {
     if (typeof path === 'string') {
-      return normalizePathToUnix(sysPath.isAbsolute(path) ? path : sysPath.join(cwd, path));
+      return normalizePathToUnix(sp.isAbsolute(path) ? path : sp.join(cwd, path));
     } else {
       return path as string;
     }
   };
 
 const getAbsolutePath = (path: Path, cwd: Path) => {
-  if (sysPath.isAbsolute(path)) {
+  if (sp.isAbsolute(path)) {
     return path;
   }
-  return sysPath.join(cwd, path);
+  return sp.join(cwd, path);
 };
 
 const EMPTY_SET = Object.freeze(new Set<string>());
@@ -231,7 +231,7 @@ class DirEntry {
       await readdir(dir);
     } catch (err) {
       if (this._removeWatcher) {
-        this._removeWatcher(sysPath.dirname(dir), sysPath.basename(dir));
+        this._removeWatcher(sp.dirname(dir), sp.basename(dir));
       }
     }
   }
@@ -273,7 +273,7 @@ export class WatchHelper {
     const watchPath = path;
     this.path = path = path.replace(REPLACER_RE, '');
     this.watchPath = watchPath;
-    this.fullWatchPath = sysPath.resolve(watchPath);
+    this.fullWatchPath = sp.resolve(watchPath);
     this.dirParts = [];
     this.dirParts.forEach((parts) => {
       if (parts.length > 1) parts.pop();
@@ -283,7 +283,7 @@ export class WatchHelper {
   }
 
   entryPath(entry: EntryInfo): Path {
-    return sysPath.join(this.watchPath, sysPath.relative(this.watchPath, entry.fullPath));
+    return sp.join(this.watchPath, sp.relative(this.watchPath, entry.fullPath));
   }
 
   filterPath(entry: EntryInfo): boolean {
@@ -491,7 +491,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     ).then((results) => {
       if (this.closed) return;
       results.forEach((item) => {
-        if (item) this.add(sysPath.dirname(item), sysPath.basename(_origAdd || item));
+        if (item) this.add(sp.dirname(item), sp.basename(_origAdd || item));
       });
     });
 
@@ -508,9 +508,9 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     paths.forEach((path) => {
       // convert to absolute path unless relative path already matches
-      if (!sysPath.isAbsolute(path) && !this._closers.has(path)) {
-        if (cwd) path = sysPath.join(cwd, path);
-        path = sysPath.resolve(path);
+      if (!sp.isAbsolute(path) && !this._closers.has(path)) {
+        if (cwd) path = sp.join(cwd, path);
+        path = sp.resolve(path);
       }
 
       this._closePath(path);
@@ -574,7 +574,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   getWatched(): Record<string, string[]> {
     const watchList: Record<string, string[]> = {};
     this._watched.forEach((entry, dir) => {
-      const key = this.options.cwd ? sysPath.relative(this.options.cwd, dir) : dir;
+      const key = this.options.cwd ? sp.relative(this.options.cwd, dir) : dir;
       const index = key || ONE_DOT;
       watchList[index] = entry.getChildren().sort();
     });
@@ -601,8 +601,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     if (this.closed) return;
 
     const opts = this.options;
-    if (isWindows) path = sysPath.normalize(path);
-    if (opts.cwd) path = sysPath.relative(opts.cwd, path);
+    if (isWindows) path = sp.normalize(path);
+    if (opts.cwd) path = sp.relative(opts.cwd, path);
     const args: EmitArgs | EmitErrorArgs = [path];
     if (stats != null) args.push(stats);
 
@@ -665,7 +665,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       stats === undefined &&
       (event === EV.ADD || event === EV.ADD_DIR || event === EV.CHANGE)
     ) {
-      const fullPath = opts.cwd ? sysPath.join(opts.cwd, path) : path;
+      const fullPath = opts.cwd ? sp.join(opts.cwd, path) : path;
       let stats;
       try {
         stats = await stat(fullPath);
@@ -759,8 +759,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     let timeoutHandler: NodeJS.Timeout;
 
     let fullPath = path;
-    if (this.options.cwd && !sysPath.isAbsolute(path)) {
-      fullPath = sysPath.join(this.options.cwd, path);
+    if (this.options.cwd && !sp.isAbsolute(path)) {
+      fullPath = sp.join(this.options.cwd, path);
     }
 
     const now = new Date();
@@ -841,7 +841,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * @param directory path of the directory
    */
   _getWatchedDir(directory: string): DirEntry {
-    const dir = sysPath.resolve(directory);
+    const dir = sp.resolve(directory);
     if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
     return this._watched.get(dir)!;
   }
@@ -868,8 +868,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     // if what is being deleted is a directory, get that directory's paths
     // for recursive deleting and cleaning of watched object
     // if it is not a directory, nestedDirectoryChildren will be empty array
-    const path = sysPath.join(directory, item);
-    const fullPath = sysPath.resolve(path);
+    const path = sp.join(directory, item);
+    const fullPath = sp.resolve(path);
     isDirectory =
       isDirectory != null ? isDirectory : this._watched.has(path) || this._watched.has(fullPath);
 
@@ -906,7 +906,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     // If we wait for this file to be fully written, cancel the wait.
     let relPath = path;
-    if (this.options.cwd) relPath = sysPath.relative(this.options.cwd, path);
+    if (this.options.cwd) relPath = sp.relative(this.options.cwd, path);
     if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
       const event = this._pendingWrites.get(relPath).cancelWait();
       if (event === EV.ADD) return;
@@ -928,8 +928,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    */
   _closePath(path: Path): void {
     this._closeFile(path);
-    const dir = sysPath.dirname(path);
-    this._getWatchedDir(dir).remove(sysPath.basename(path));
+    const dir = sp.dirname(path);
+    this._getWatchedDir(dir).remove(sp.basename(path));
   }
 
   /**

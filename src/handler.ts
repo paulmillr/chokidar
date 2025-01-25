@@ -1,10 +1,10 @@
-import { watchFile, unwatchFile, watch as fs_watch } from 'node:fs';
-import type { WatchListener, WatchEventType, Stats, FSWatcher as NativeFsWatcher } from 'node:fs';
-import { open, stat, lstat, realpath as fsrealpath } from 'node:fs/promises';
-import * as sysPath from 'node:path';
+import type { FSWatcher as NativeFsWatcher, Stats, WatchEventType, WatchListener } from 'node:fs';
+import { watch as fs_watch, unwatchFile, watchFile } from 'node:fs';
+import { realpath as fsrealpath, lstat, open, stat } from 'node:fs/promises';
 import { type as osType } from 'node:os';
-import type { FSWatcher, WatchHelper, FSWInstanceOptions, Throttler } from './index.js';
+import * as sp from 'node:path';
 import type { EntryInfo } from 'readdirp';
+import type { FSWatcher, FSWInstanceOptions, Throttler, WatchHelper } from './index.js';
 
 export type Path = string;
 
@@ -80,7 +80,7 @@ const binaryExtensions = new Set([
   'z', 'zip', 'zipx',
 ]);
 const isBinaryPath = (filePath: string) =>
-  binaryExtensions.has(sysPath.extname(filePath).slice(1).toLowerCase());
+  binaryExtensions.has(sp.extname(filePath).slice(1).toLowerCase());
 
 // TODO: emit errors properly. Example: EMFILE on Macos.
 const foreach = <V extends unknown>(val: V, fn: (arg: V) => unknown) => {
@@ -157,7 +157,7 @@ function createFsWatchInstance(
     // emit based on events occurring for files from a directory's watcher in
     // case the file's watcher misses it (and rely on throttling to de-dupe)
     if (evPath && path !== evPath) {
-      fsWatchBroadcast(sysPath.resolve(path, evPath), KEY_LISTENERS, sysPath.join(path, evPath));
+      fsWatchBroadcast(sp.resolve(path, evPath), KEY_LISTENERS, sp.join(path, evPath));
     }
   };
   try {
@@ -380,11 +380,11 @@ export class NodeFsHandler {
     listener: (path: string, newStats?: any) => void | Promise<void>
   ): (() => void) | undefined {
     const opts = this.fsw.options;
-    const directory = sysPath.dirname(path);
-    const basename = sysPath.basename(path);
+    const directory = sp.dirname(path);
+    const basename = sp.basename(path);
     const parent = this.fsw._getWatchedDir(directory);
     parent.add(basename);
-    const absolutePath = sysPath.resolve(path);
+    const absolutePath = sp.resolve(path);
     const options: Partial<FSWInstanceOptions> = {
       persistent: opts.persistent,
     };
@@ -416,8 +416,8 @@ export class NodeFsHandler {
     if (this.fsw.closed) {
       return;
     }
-    const dirname = sysPath.dirname(file);
-    const basename = sysPath.basename(file);
+    const dirname = sp.dirname(file);
+    const basename = sp.basename(file);
     const parent = this.fsw._getWatchedDir(dirname);
     // stats is always present
     let prevStats = stats;
@@ -537,7 +537,7 @@ export class NodeFsHandler {
     throttler: Throttler
   ): Promise<unknown> | undefined {
     // Normalize the directory name on Windows
-    directory = sysPath.join(directory, '');
+    directory = sp.join(directory, '');
 
     throttler = this.fsw._throttle('readdir', directory, 1000) as Throttler;
     if (!throttler) return;
@@ -557,7 +557,7 @@ export class NodeFsHandler {
           return;
         }
         const item = entry.path;
-        let path = sysPath.join(directory, item);
+        let path = sp.join(directory, item);
         current.add(item);
 
         if (
@@ -578,7 +578,7 @@ export class NodeFsHandler {
           this.fsw._incrReadyCount();
 
           // ensure relativeness of path is preserved in case of watcher reuse
-          path = sysPath.join(dir, sysPath.relative(dir, path));
+          path = sp.join(dir, sp.relative(dir, path));
 
           this._addToNodeFs(path, initialAdd, wh, depth + 1);
         }
@@ -636,14 +636,14 @@ export class NodeFsHandler {
     wh: WatchHelper,
     realpath: string
   ): Promise<(() => void) | undefined> {
-    const parentDir = this.fsw._getWatchedDir(sysPath.dirname(dir));
-    const tracked = parentDir.has(sysPath.basename(dir));
+    const parentDir = this.fsw._getWatchedDir(sp.dirname(dir));
+    const tracked = parentDir.has(sp.basename(dir));
     if (!(initialAdd && this.fsw.options.ignoreInitial) && !target && !tracked) {
       this.fsw._emit(EV.ADD_DIR, dir, stats);
     }
 
     // ensure dir is tracked (harmless if redundant)
-    parentDir.add(sysPath.basename(dir));
+    parentDir.add(sp.basename(dir));
     this.fsw._getWatchedDir(dir);
     let throttler!: Throttler;
     let closer;
@@ -705,7 +705,7 @@ export class NodeFsHandler {
       const follow = this.fsw.options.followSymlinks;
       let closer;
       if (stats.isDirectory()) {
-        const absPath = sysPath.resolve(path);
+        const absPath = sp.resolve(path);
         const targetPath = follow ? await fsrealpath(path) : path;
         if (this.fsw.closed) return;
         closer = await this._handleDir(
@@ -725,7 +725,7 @@ export class NodeFsHandler {
       } else if (stats.isSymbolicLink()) {
         const targetPath = follow ? await fsrealpath(path) : path;
         if (this.fsw.closed) return;
-        const parent = sysPath.dirname(wh.watchPath);
+        const parent = sp.dirname(wh.watchPath);
         this.fsw._getWatchedDir(parent).add(wh.watchPath);
         this.fsw._emit(EV.ADD, wh.watchPath, stats);
         closer = await this._handleDir(parent, stats, initialAdd, depth, path, wh, targetPath);
@@ -733,7 +733,7 @@ export class NodeFsHandler {
 
         // preserve this symlink's target path
         if (targetPath !== undefined) {
-          this.fsw._symlinkPaths.set(sysPath.resolve(path), targetPath);
+          this.fsw._symlinkPaths.set(sp.resolve(path), targetPath);
         }
       } else {
         closer = this._handleFile(wh.watchPath, stats, initialAdd);
