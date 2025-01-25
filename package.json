@@ -29,7 +29,7 @@
     "readdirp": "^4.1.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.2.1",
+    "@paulmillr/jsbt": "0.3.1",
     "@types/node": "20.14.8",
     "@types/sinon": "^17.0.3",
     "micro-should": "0.5.0",

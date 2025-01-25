@@ -1,20 +1,20 @@
 /*! chokidar - MIT License (c) 2012 Paul Miller (paulmillr.com) */
-import { stat as statcb, Stats } from 'node:fs';
-import { stat, readdir } from 'node:fs/promises';
 import { EventEmitter } from 'node:events';
+import { stat as statcb, Stats } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import * as sysPath from 'node:path';
-import { readdirp, ReaddirpStream, ReaddirpOptions, EntryInfo } from 'readdirp';
+import { type EntryInfo, readdirp, type ReaddirpOptions, ReaddirpStream } from 'readdirp';
 import {
-  NodeFsHandler,
-  EventName,
-  Path,
-  EVENTS as EV,
-  isWindows,
-  isIBMi,
   EMPTY_FN,
+  EVENTS as EV,
+  type EventName,
+  isIBMi,
+  isWindows,
+  NodeFsHandler,
+  type Path,
   STR_CLOSE,
   STR_END,
-  WatchHandlers,
+  type WatchHandlers,
 } from './handler.js';
 
 export type AWF = {
