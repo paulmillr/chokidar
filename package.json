@@ -10,7 +10,9 @@
     "handler.js",
     "handler.d.ts",
     "esm",
-    "!**/*.test.*"
+    "!**/*.test.*",
+    "src/index.ts",
+    "src/handler.ts"
   ],
   "main": "./index.js",
   "module": "./esm/index.js",
@@ -51,10 +53,11 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.esm.json",
+    "build": "tsc && tsc -p tsconfig.cjs.json",
     "lint": "prettier --check src",
     "format": "prettier --write src",
-    "test": "node index.test.mjs"
+    "test": "node esm/index.test.mjs",
+    "test:bun": "bun esm/index.test.mjs"
   },
   "keywords": [
     "fs",

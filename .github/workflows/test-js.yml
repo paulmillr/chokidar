@@ -76,4 +76,4 @@ jobs:
       - uses: oven-sh/setup-bun@4bc047ad259df6fc24a6c9b0f9a0cb08cf17fbe5 # v2.0.1
       - run: bun install
       - run: bun run build
-      - run: bun index.test.mjs
+      - run: bun run test:bun
