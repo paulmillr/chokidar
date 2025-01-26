@@ -4,7 +4,7 @@ import { exec as cexec } from 'node:child_process';
 import { Stats } from 'node:fs';
 import {
   appendFile,
-  mkdir,
+  mkdir as mkd,
   readFile as read,
   rename,
   rm,
@@ -23,20 +23,23 @@ import { EVENTS as EV, isIBMi, isMacos, isWindows } from './handler.js';
 import * as chokidar from './index.js';
 
 const TEST_TIMEOUT = 32000; // ms
-const PERM = 0o755; // rwe, r+e, r+e
 const imetaurl = import.meta.url;
-const __filename = fileURLToPath(new URL('', imetaurl));
-const __dirname = fileURLToPath(new URL('.', imetaurl)); // Will contain trailing slash
-const initialPath = process.cwd();
-const FIXTURES_PATH = sp.join(tmpdir(), 'chokidar-' + Date.now());
+const FIXTURES_PATH = sp.join(tmpdir(), 'chokidar-' + time());
 const WATCHERS: chokidar.FSWatcher[] = [];
 let testId = 0;
 let currentDir: string;
-let slowerDelay: number | undefined;
+let USE_SLOW_DELAY: number | undefined;
 
+function time() {
+  return Date.now().toString();
+}
 const exec = promisify(cexec);
 function rmr(dir: string) {
   return rm(dir, { recursive: true, force: true });
+}
+function mkdir(dir: string, opts = {}) {
+  const mode = 0o755; // read + execute
+  return mkd(dir, { mode: mode, ...opts });
 }
 
 // spyOnReady
@@ -87,35 +90,35 @@ const waitForWatcher = (watcher: chokidar.FSWatcher) => {
   });
 };
 
-const delay = async (time?: number) => {
+async function delay(delayTime?: number) {
   return new Promise<void>((resolve) => {
-    const timer = time || slowerDelay || 20;
+    const timer = delayTime || USE_SLOW_DELAY || 20;
     setTimeout(resolve, timer);
   });
-};
+}
 
 // dir path
-const dpath = (subPath: string) => {
+function dpath(subPath: string) {
   const subd = (testId && testId.toString()) || '';
   return sp.join(FIXTURES_PATH, subd, subPath);
-};
+}
 // glob path
-const gpath = (subPath: string) => {
+function gpath(subPath: string) {
   const subd = (testId && testId.toString()) || '';
   return upath.join(FIXTURES_PATH, subd, subPath);
-};
+}
 currentDir = dpath('');
 
-const cwatch = (
+function cwatch(
   path: Parameters<typeof chokidar.watch>[0] = currentDir,
   opts?: chokidar.ChokidarOptions
-) => {
+) {
   const wt = chokidar.watch(path, opts);
   WATCHERS.push(wt);
   return wt;
-};
+}
 
-const waitFor = (spies: Array<SinonSpy | [SinonSpy, number]>) => {
+function waitFor(spies: Array<SinonSpy | [SinonSpy, number]>) {
   if (spies.length === 0) throw new Error('need at least 1 spy');
   return new Promise<void>((resolve, reject) => {
     let checkTimer: ReturnType<typeof setTimeout>;
@@ -140,9 +143,9 @@ const waitFor = (spies: Array<SinonSpy | [SinonSpy, number]>) => {
     };
     checkSpiesReady();
   });
-};
+}
 
-const waitForEvents = (watcher: chokidar.FSWatcher, count: number) => {
+function waitForEvents(watcher: chokidar.FSWatcher, count: number) {
   return new Promise<string[]>((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('timeout waitForEvents, passed ms: ' + TEST_TIMEOUT));
@@ -160,15 +163,13 @@ const waitForEvents = (watcher: chokidar.FSWatcher, count: number) => {
 
     watcher.on('all', handler);
   });
-};
-
-const dateNow = () => Date.now().toString();
+}
 
 const runTests = (baseopts: chokidar.ChokidarOptions) => {
   let macosFswatch = isMacos && !baseopts.usePolling;
   let win32Polling = isWindows && baseopts.usePolling;
   let options: chokidar.ChokidarOptions;
-  slowerDelay = macosFswatch ? 100 : undefined;
+  USE_SLOW_DELAY = macosFswatch ? 100 : undefined;
   baseopts.persistent = true;
 
   beforeEach(function clean() {
@@ -212,7 +213,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = sspy<(p: string, s?: Stats) => void>(function addSpy() {});
       watcher.on(EV.ADD, spy);
       await delay();
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([spy]);
       equal(spy.calledOnce, true);
       ok(spy.calledWith(testPath));
@@ -230,19 +231,19 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         spy(path);
       });
 
-      await write(paths[0], dateNow());
-      await write(paths[1], dateNow());
-      await write(paths[2], dateNow());
-      await write(paths[3], dateNow());
-      await write(paths[4], dateNow());
+      await write(paths[0], time());
+      await write(paths[1], time());
+      await write(paths[2], time());
+      await write(paths[3], time());
+      await write(paths[4], time());
       await delay(100);
 
-      await write(paths[5], dateNow());
-      await write(paths[6], dateNow());
+      await write(paths[5], time());
+      await write(paths[6], time());
 
       await delay(150);
-      await write(paths[7], dateNow());
-      await write(paths[8], dateNow());
+      await write(paths[7], time());
+      await write(paths[8], time());
 
       await waitFor([[spy, 4]]);
 
@@ -288,14 +289,14 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const test9Path = dpath('add9.txt');
       const testb9Path = dpath('b/add9.txt');
       const testc9Path = dpath('c/add9.txt');
-      await mkdir(dpath('b'), PERM);
-      await mkdir(dpath('c'), PERM);
-      await mkdir(dpath('d'), PERM);
-      await mkdir(dpath('e'), PERM);
-      await mkdir(dpath('f'), PERM);
-      await mkdir(dpath('g'), PERM);
-      await mkdir(dpath('h'), PERM);
-      await mkdir(dpath('i'), PERM);
+      await mkdir(dpath('b'));
+      await mkdir(dpath('c'));
+      await mkdir(dpath('d'));
+      await mkdir(dpath('e'));
+      await mkdir(dpath('f'));
+      await mkdir(dpath('g'));
+      await mkdir(dpath('h'));
+      await mkdir(dpath('i'));
 
       await delay();
 
@@ -342,7 +343,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       let currentCallCount = 0;
 
       for (const fileToWrite of filesToWrite) {
-        await write(fileToWrite, dateNow());
+        await write(fileToWrite, time());
         await waitFor([[spy, ++currentCallCount]]);
       }
 
@@ -385,7 +386,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = sspy<(p: string, s?: Stats) => void>(function addDirSpy() {});
       watcher.on(EV.ADD_DIR, spy);
       equal(spy.called, false);
-      await mkdir(testDir, PERM);
+      await mkdir(testDir);
       await waitFor([spy]);
       equal(spy.calledOnce, true);
       ok(spy.calledWith(testDir));
@@ -397,7 +398,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = sspy<(p: string, s?: Stats) => void>(function changeSpy() {});
       watcher.on(EV.CHANGE, spy);
       equal(spy.called, false);
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([spy]);
       ok(spy.calledWith(testPath));
       ok(spy.args[0][1]); // stats
@@ -420,7 +421,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const testDir = dpath('subdir');
       const spy = sspy<(p: string, s?: Stats) => void>(function unlinkDirSpy() {});
 
-      await mkdir(testDir, PERM);
+      await mkdir(testDir);
       await delay(300);
       watcher.on(EV.UNLINK_DIR, spy);
 
@@ -437,9 +438,9 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const testDir3 = dpath('subdir/subdir2/subdir3');
       const spy = sspy<(p: string, s?: Stats) => void>(function unlinkDirSpy() {});
 
-      await mkdir(testDir, PERM);
-      await mkdir(testDir2, PERM);
-      await mkdir(testDir3, PERM);
+      await mkdir(testDir);
+      await mkdir(testDir2);
+      await mkdir(testDir3);
       await delay(300);
 
       watcher.on(EV.UNLINK_DIR, spy);
@@ -492,7 +493,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(unlinkSpy.calledWith(testPath));
 
       await delay(100);
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([[addSpy.withArgs(testPath), 2]]);
       ok(addSpy.calledWith(testPath));
       equal(changeSpy.called, false);
@@ -523,8 +524,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = sspy<(p: string, s?: Stats) => void>(function addSpy() {});
       watcher.on(EV.ADD, spy);
       equal(spy.called, false);
-      await mkdir(testDir, PERM);
-      await write(testPath, dateNow());
+      await mkdir(testDir);
+      await write(testPath, time());
       await waitFor([spy]);
       equal(spy.calledOnce, true);
       ok(spy.calledWith(testPath));
@@ -537,16 +538,16 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const parentPath = dpath('subdir2');
       const subPath = dpath('subdir2/subsub');
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD_DIR, addSpy);
-      await mkdir(parentPath, PERM);
+      await mkdir(parentPath);
 
       await delay(win32Polling ? 900 : 300);
       await rmr(parentPath);
       await waitFor([unlinkSpy.withArgs(parentPath)]);
       ok(unlinkSpy.calledWith(parentPath));
-      await mkdir(parentPath, PERM);
+      await mkdir(parentPath);
 
       await delay(win32Polling ? 2200 : 1200);
-      await mkdir(subPath, PERM);
+      await mkdir(subPath);
       await waitFor([[addSpy, 3]]);
       ok(addSpy.calledWith(parentPath));
       ok(addSpy.calledWith(subPath));
@@ -556,7 +557,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const unlinkSpy = sspy<(p: string, s?: Stats) => void>(function unlinkSpy() {});
       const addSpy = sspy<(p: string, s?: Stats) => void>(function addSpy() {});
       const testPath = dpath('dirFile');
-      await mkdir(testPath, PERM);
+      await mkdir(testPath);
       await delay(300);
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD, addSpy);
 
@@ -580,7 +581,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await delay(300);
       await unlink(testPath);
       await delay(300);
-      await mkdir(testPath, PERM);
+      await mkdir(testPath);
 
       await waitFor([addSpy, unlinkSpy]);
       ok(unlinkSpy.calledWith(testPath));
@@ -607,7 +608,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const testPath = dpath('change.txt');
       const watcher = cwatch(testPath, options);
       const spy = await aspy(watcher, EV.CHANGE);
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([spy]);
       ok(spy.alwaysCalledWith(testPath));
     });
@@ -647,8 +648,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = await aspy(watcher, EV.ALL);
 
       await delay();
-      await write(siblingPath, dateNow());
-      await write(testPath, dateNow());
+      await write(siblingPath, time());
+      await write(testPath, time());
       await waitFor([spy]);
       ok(spy.alwaysCalledWith(EV.ADD, testPath));
     });
@@ -656,18 +657,18 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     it('should detect safe-edit', async () => {
       const testPath = dpath('change.txt');
       const safePath = dpath('tmp.txt');
-      await write(testPath, dateNow());
+      await write(testPath, time());
       const watcher = cwatch(testPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
       await delay();
-      await write(safePath, dateNow());
+      await write(safePath, time());
       await rename(safePath, testPath);
       await delay(300);
-      await write(safePath, dateNow());
+      await write(safePath, time());
       await rename(safePath, testPath);
       await delay(300);
-      await write(safePath, dateNow());
+      await write(safePath, time());
       await rename(safePath, testPath);
       await delay(300);
       await waitFor([spy]);
@@ -680,7 +681,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const testPath = dpath('unlink.txt');
         const otherDirPath = dpath('other-dir');
         const otherPath = dpath('other-dir/other.txt');
-        await mkdir(otherDirPath, PERM);
+        await mkdir(otherDirPath);
         const watcher = cwatch([testPath, otherPath], options);
         // intentionally for this test don't write write(otherPath, 'other');
         const spy = await aspy(watcher, EV.UNLINK);
@@ -721,7 +722,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const testPath = dpath('unlink.txt');
         const otherDirPath = dpath('other-dir');
         const otherPath = dpath('other-dir/other.txt');
-        await mkdir(otherDirPath, PERM);
+        await mkdir(otherDirPath);
         // intentionally for this test don't write write(otherPath, 'other');
         const watcher = cwatch([testPath, otherPath], options)
           .on(EV.UNLINK, unlinkSpy)
@@ -826,8 +827,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const testPath = dpath('subdir/add.txt');
       const renamedDir = dpath('subdir-renamed');
       const expectedPath = sp.join(renamedDir, 'add.txt');
-      await mkdir(testDir, PERM);
-      await write(testPath, dateNow());
+      await mkdir(testDir);
+      await write(testPath, time());
       const watcher = cwatch(currentDir, options);
       const spy = await aspy(watcher, EV.ADD);
 
@@ -844,7 +845,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = await aspy(watcher, EV.ADD);
 
       await delay();
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([spy]);
       ok(spy.calledWith(testPath));
     });
@@ -856,7 +857,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       equal(spy.called, false);
 
       await delay();
-      await mkdir(testDir, PERM);
+      await mkdir(testDir);
       await waitFor([spy.withArgs(EV.ADD_DIR)]);
       await write(testPath, 'hello');
       await waitFor([spy.withArgs(EV.ADD)]);
@@ -873,7 +874,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(spy.calledWith(EV.ADD, filePath));
 
       await delay();
-      await write(filePath, dateNow());
+      await write(filePath, time());
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       ok(spy.calledWith(EV.CHANGE, filePath));
     });
@@ -884,9 +885,9 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const matchingDir = dpath('notag');
       const matchingFile = dpath('notag/b.txt');
       const matchingFile2 = dpath('notal');
-      await mkdir(testDir, PERM);
+      await mkdir(testDir);
       await write(filePath, 'b');
-      await mkdir(matchingDir, PERM);
+      await mkdir(matchingDir);
       await write(matchingFile, 'c');
       await write(matchingFile2, 'd');
       const watcher = cwatch(watchPath, options);
@@ -897,7 +898,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       equal(spy.calledWith(EV.ADD, matchingFile), false);
       equal(spy.calledWith(EV.ADD, matchingFile2), false);
       await delay();
-      await write(filePath, dateNow());
+      await write(filePath, time());
 
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       ok(spy.calledWith(EV.CHANGE, filePath));
@@ -910,7 +911,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const matchingFile = dpath('notag/a.txt');
       const matchingFile2 = dpath('notal');
       await write(filePath, 'b');
-      await mkdir(matchingDir, PERM);
+      await mkdir(matchingDir);
       await write(matchingFile, 'c');
       await write(matchingFile2, 'd');
       const watcher = cwatch(watchPath, options);
@@ -921,7 +922,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       equal(spy.calledWith(EV.ADD, matchingFile), false);
       equal(spy.calledWith(EV.ADD, matchingFile2), false);
       await delay();
-      await write(filePath, dateNow());
+      await write(filePath, time());
 
       await waitFor([spy.withArgs(EV.CHANGE, filePath)]);
       ok(spy.calledWith(EV.CHANGE, filePath));
@@ -933,7 +934,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     beforeEach(async () => {
       linkedDir = sp.resolve(currentDir, '..', `${testId}-link`);
       await symlink(currentDir, linkedDir, isWindows ? 'dir' : undefined);
-      await mkdir(dpath('subdir'), PERM);
+      await mkdir(dpath('subdir'));
       await write(dpath('subdir/add.txt'), 'b');
     });
     afterEach(async () => {
@@ -957,7 +958,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const watcher = cwatch(linkPath, options);
       const spy = await aspy(watcher, EV.ALL);
 
-      await write(changePath, dateNow());
+      await write(changePath, time());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       ok(spy.calledWith(EV.ADD, linkPath));
       ok(spy.calledWith(EV.CHANGE, linkPath));
@@ -969,7 +970,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const watcher = cwatch(dpath('subdir'), options);
       const spy = await aspy(watcher, EV.ALL);
 
-      await write(changePath, dateNow());
+      await write(changePath, time());
       await waitFor([spy.withArgs(EV.CHANGE, linkPath)]);
       ok(spy.calledWith(EV.ADD, linkPath));
       ok(spy.calledWith(EV.CHANGE, linkPath));
@@ -982,7 +983,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
 
       ok(spy.calledWith(EV.ADD_DIR, testDir));
       ok(spy.calledWith(EV.ADD, testFile));
-      await write(dpath('subdir/add.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), time());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       ok(spy.calledWith(EV.CHANGE, testFile));
     });
@@ -1003,7 +1004,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const watcher = cwatch(linkedDir, options);
       const spy = await aspy(watcher, EV.CHANGE);
       const wa = spy.withArgs(linkedFilePath);
-      await write(dpath('change.txt'), dateNow());
+      await write(dpath('change.txt'), time());
       await waitFor([wa]);
       ok(spy.calledWith(linkedFilePath));
     });
@@ -1052,7 +1053,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await delay(300);
       setTimeout(
         async () => {
-          await write(dpath('subdir/add.txt'), dateNow());
+          await write(dpath('subdir/add.txt'), time());
           await unlink(linkPath);
           await symlink(dpath('subdir/add.txt'), linkPath);
         },
@@ -1070,7 +1071,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const linkedPath = dpath('outside');
       const linkedFilePath = sp.join(linkedPath, 'text.txt');
       const linkPath = dpath('subdir/subsub');
-      await mkdir(linkedPath, PERM);
+      await mkdir(linkedPath);
       await write(linkedFilePath, 'b');
       await symlink(linkedPath, linkPath);
       const watcher2 = cwatch(dpath('subdir'), options);
@@ -1082,7 +1083,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const spy = await aspy(watcher, EV.ALL);
 
       await delay();
-      await write(linkedFilePath, dateNow());
+      await write(linkedFilePath, time());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       ok(spy.calledWith(EV.CHANGE, watchedPath));
     });
@@ -1107,7 +1108,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(spy.calledWith(EV.ADD, testPath));
       ok(spy.calledWith(EV.ADD_DIR, testDir));
       equal(spy.calledWith(EV.ADD, dpath('unlink.txt')), false);
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       ok(spy.calledWith(EV.CHANGE, testPath));
     });
@@ -1120,7 +1121,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(spy.calledWith(EV.ADD, testPath));
       ok(spy.calledWith(EV.ADD_DIR, testDir));
       equal(spy.calledWith(EV.ADD, dpath('unlink.txt')), false);
-      await write(testPath, dateNow());
+      await write(testPath, time());
       await waitFor([spy.withArgs(EV.CHANGE)]);
       ok(spy.calledWith(EV.CHANGE, testPath));
     });
@@ -1149,8 +1150,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
           ok(spy.calledWith(currentDir));
         });
         it('should emit `addDir` events for preexisting dirs', async () => {
-          await mkdir(dpath('subdir'), PERM);
-          await mkdir(dpath('subdir/subsub'), PERM);
+          await mkdir(dpath('subdir'));
+          await mkdir(dpath('subdir/subsub'));
           const watcher = cwatch(currentDir, options);
           const spy = await aspy(watcher, EV.ADD_DIR);
           ok(spy.calledWith(currentDir));
@@ -1181,8 +1182,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
           const testPath = dpath('subdir/add.txt');
           const spy = await aspy(cwatch(currentDir, options), EV.ADD);
           equal(spy.called, false);
-          await mkdir(testDir, PERM);
-          await write(testPath, dateNow());
+          await mkdir(testDir);
+          await write(testPath, time());
           await waitFor([spy]);
           equal(spy.calledOnce, true);
           ok(spy.calledWith(testPath));
@@ -1191,7 +1192,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
           const testPath = dpath('change.txt');
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
           equal(spy.called, false);
-          await write(testPath, dateNow());
+          await write(testPath, time());
           await waitFor([spy.withArgs(EV.CHANGE, testPath)]);
           ok(spy.calledWith(EV.CHANGE, testPath));
           equal(spy.calledWith(EV.ADD), false);
@@ -1199,11 +1200,11 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         it('should not emit for preexisting dirs when depth is 0', async () => {
           options.depth = 0;
           const testPath = dpath('add.txt');
-          await mkdir(dpath('subdir'), PERM);
+          await mkdir(dpath('subdir'));
 
           await delay(200);
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-          await write(testPath, dateNow());
+          await write(testPath, time());
           await waitFor([spy]);
 
           await delay(200);
@@ -1219,9 +1220,9 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
           return stats.isDirectory();
         };
         const testDir = dpath('subdir');
-        await mkdir(testDir, PERM);
+        await mkdir(testDir);
         await write(sp.join(testDir, 'add.txt'), '');
-        await mkdir(sp.join(testDir, 'subsub'), PERM);
+        await mkdir(sp.join(testDir, 'subsub'));
         await write(sp.join(testDir, 'subsub', 'ab.txt'), '');
         const watcher = cwatch(testDir, options);
         const spy = await aspy(watcher, EV.ADD);
@@ -1238,13 +1239,13 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const testDir = dpath('subdir');
         const testFile = sp.join(testDir, 'add.txt');
         options.ignored = testDir;
-        await mkdir(testDir, PERM);
+        await mkdir(testDir);
         await write(testFile, 'b');
         const watcher = cwatch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
 
         await delay();
-        await write(testFile, dateNow());
+        await write(testFile, time());
 
         await delay(300);
         equal(spy.calledWith(EV.ADD_DIR, testDir), false);
@@ -1260,8 +1261,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const spy = await aspy(watcher, EV.ALL);
 
         await delay();
-        await write(dpath('add.txt'), dateNow());
-        await write(dpath('change.txt'), dateNow());
+        await write(dpath('add.txt'), time());
+        await write(dpath('change.txt'), time());
 
         await waitFor([spy.withArgs(EV.CHANGE, 'change.txt')]);
         equal(spy.calledWith(EV.ADD, 'add.txt'), false);
@@ -1272,10 +1273,10 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     });
     describe('depth', () => {
       beforeEach(async () => {
-        await mkdir(dpath('subdir'), PERM);
+        await mkdir(dpath('subdir'));
         await write(dpath('subdir/add.txt'), 'b');
         await delay();
-        await mkdir(dpath('subdir/subsub'), PERM);
+        await mkdir(dpath('subdir/subsub'));
         await write(dpath('subdir/subsub/ab.txt'), 'b');
         await delay();
       });
@@ -1283,7 +1284,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         options.depth = 0;
         const watcher = cwatch(currentDir, options);
         const spy = await aspy(watcher, EV.ALL);
-        await write(dpath('subdir/add.txt'), dateNow());
+        await write(dpath('subdir/add.txt'), time());
         await waitFor([[spy, 4]]);
         ok(spy.calledWith(EV.ADD_DIR, currentDir));
         ok(spy.calledWith(EV.ADD_DIR, dpath('subdir')));
@@ -1299,9 +1300,9 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const ignoredPath = dpath('subdir/subsub/ab.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         await delay();
-        await write(dpath('change.txt'), dateNow());
-        await write(addPath, dateNow());
-        await write(ignoredPath, dateNow());
+        await write(dpath('change.txt'), time());
+        await write(addPath, time());
+        await write(ignoredPath, time());
         await waitFor([spy.withArgs(EV.CHANGE, addPath), spy.withArgs(EV.CHANGE, changePath)]);
         ok(spy.calledWith(EV.ADD_DIR, dpath('subdir/subsub')));
         ok(spy.calledWith(EV.CHANGE, changePath));
@@ -1343,7 +1344,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const unlinkSpy = spy.withArgs(EV.UNLINK_DIR);
         ok(spy.calledWith(EV.ADD_DIR, currentDir));
         ok(spy.calledWith(EV.ADD_DIR, dpath('subdir')));
-        await mkdir(subdir2, PERM);
+        await mkdir(subdir2);
         await waitFor([[addSpy, 3]]);
         equal(addSpy.calledThrice, true);
 
@@ -1390,7 +1391,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const watcher = cwatch('.', options);
         const spy = await aspy(watcher, EV.ALL);
         await unlink(dpath('unlink.txt'));
-        await write(dpath('change.txt'), dateNow());
+        await write(dpath('change.txt'), time());
         await waitFor([spy.withArgs(EV.UNLINK)]);
         ok(spy.calledWith(EV.ADD, 'change.txt'));
         ok(spy.calledWith(EV.ADD, 'unlink.txt'));
@@ -1405,7 +1406,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const testDir = dpath('subdir');
         const renamedDir = dpath('subdir-renamed');
 
-        await mkdir(testDir, PERM);
+        await mkdir(testDir);
         const watcher = cwatch('.', options);
 
         await new Promise<void>((resolve) => {
@@ -1439,7 +1440,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const spy2 = await aspy(watcher2, EV.ALL);
 
         await unlink(dpath('unlink.txt'));
-        await write(dpath('change.txt'), dateNow());
+        await write(dpath('change.txt'), time());
         await Promise.all([watcherEvents, watcher2Events]);
         ok(spy1.calledWith(EV.CHANGE, 'change.txt'));
         ok(spy1.calledWith(EV.UNLINK, 'unlink.txt'));
@@ -1458,8 +1459,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const watcher = cwatch(files, options);
 
         const spy = await aspy(watcher, EV.ALL);
-        await write(dpath('ignored.txt'), dateNow());
-        await write(dpath('ignored-option.txt'), dateNow());
+        await write(dpath('ignored.txt'), time());
+        await write(dpath('ignored-option.txt'), time());
         await unlink(dpath('ignored.txt'));
         await unlink(dpath('ignored-option.txt'));
         await delay();
@@ -1479,7 +1480,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       let filePath: string;
       beforeEach(async () => {
         filePath = dpath('add.txt');
-        await write(filePath, 'b', { mode: 128 });
+        const PERM_R = 0o200;
+        await write(filePath, 'b', { mode: PERM_R });
         await delay();
       });
       describe('false', () => {
@@ -1491,7 +1493,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
           if (isWindows) return true;
           const spy = await aspy(cwatch(currentDir, options), EV.ALL);
           equal(spy.calledWith(EV.ADD, filePath), false);
-          await write(filePath, dateNow());
+          await write(filePath, time());
 
           await delay(200);
           equal(spy.calledWith(EV.CHANGE, filePath), false);
@@ -1653,7 +1655,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         '..': [testId.toString()],
         subdir: [],
       };
-      await mkdir(dpath('subdir'), PERM);
+      await mkdir(dpath('subdir'));
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
       deepEqual(watcher.getWatched(), expected);
@@ -1662,7 +1664,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
   describe('unwatch', () => {
     beforeEach(async () => {
       options.ignoreInitial = true;
-      await mkdir(dpath('subdir'), PERM);
+      await mkdir(dpath('subdir'));
       await delay();
     });
     it('should stop watching unwatched paths', async () => {
@@ -1672,8 +1674,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       watcher.unwatch(dpath('subdir'));
 
       await delay();
-      await write(dpath('subdir/add.txt'), dateNow());
-      await write(dpath('change.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), time());
+      await write(dpath('change.txt'), time());
       await waitFor([spy]);
 
       await delay(300);
@@ -1694,8 +1696,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
 
       await delay();
       await unlink(unlinkFile);
-      await write(addFile, dateNow());
-      await write(changedFile, dateNow());
+      await write(addFile, time());
+      await write(changedFile, time());
       await waitFor([spy.withArgs(EV.CHANGE)]);
 
       await delay(300);
@@ -1714,8 +1716,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
 
       await delay();
       watcher.unwatch(subdir);
-      await write(dpath('subdir/add.txt'), dateNow());
-      await write(dpath('change.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), time());
+      await write(dpath('change.txt'), time());
       await waitFor([spy]);
 
       await delay(300);
@@ -1735,7 +1737,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       watcher.on(EV.ALL, spy).add(dpath('change.txt'));
 
       await delay();
-      await write(dpath('change.txt'), dateNow());
+      await write(dpath('change.txt'), time());
       console.log('a');
       await waitFor([spy]);
       console.log('b');
@@ -1750,8 +1752,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
 
       await delay();
       await unlink(dpath('unlink.txt'));
-      await write(dpath('subdir/add.txt'), dateNow());
-      await write(dpath('change.txt'), dateNow());
+      await write(dpath('subdir/add.txt'), time());
+      await write(dpath('change.txt'), time());
       await waitFor([spy]);
 
       await delay(300);
@@ -1965,7 +1967,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       watcher.on(EV.ALL, spy);
       await watcher.close();
 
-      await write(dpath('add.txt'), dateNow());
+      await write(dpath('add.txt'), time());
       await write(dpath('add.txt'), 'hello');
       await delay(300);
       await unlink(dpath('add.txt'));
@@ -1990,15 +1992,17 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(spy.calledWith(sinonmatch('add.txt')));
     });
     it('should not prevent the process from exiting', async () => {
+      function rmSlashes(str: string) {
+        return str.replace(/\\/g, '\\\\');
+      }
+      const _dirname = fileURLToPath(new URL('.', imetaurl)); // Will contain trailing slash
+      const chokidarPath = rmSlashes(pathToFileURL(sp.join(_dirname, 'index.js')).href);
+
       const scriptFile = dpath('script.js');
-      const chokidarPath = pathToFileURL(sp.join(__dirname, 'index.js')).href.replace(
-        /\\/g,
-        '\\\\'
-      );
       const scriptContent = `
       (async () => {
         const chokidar = await import("${chokidarPath}");
-        const watcher = chokidar.watch("${scriptFile.replace(/\\/g, '\\\\')}");
+        const watcher = chokidar.watch("${rmSlashes(scriptFile)}");
         watcher.on("ready", () => {
           watcher.close();
           process.stdout.write("closed");
@@ -2042,29 +2046,33 @@ describe('chokidar', async () => {
   describe('fs.watchFile (polling)', runTests.bind(this, { usePolling: true, interval: 10 }));
 });
 async function main() {
+  const initialPath = process.cwd();
   try {
     await rmr(FIXTURES_PATH);
-    await mkdir(FIXTURES_PATH, { recursive: true, mode: PERM });
+    await mkdir(FIXTURES_PATH, { recursive: true });
   } catch (error) {}
   process.chdir(FIXTURES_PATH);
+
   // Create many directories before tests.
   // Creating them in `beforeEach` increases chance of random failures.
-  const _content = await read(__filename, 'utf-8');
+  const _filename = fileURLToPath(new URL('', imetaurl));
+  const _content = await read(_filename, 'utf-8');
   const _only = _content.match(/\sit\.only\(/g);
   const itCount = (_only && _only.length) || _content.match(/\sit\(/g)?.length;
   const testCount = (itCount ?? 0) * 3;
   while (testId++ < testCount) {
-    await mkdir(dpath(''), PERM);
+    await mkdir(dpath(''));
     await write(dpath('change.txt'), 'b');
     await write(dpath('unlink.txt'), 'b');
   }
   testId = 0;
-
   await it.run(true);
 
   try {
     await rmr(FIXTURES_PATH);
-  } catch (error) {}
+  } catch (error) {
+    console.error('test clean-up error', error);
+  }
   process.chdir(initialPath);
 }
 main();
