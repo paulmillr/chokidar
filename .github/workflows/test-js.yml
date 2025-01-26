@@ -1,5 +1,11 @@
 name: Run JS tests
 
+# 3 different jobs are not combined into 1.
+# In theory, it could be less error-prone:
+# 1. Chokidar does huge load of IO / FS.
+# 2. Github CI use virtual machines which can reuse single physical machine.
+# 3. If same physical machine has too much IO usage, we have more chance of bugs.
+
 on:
   - push
   - pull_request
