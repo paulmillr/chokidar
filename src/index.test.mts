@@ -15,8 +15,8 @@ import { tmpdir } from 'node:os';
 import * as sp from 'node:path';
 import { fileURLToPath, pathToFileURL, URL } from 'node:url';
 import { promisify } from 'node:util';
+import { type Spy, type SpyFn, spy as createSpy } from 'tinyspy';
 import upath from 'upath';
-import { type SpyFn, type Spy, spy as createSpy } from 'tinyspy';
 import type { EmitArgs, FSWatcherEventMap } from './index.js';
 
 import { EVENTS as EV, isIBMi, isMacos, isWindows } from './handler.js';
@@ -158,22 +158,18 @@ function isSpyReady(spy: Spy | [spy: Spy, callCount: number, args?: unknown[]]):
 
 function waitFor(spies: Array<Spy | [spy: Spy, callCount: number, args?: unknown[]]>) {
   if (spies.length === 0) throw new Error('need at least 1 spy');
+  // if (spies.length > 1) throw new Error('need 1 spy');
   return new Promise<void>((resolve, reject) => {
-    let checkTimer: ReturnType<typeof setTimeout>;
+    let checkTimer: ReturnType<typeof setTimeout> = setInterval(() => {
+      if (!spies.every(isSpyReady)) return;
+      clearInterval(checkTimer);
+      clearTimeout(timeout);
+      resolve();
+    }, 20);
     const timeout = setTimeout(() => {
-      clearTimeout(checkTimer);
+      clearInterval(checkTimer);
       reject(new Error('timeout waitFor, passed ms: ' + TEST_TIMEOUT));
     }, TEST_TIMEOUT);
-    const checkSpiesReady = () => {
-      clearTimeout(checkTimer);
-      if (spies.every(isSpyReady)) {
-        clearTimeout(timeout);
-        resolve();
-      } else {
-        checkTimer = setTimeout(checkSpiesReady, 20);
-      }
-    };
-    checkSpiesReady();
   });
 }
 
