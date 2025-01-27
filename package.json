@@ -33,10 +33,9 @@
   "devDependencies": {
     "@paulmillr/jsbt": "0.3.1",
     "@types/node": "22.10.10",
-    "@types/sinon": "17.0.3",
     "micro-should": "0.5.1",
     "prettier": "3.1.1",
-    "sinon": "12.0.1",
+    "tinyspy": "^3.0.2",
     "typescript": "5.5.2",
     "upath": "2.0.1"
   },
