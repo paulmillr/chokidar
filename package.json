@@ -31,12 +31,12 @@
     "readdirp": "^4.1.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.3.1",
+    "@paulmillr/jsbt": "0.3.3",
     "@types/node": "22.10.10",
     "micro-should": "0.5.1",
-    "prettier": "3.1.1",
+    "prettier": "3.5.2",
     "tinyspy": "3.0.2",
-    "typescript": "5.5.2",
+    "typescript": "5.8.2",
     "upath": "2.0.1"
   },
   "sideEffects": false,
