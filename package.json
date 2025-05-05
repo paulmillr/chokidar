@@ -28,7 +28,7 @@
     }
   },
   "dependencies": {
-    "readdirp": "4.1.0"
+    "readdirp": "4.1.2"
   },
   "devDependencies": {
     "@paulmillr/jsbt": "0.3.3",
