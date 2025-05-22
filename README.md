@@ -290,7 +290,7 @@ const watcher = watch(await Array.fromAsync(glob('**/*.js')));
 // v3
 chok.unwatch('**/*.js');
 // v4
-chok.unwatch(await glob('**/*.js'));
+chok.unwatch(await Array.fromAsync(glob('**/*.js')));
 ```
 
 ## Also
