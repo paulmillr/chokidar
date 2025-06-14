@@ -27,9 +27,9 @@
     "readdirp": "^4.1.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.3.3",
+    "@paulmillr/jsbt": "0.4.1",
     "@types/node": "22.10.10",
-    "micro-should": "0.5.1",
+    "micro-should": "0.5.3",
     "prettier": "3.5.2",
     "tinyspy": "3.0.2",
     "typescript": "5.8.2",
