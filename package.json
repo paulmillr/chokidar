@@ -2,6 +2,7 @@
   "name": "chokidar",
   "description": "Minimal and efficient cross-platform file watching library",
   "version": "4.0.3",
+  "type": "module",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
   "files": [
@@ -9,31 +10,26 @@
     "index.d.ts",
     "handler.js",
     "handler.d.ts",
-    "esm",
     "!**/*.test.*",
     "src/index.ts",
     "src/handler.ts"
   ],
   "main": "./index.js",
-  "module": "./esm/index.js",
-  "types": "./index.d.ts",
   "exports": {
     ".": {
-      "import": "./esm/index.js",
-      "require": "./index.js"
+      "default": "./index.js"
     },
     "./handler.js": {
-      "import": "./esm/handler.js",
-      "require": "./handler.js"
+      "default": "./handler.js"
     }
   },
   "dependencies": {
     "readdirp": "^4.1.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.3.3",
+    "@paulmillr/jsbt": "0.4.1",
     "@types/node": "22.10.10",
-    "micro-should": "0.5.1",
+    "micro-should": "0.5.3",
     "prettier": "3.5.2",
     "tinyspy": "3.0.2",
     "typescript": "5.8.2",
@@ -52,11 +48,11 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "tsc && tsc -p tsconfig.cjs.json",
+    "build": "tsc",
     "lint": "prettier --check src",
     "format": "prettier --write src",
-    "test": "node esm/index.test.mjs",
-    "test:bun": "bun esm/index.test.mjs"
+    "test": "node index.test.js",
+    "test:bun": "bun index.test.js"
   },
   "keywords": [
     "fs",
