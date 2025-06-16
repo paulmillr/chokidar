@@ -31,7 +31,7 @@
     "readdirp": "^4.1.0"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.3.3",
+    "@paulmillr/jsbt": "0.4.1",
     "@types/node": "22.10.10",
     "micro-should": "0.5.1",
     "prettier": "3.5.2",
