@@ -299,16 +299,17 @@ export class WatchHelper {
   }
 }
 
-export interface FSWatcherKnownEventMap {
+export interface FSWatcherEventMap {
   [EV.READY]: [];
   [EV.RAW]: Parameters<WatchHandlers['rawEmitter']>;
   [EV.ERROR]: Parameters<WatchHandlers['errHandler']>;
   [EV.ALL]: [event: EventName, ...EmitArgs];
+  [EV.ADD]: EmitArgs;
+  [EV.CHANGE]: EmitArgs;
+  [EV.ADD_DIR]: EmitArgs;
+  [EV.UNLINK]: EmitArgs;
+  [EV.UNLINK_DIR]: EmitArgs;
 }
-
-export type FSWatcherEventMap = FSWatcherKnownEventMap & {
-  [k in Exclude<EventName, keyof FSWatcherKnownEventMap>]: EmitArgs;
-};
 
 /**
  * Watches files & directories for changes. Emitted events:
