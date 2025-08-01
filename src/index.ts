@@ -76,7 +76,7 @@ const ONE_DOT = '.';
 const TWO_DOTS = '..';
 const STRING_TYPE = 'string';
 const BACK_SLASH_RE = /\\/g;
-const DOUBLE_SLASH_RE = /\/\//;
+const DOUBLE_SLASH_RE = /\/\//g;
 const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
 const REPLACER_RE = /^\.[/\\]/;
 
@@ -113,8 +113,7 @@ function normalizePath(path: Path): Path {
   path = path.replace(/\\/g, '/');
   let prepend = false;
   if (path.startsWith('//')) prepend = true;
-  const DOUBLE_SLASH_RE = /\/\//;
-  while (path.match(DOUBLE_SLASH_RE)) path = path.replace(DOUBLE_SLASH_RE, '/');
+  path = path.replace(DOUBLE_SLASH_RE, '/');
   if (prepend) path = '/' + path;
   return path;
 }
@@ -168,9 +167,7 @@ const toUnix = (string: string) => {
   if (str.startsWith(SLASH_SLASH)) {
     prepend = true;
   }
-  while (str.match(DOUBLE_SLASH_RE)) {
-    str = str.replace(DOUBLE_SLASH_RE, SLASH);
-  }
+  str = str.replace(DOUBLE_SLASH_RE, SLASH);
   if (prepend) {
     str = SLASH + str;
   }
