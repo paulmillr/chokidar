@@ -71,12 +71,13 @@ export interface MatcherObject {
 export type Matcher = string | RegExp | MatchFunction | MatcherObject;
 
 const SLASH = '/';
-const SLASH_SLASH = '//';
 const ONE_DOT = '.';
 const TWO_DOTS = '..';
 const STRING_TYPE = 'string';
 const BACK_SLASH_RE = /\\/g;
-const DOUBLE_SLASH_RE = /\/\//g;
+
+// Includes a negative lookbehind to exclude initial double slashes
+const DOUBLE_SLASH_RE = /(?<!^)\/\//g;
 const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
 const REPLACER_RE = /^\.[/\\]/;
 
@@ -109,13 +110,8 @@ function createPattern(matcher: Matcher): MatchFunction {
 
 function normalizePath(path: Path): Path {
   if (typeof path !== 'string') throw new Error('string expected');
-  path = sp.normalize(path);
-  path = path.replace(/\\/g, '/');
-  let prepend = false;
-  if (path.startsWith('//')) prepend = true;
-  path = path.replace(DOUBLE_SLASH_RE, '/');
-  if (prepend) path = '/' + path;
-  return path;
+
+  return toUnix(sp.normalize(path));
 }
 
 function matchPatterns(patterns: MatchFunction[], testString: string, stats?: Stats): boolean {
@@ -159,19 +155,10 @@ const unifyPaths = (paths_: Path | Path[]) => {
   return paths.map(normalizePathToUnix);
 };
 
-// If SLASH_SLASH occurs at the beginning of path, it is not replaced
+// If // occurs at the beginning of path, it is not replaced
 //     because "//StoragePC/DrivePool/Movies" is a valid network path
-const toUnix = (string: string) => {
-  let str = string.replace(BACK_SLASH_RE, SLASH);
-  let prepend = false;
-  if (str.startsWith(SLASH_SLASH)) {
-    prepend = true;
-  }
-  str = str.replace(DOUBLE_SLASH_RE, SLASH);
-  if (prepend) {
-    str = SLASH + str;
-  }
-  return str;
+const toUnix = (path: string) => {
+  return path.replace(BACK_SLASH_RE, SLASH).replace(DOUBLE_SLASH_RE, SLASH);
 };
 
 // Our version of upath.normalize
