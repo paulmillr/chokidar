@@ -531,7 +531,7 @@ export class NodeFsHandler {
     directory: string,
     initialAdd: boolean,
     wh: WatchHelper,
-    target: Path,
+    target: Path | undefined,
     dir: Path,
     depth: number,
     throttler: Throttler
@@ -539,7 +539,8 @@ export class NodeFsHandler {
     // Normalize the directory name on Windows
     directory = sp.join(directory, '');
 
-    throttler = this.fsw._throttle('readdir', directory, 1000) as Throttler;
+    const throttleKey = target ? `${directory}:${target}` : directory;
+    throttler = this.fsw._throttle('readdir', throttleKey, 1000) as Throttler;
     if (!throttler) return;
 
     const previous = this.fsw._getWatchedDir(wh.path);
@@ -632,7 +633,7 @@ export class NodeFsHandler {
     stats: Stats,
     initialAdd: boolean,
     depth: number,
-    target: string,
+    target: string | undefined,
     wh: WatchHelper,
     realpath: string
   ): Promise<(() => void) | undefined> {
@@ -713,7 +714,7 @@ export class NodeFsHandler {
           stats,
           initialAdd,
           depth,
-          target!,
+          target,
           wh,
           targetPath
         );
