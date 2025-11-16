@@ -195,7 +195,6 @@ function waitForEvents(watcher: chokidar.FSWatcher, count: number) {
 
 const runTests = (baseopts: chokidar.ChokidarOptions) => {
   let macosFswatch = isMacos && !baseopts.usePolling;
-  let win32Polling = isWindows && baseopts.usePolling;
   let options: chokidar.ChokidarOptions;
   USE_SLOW_DELAY = macosFswatch ? 100 : undefined;
   baseopts.persistent = true;
@@ -568,13 +567,13 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       watcher.on(EV.UNLINK_DIR, unlinkSpy).on(EV.ADD_DIR, addSpy);
       await mkdir(parentPath);
 
-      await delay(win32Polling ? 900 : 300);
+      await waitFor([[addSpy, 1, [parentPath]]]);
       await rmr(parentPath);
       await waitFor([[unlinkSpy, 1, [parentPath]]]);
       ok(calledWith(unlinkSpy, [parentPath]));
       await mkdir(parentPath);
 
-      await delay(win32Polling ? 2200 : 1200);
+      await waitFor([[addSpy, 2]]);
       await mkdir(subPath);
       await waitFor([[addSpy, 3]]);
       ok(calledWith(addSpy, [parentPath]));
