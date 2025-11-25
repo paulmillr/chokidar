@@ -9,8 +9,7 @@
     "index.js",
     "index.d.ts",
     "handler.js",
-    "handler.d.ts",
-    "!**/*.test.*"
+    "handler.d.ts"
   ],
   "main": "./index.js",
   "exports": {

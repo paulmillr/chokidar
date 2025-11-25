@@ -4,7 +4,7 @@ Minimal and efficient cross-platform file watching library
 
 ## Why?
 
-There are many reasons to prefer Chokidar to raw fs.watch / fs.watchFile in 2025:
+There are many reasons to prefer Chokidar to raw fs.watch / fs.watchFile in 2026:
 
 - Events are properly reported
   - macOS events report filenames
@@ -32,7 +32,8 @@ Made for [Brunch](https://brunch.io/) in 2012,
 it is now used in [~30 million repositories](https://www.npmjs.com/browse/depended/chokidar) and
 has proven itself in production environments.
 
-**Sep 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
+- **Nov 2025 update:** v5 is out. Makes package ESM-only and increases minimum node.js requirement to v20.
+- **Sep 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
 support for globs, adds support for ESM / Common.js modules, and bumps minimum node.js version from v8 to v14.
 Check out [upgrading](#upgrading).
 
