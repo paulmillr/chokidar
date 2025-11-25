@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, it } from 'micro-should';
+import { afterEach, beforeEach, describe, it } from '@paulmillr/jsbt/test.js';
 import { deepEqual, equal, ok, throws } from 'node:assert/strict';
 import { exec as cexec } from 'node:child_process';
 import {
