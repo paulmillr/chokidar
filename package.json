@@ -10,9 +10,7 @@
     "index.d.ts",
     "handler.js",
     "handler.d.ts",
-    "!**/*.test.*",
-    "src/index.ts",
-    "src/handler.ts"
+    "!**/*.test.*"
   ],
   "main": "./index.js",
   "exports": {
