@@ -1,4 +1,5 @@
 /*! chokidar - MIT License (c) 2012 Paul Miller (paulmillr.com) */
+import type { Stats } from 'node:fs';
 import { EventEmitter } from 'node:events';
 import { stat as statcb } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
