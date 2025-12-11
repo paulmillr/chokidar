@@ -1,5 +1,5 @@
 {
-  "name": "chokidar",
+  "name": "@hydroperx/chokidar",
   "description": "Minimal and efficient cross-platform file watching library",
   "version": "5.0.0",
   "type": "module",
