@@ -1,6 +1,6 @@
 /*! chokidar - MIT License (c) 2012 Paul Miller (paulmillr.com) */
 import { EventEmitter } from 'node:events';
-import { stat as statcb, Stats } from 'node:fs';
+import { stat as statcb } from 'node:fs';
 import { readdir, stat } from 'node:fs/promises';
 import * as sp from 'node:path';
 import { type EntryInfo, readdirp, type ReaddirpOptions, ReaddirpStream } from 'readdirp';
