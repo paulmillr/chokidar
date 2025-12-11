@@ -59,5 +59,8 @@
     "file",
     "fsevents"
   ],
-  "funding": "https://paulmillr.com/funding/"
+  "funding": "https://paulmillr.com/funding/",
+  "publishConfig": {
+    "access": "public"
+  }
 }
