@@ -1,7 +1,7 @@
 {
   "name": "@hydroperx/chokidar",
   "description": "Minimal and efficient cross-platform file watching library",
-  "version": "5.0.0",
+  "version": "1.0.0",
   "type": "module",
   "homepage": "https://github.com/paulmillr/chokidar",
   "author": "Paul Miller (https://paulmillr.com)",
