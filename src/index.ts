@@ -91,7 +91,11 @@ const isMatcherObject = (matcher: Matcher): matcher is MatcherObject =>
 function createPattern(matcher: Matcher): MatchFunction {
   if (typeof matcher === 'function') return matcher;
   if (typeof matcher === 'string') return (string) => matcher === string;
-  if (matcher instanceof RegExp) return (string) => matcher.test(string);
+  if (matcher instanceof RegExp)
+    return (string) => {
+      matcher.lastIndex = 0; // reset lastIndex for global regexes
+      return matcher.test(string);
+    };
   if (typeof matcher === 'object' && matcher !== null) {
     return (string) => {
       if (matcher.path === string) return true;
