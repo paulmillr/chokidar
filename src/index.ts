@@ -876,8 +876,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     // via multiple paths (such as _handleFile and _handleDir)
     if (!this._throttle('remove', path, 100)) return;
 
-    // if the only watched file is removed, watch for its return
-    if (!isDirectory && this._watched.size === 1) {
+    // if a file is removed, watch for its return
+    if (!isDirectory) {
       this.add(directory, item, true);
     }
 

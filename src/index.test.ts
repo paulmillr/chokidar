@@ -702,8 +702,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       equal(getCallsWith(spy, [EV.CHANGE, testPath]).length, 3);
     });
 
-    // PR 682 is failing.
-    describe.skip('Skipping gh-682: should detect unlink', () => {
+    describe('should detect unlink', () => {
       it('should detect unlink while watching a non-existent second file in another directory', async () => {
         const testPath = dpath('unlink.txt');
         const otherDirPath = dpath('other-dir');
