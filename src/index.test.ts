@@ -95,7 +95,7 @@ const aspy = (
       clearTimeout(timeout);
       resolve(spy);
     });
-    watcher.on(eventName as keyof FSWatcherEventMap, handler);
+    watcher.on(eventName as keyof FSWatcherEventMap, handler as never);
   });
 };
 
