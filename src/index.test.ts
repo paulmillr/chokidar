@@ -1278,6 +1278,29 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         equal(calledWith(spy, [EV.ADD, testFile]), false);
         equal(calledWith(spy, [EV.CHANGE, testFile]), false);
       });
+      it('should ignore relative paths without explicit cwd', async () => {
+        const testDir = dpath('ignored-dir');
+        const testFile = sp.join(testDir, 'add.txt');
+        options.ignored = 'ignored-dir';
+        await mkdir(testDir);
+        await write(testFile, 'b');
+        const prevCwd = process.cwd();
+        process.chdir(currentDir);
+        try {
+          const watcher = cwatch(currentDir, options);
+          const spy = await aspy(watcher, EV.ALL);
+
+          await delay();
+          await write(testFile, time());
+
+          await delay(300);
+          equal(calledWith(spy, [EV.ADD_DIR, testDir]), false);
+          equal(calledWith(spy, [EV.ADD, testFile]), false);
+          equal(calledWith(spy, [EV.CHANGE, testFile]), false);
+        } finally {
+          process.chdir(prevCwd);
+        }
+      });
       it('should allow regex/fn ignores', async () => {
         options.cwd = currentDir;
         options.ignored = /add/;
