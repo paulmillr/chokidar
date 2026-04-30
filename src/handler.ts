@@ -358,9 +358,9 @@ const setFsWatchRecursiveListener = (
     return watcher.close.bind(watcher);
   }
   if (cont) {
-    addAndConvert(cont, KEY_LISTENERS, listener);
-    addAndConvert(cont, KEY_ERR, errHandler);
-    addAndConvert(cont, KEY_RAW, rawEmitter);
+    cont[KEY_LISTENERS].add(listener);
+    cont[KEY_ERR].add(errHandler);
+    cont[KEY_RAW].add(rawEmitter);
   } else {
     watcher = createFsWatchRecursiveInstance(
       path,
@@ -397,10 +397,10 @@ const setFsWatchRecursiveListener = (
   }
 
   return () => {
-    delFromSet(cont, KEY_LISTENERS, listener);
-    delFromSet(cont, KEY_ERR, errHandler);
-    delFromSet(cont, KEY_RAW, rawEmitter);
-    if (isEmptySet(cont.listeners)) {
+    cont[KEY_LISTENERS].delete(listener);
+    cont[KEY_ERR].delete(errHandler);
+    cont[KEY_RAW].delete(rawEmitter);
+    if (cont.listeners.size === 0) {
       cont.watcher.close();
       FsWatchRecursiveInstances.delete(fullPath);
       HANDLER_KEYS.forEach(clearItem(cont));
