@@ -43,6 +43,7 @@ const KEY_LISTENERS = 'listeners';
 const KEY_ERR = 'errHandlers';
 const KEY_RAW = 'rawEmitters';
 const HANDLER_KEYS = [KEY_LISTENERS, KEY_ERR, KEY_RAW];
+const BACKSLASH_PATTERN = /\\/g;
 
 // prettier-ignore
 const binaryExtensions = new Set([
@@ -280,6 +281,136 @@ const setFsWatchListener = (
   };
 };
 
+// recursive helpers
+// These have their own cache so they don't conflict with non-recursive watchers
+// on the same paths.
+//
+// Recursive listeners also deal with the emitted name rather than the one
+// they were setup with (compared to regular listeners).
+
+export type RecursiveFsWatchListener = (eventType: WatchEventType, filename: string) => void;
+
+export interface RecursiveWatchHandlers {
+  listener: RecursiveFsWatchListener;
+  errHandler: WatchHandlers['errHandler'];
+  rawEmitter: WatchHandlers['rawEmitter'];
+}
+
+export type FsWatchRecursiveContainer = {
+  listeners: Set<RecursiveFsWatchListener>;
+  errHandlers: Set<WatchHandlers['errHandler']>;
+  rawEmitters: Set<WatchHandlers['rawEmitter']>;
+  watcher: NativeFsWatcher;
+  // this means the watcher errored at some point and may be unreliable
+  watcherUnusable?: boolean;
+};
+
+const FsWatchRecursiveInstances = new Map<string, FsWatchRecursiveContainer>();
+
+const fsWatchRecursiveBroadcast = (
+  fullPath: Path,
+  listenerType: 'listeners' | 'errHandlers' | 'rawEmitters',
+  val1?: unknown,
+  val2?: unknown,
+  val3?: unknown
+) => {
+  const cont = FsWatchRecursiveInstances.get(fullPath);
+  if (!cont) return;
+  for (const listener of cont[listenerType]) {
+    (listener as (...args: unknown[]) => unknown)(val1, val2, val3);
+  }
+};
+
+function createFsWatchRecursiveInstance(
+  path: string,
+  options: Partial<FSWInstanceOptions>,
+  listener: RecursiveFsWatchListener,
+  errHandler: WatchHandlers['errHandler'],
+  emitRaw: WatchHandlers['rawEmitter']
+): NativeFsWatcher | undefined {
+  const handleEvent: WatchListener<string> = (rawEvent, evPath) => {
+    if (evPath == null || evPath === '') return;
+    const filename = isWindows ? evPath.replace(BACKSLASH_PATTERN, sp.sep) : evPath;
+    listener(rawEvent, filename);
+    emitRaw(rawEvent, sp.join(path, filename), { watchedPath: path });
+  };
+  try {
+    return fs_watch(path, { persistent: options.persistent, recursive: true }, handleEvent);
+  } catch (error) {
+    errHandler(error);
+    return undefined;
+  }
+}
+
+const setFsWatchRecursiveListener = (
+  path: string,
+  fullPath: string,
+  options: Partial<FSWInstanceOptions>,
+  handlers: RecursiveWatchHandlers
+): (() => void) | undefined => {
+  const { listener, errHandler, rawEmitter } = handlers;
+  let cont = FsWatchRecursiveInstances.get(fullPath);
+
+  let watcher: NativeFsWatcher | undefined;
+  if (!options.persistent) {
+    watcher = createFsWatchRecursiveInstance(path, options, listener, errHandler, rawEmitter);
+    if (!watcher) return;
+    return watcher.close.bind(watcher);
+  }
+  if (cont) {
+    addAndConvert(cont, KEY_LISTENERS, listener);
+    addAndConvert(cont, KEY_ERR, errHandler);
+    addAndConvert(cont, KEY_RAW, rawEmitter);
+  } else {
+    watcher = createFsWatchRecursiveInstance(
+      path,
+      options,
+      fsWatchRecursiveBroadcast.bind(null, fullPath, KEY_LISTENERS),
+      errHandler,
+      fsWatchRecursiveBroadcast.bind(null, fullPath, KEY_RAW)
+    );
+    if (!watcher) return;
+    watcher.on(EV.ERROR, async (error: Error & { code: string }) => {
+      const broadcastErr = fsWatchRecursiveBroadcast.bind(null, fullPath, KEY_ERR);
+      if (cont) cont.watcherUnusable = true;
+      // Same Windows EPERM workaround as the non-recursive path:
+      // https://github.com/joyent/node/issues/4337
+      if (isWindows && error.code === 'EPERM') {
+        try {
+          const fd = await open(path, 'r');
+          await fd.close();
+          broadcastErr(error);
+        } catch (err) {
+          // do nothing
+        }
+      } else {
+        broadcastErr(error);
+      }
+    });
+    cont = {
+      listeners: new Set([listener]),
+      errHandlers: new Set([errHandler]),
+      rawEmitters: new Set([rawEmitter]),
+      watcher,
+    };
+    FsWatchRecursiveInstances.set(fullPath, cont);
+  }
+
+  return () => {
+    delFromSet(cont, KEY_LISTENERS, listener);
+    delFromSet(cont, KEY_ERR, errHandler);
+    delFromSet(cont, KEY_RAW, rawEmitter);
+    if (isEmptySet(cont.listeners)) {
+      cont.watcher.close();
+      FsWatchRecursiveInstances.delete(fullPath);
+      HANDLER_KEYS.forEach(clearItem(cont));
+      // @ts-ignore
+      cont.watcher = undefined;
+      Object.freeze(cont);
+    }
+  };
+};
+
 // fs_watchFile helpers
 
 // object to hold per-process fs_watchFile instances
@@ -367,6 +498,26 @@ export class NodeFsHandler {
   constructor(fsW: FSWatcher) {
     this.fsw = fsW;
     this._boundHandleError = (error) => fsW._handleError(error as Error);
+  }
+
+  /**
+   * Watch a directory with `fs.watch(dir, { recursive: true })`, sharing one
+   * underlying watcher across FSWatcher instances on the same fullPath.
+   */
+  _watchWithNodeFsRecursive(
+    path: string,
+    listener: RecursiveFsWatchListener
+  ): (() => void) | undefined {
+    const opts = this.fsw.options;
+    const absolutePath = sp.resolve(path);
+    const options: Partial<FSWInstanceOptions> = {
+      persistent: opts.persistent,
+    };
+    return setFsWatchRecursiveListener(path, absolutePath, options, {
+      listener,
+      errHandler: this._boundHandleError,
+      rawEmitter: this.fsw._emitRaw,
+    });
   }
 
   /**
@@ -667,6 +818,121 @@ export class NodeFsHandler {
   }
 
   /**
+   * In recursive mode, adds the directory to the watch list and starts
+   * an initial scan of the directory to emit events for existing children.
+   *
+   * Note that symlinks are not followed in recursive mode.
+   */
+  async _handleDirRecursive(
+    dir: Path,
+    stats: Stats,
+    initialAdd: boolean,
+    wh: WatchHelper
+  ): Promise<(() => void) | undefined> {
+    const fsw = this.fsw;
+    const opts = fsw.options;
+
+    const parentDir = fsw._getWatchedDir(sp.dirname(dir));
+    const tracked = parentDir.has(sp.basename(dir));
+    if (!(initialAdd && opts.ignoreInitial) && !tracked) {
+      fsw._emit(EV.ADD_DIR, dir, stats);
+    }
+    parentDir.add(sp.basename(dir));
+    fsw._getWatchedDir(dir);
+
+    const emitInitial = !(initialAdd && opts.ignoreInitial);
+    const oDepth = opts.depth;
+
+    // Initial scan: seeds watched dirs and emits existing files.
+    await new Promise<void>((resolve) => {
+      let stream = fsw._readdirp(dir, {
+        fileFilter: (entry: EntryInfo) => wh.filterPath(entry),
+        directoryFilter: (entry: EntryInfo) => wh.filterDir(entry),
+        depth: oDepth == null ? Infinity : oDepth,
+      });
+      if (!stream) return resolve();
+      stream
+        .on(STR_DATA, (entry: EntryInfo) => {
+          if (fsw.closed) return;
+          const fullPath = entry.fullPath;
+          const itemDir = sp.dirname(fullPath);
+          const itemBase = sp.basename(fullPath);
+          const itemParent = fsw._getWatchedDir(itemDir);
+          if (itemParent.has(itemBase)) return;
+          itemParent.add(itemBase);
+          const isDir = entry.stats && entry.stats.isDirectory();
+          if (isDir) {
+            fsw._getWatchedDir(fullPath);
+            if (emitInitial) fsw._emit(EV.ADD_DIR, fullPath, entry.stats);
+          } else if (emitInitial) {
+            fsw._emit(EV.ADD, fullPath, entry.stats);
+          }
+        })
+        .on(EV.ERROR, this._boundHandleError)
+        .on(STR_END, () => resolve());
+    });
+
+    if (fsw.closed) return;
+
+    return this._watchWithNodeFsRecursive(dir, (_eventType, filename) => {
+      if (fsw.closed) return;
+      const fullPath = sp.join(dir, filename);
+      this._handleRecursiveEvent(dir, fullPath, wh).catch((e) => fsw._handleError(e as Error));
+    });
+  }
+
+  /**
+   * Resolve a single event from a native recursive watcher into a
+   * chokidar event
+   */
+  async _handleRecursiveEvent(rootDir: Path, fullPath: Path, wh: WatchHelper): Promise<void> {
+    const fsw = this.fsw;
+    if (fsw.closed) return;
+
+    const oDepth = fsw.options.depth;
+    if (oDepth != null) {
+      const rel = sp.relative(rootDir, fullPath);
+      const depth = rel ? rel.split(sp.sep).length : 0;
+      if (depth > oDepth + 1) return;
+    }
+
+    // Throttle duplicate events from the recursive watcher
+    if (!fsw._throttle(THROTTLE_MODE_WATCH, fullPath, 5)) return;
+
+    const directory = sp.dirname(fullPath);
+    const basename = sp.basename(fullPath);
+
+    let stats: Stats | undefined;
+    try {
+      stats = await statMethods[wh.statMethod](fullPath);
+    } catch {
+      const parent = fsw._getWatchedDir(directory);
+      if (parent.has(basename)) {
+        const isDir = fsw._watched.has(fullPath) || fsw._watched.has(sp.resolve(fullPath));
+        fsw._remove(directory, basename, isDir);
+      }
+      return;
+    }
+    if (fsw.closed) return;
+    if (fsw._isIgnored(fullPath, stats)) return;
+
+    const parent = fsw._getWatchedDir(directory);
+    const wasTracked = parent.has(basename);
+    if (stats.isDirectory()) {
+      if (!wasTracked) {
+        parent.add(basename);
+        fsw._getWatchedDir(fullPath);
+        fsw._emit(EV.ADD_DIR, fullPath, stats);
+      }
+    } else if (!wasTracked) {
+      parent.add(basename);
+      fsw._emit(EV.ADD, fullPath, stats);
+    } else {
+      fsw._emit(EV.CHANGE, fullPath, stats);
+    }
+  }
+
+  /**
    * Handle added file, directory, or glob pattern.
    * Delegates call to _handleFile / _handleDir after checks.
    * @param path to file or ir
@@ -709,15 +975,19 @@ export class NodeFsHandler {
         const absPath = sp.resolve(path);
         const targetPath = follow ? await fsrealpath(path) : path;
         if (this.fsw.closed) return;
-        closer = await this._handleDir(
-          wh.watchPath,
-          stats,
-          initialAdd,
-          depth,
-          target,
-          wh,
-          targetPath
-        );
+        if (this.fsw.options.recursive && !this.fsw.options.usePolling && !target) {
+          closer = await this._handleDirRecursive(wh.watchPath, stats, initialAdd, wh);
+        } else {
+          closer = await this._handleDir(
+            wh.watchPath,
+            stats,
+            initialAdd,
+            depth,
+            target,
+            wh,
+            targetPath
+          );
+        }
         if (this.fsw.closed) return;
         // preserve this symlink's target path
         if (absPath !== targetPath && targetPath !== undefined) {
