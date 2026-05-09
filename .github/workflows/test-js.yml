@@ -5,4 +5,4 @@ on:
 jobs:
   test-ts:
     name: 'jsbt v0.5.1' # Should match commit below
-    uses: paulmillr/jsbt/.github/workflows/test-js-matrix.yml@a00dbc815760211c6f6986344b2da91512597810
+    uses: paulmillr/jsbt/.github/workflows/test-ts-matrix.yml@a00dbc815760211c6f6986344b2da91512597810
