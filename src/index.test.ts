@@ -432,6 +432,36 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(rawSpy.called);
       equal(spy.callCount, 1);
     });
+    it('should emit two `change` events for two writes within 50ms', async () => {
+      const testPath = dpath('change.txt');
+      const spy = createSpy<EmitArgs, void>(function quickChangeSpy() {});
+      watcher.on(EV.CHANGE, spy);
+
+      await write(testPath, time());
+      await delay(10);
+      await write(testPath, time());
+
+      await waitFor([[spy, 2, [testPath]]]);
+      ok(getCallsWith(spy, [testPath]).length >= 2);
+    });
+    it('should not emit `change` after `unlink` when changes were throttled', async () => {
+      const testPath = dpath('change.txt');
+      const changeSpy = createSpy<EmitArgs, void>(function throttledChangeSpy() {});
+      const unlinkSpy = createSpy<EmitArgs, void>(function throttledUnlinkSpy() {});
+      watcher.on(EV.CHANGE, changeSpy).on(EV.UNLINK, unlinkSpy);
+
+      await write(testPath, time());
+      await delay(10);
+      await write(testPath, time());
+      await delay(10);
+      await unlink(testPath);
+
+      await waitFor([[unlinkSpy, 1, [testPath]]]);
+      const changeCallsAtUnlink = getCallsWith(changeSpy, [testPath]).length;
+
+      await delay(120);
+      equal(getCallsWith(changeSpy, [testPath]).length, changeCallsAtUnlink);
+    });
     it('should emit `unlink` event when file was removed', async () => {
       const testPath = dpath('unlink.txt');
       const spy = createSpy<EmitArgs, void>(function unlinkSpy() {});
@@ -1461,17 +1491,20 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         });
         options2.cwd = dpath('subdir');
         const watcher = cwatch(gpath('.'), options);
-        const watcherEvents = waitForEvents(watcher, 5);
         const spy1 = await aspy(watcher, EV.ALL);
 
         await delay();
         const watcher2 = cwatch(currentDir, options2);
-        const watcher2Events = waitForEvents(watcher2, 5);
         const spy2 = await aspy(watcher2, EV.ALL);
 
         await unlink(dpath('unlink.txt'));
         await write(dpath('change.txt'), time());
-        await Promise.all([watcherEvents, watcher2Events]);
+        await waitFor([
+          [spy1, 1, [EV.CHANGE, 'change.txt']],
+          [spy1, 1, [EV.UNLINK, 'unlink.txt']],
+          [spy2, 1, [EV.CHANGE, sp.join('..', 'change.txt')]],
+          [spy2, 1, [EV.UNLINK, sp.join('..', 'unlink.txt')]],
+        ]);
         ok(calledWith(spy1, [EV.CHANGE, 'change.txt']));
         ok(calledWith(spy1, [EV.UNLINK, 'unlink.txt']));
         ok(calledWith(spy2, [EV.ADD, sp.join('..', 'change.txt')]));
