@@ -40,6 +40,7 @@ type BasicOpts = {
   // useAsync?: boolean; // Use async for stat/readlink methods
 
   // ioLimit?: number; // Limit parallel IO operations (CPU usage + OS limits)
+  recursive?: boolean;
 };
 
 export type Throttler = {
@@ -58,6 +59,7 @@ export type ChokidarOptions = Partial<
 export type FSWInstanceOptions = BasicOpts & {
   ignored: Matcher[]; // string | fn ->
   awaitWriteFinish: false | AWF;
+  recursive: boolean;
 };
 
 export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
@@ -375,6 +377,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       ignored: _opts.ignored ? arrify(_opts.ignored) : arrify([]),
       awaitWriteFinish:
         awf === true ? DEF_AWF : typeof awf === 'object' ? { ...DEF_AWF, ...awf } : false,
+      recursive: _opts.recursive === true,
     };
 
     // Always default to polling on IBM i because fs.watch() is not available on IBM i.
@@ -953,7 +956,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
   _readdirp(root: Path, opts?: Partial<ReaddirpOptions>): ReaddirpStream | undefined {
     if (this.closed) return;
-    const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts, depth: 0 };
+    const options = { type: EV.ALL, alwaysStat: true, lstat: true, depth: 0, ...opts };
     let stream: ReaddirpStream | undefined = readdirp(root, options);
     this._streams.add(stream);
     stream.once(STR_CLOSE, () => {

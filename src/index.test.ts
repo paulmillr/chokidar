@@ -1671,6 +1671,67 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         equal(calledWith(spy, [EV.CHANGE, filename]), false);
       });
     });
+    if (!baseopts.usePolling) {
+      describe('recursive', () => {
+        beforeEach(() => {
+          options.recursive = true;
+          options.ignoreInitial = true;
+        });
+        it('should emit events for files in deeply nested subdirectories', async () => {
+          await mkdir(dpath('a/b/c'), { recursive: true });
+          await delay();
+          const nestedPath = dpath('a/b/c/add.txt');
+          const spy = await aspy(cwatch(currentDir, options), EV.ALL);
+          await write(nestedPath, time());
+          await waitFor([[spy, 1, [EV.ADD, nestedPath]]]);
+          ok(calledWith(spy, [EV.ADD, nestedPath]));
+
+          await write(nestedPath, 'updated');
+          await waitFor([[spy, 1, [EV.CHANGE, nestedPath]]]);
+          ok(calledWith(spy, [EV.CHANGE, nestedPath]));
+        });
+        it('should emit addDir for newly created nested directories', async () => {
+          const spy = await aspy(cwatch(currentDir, options), EV.ALL);
+          const newDir = dpath('newdir/inner');
+          const newFile = dpath('newdir/inner/add.txt');
+          await mkdir(newDir, { recursive: true });
+          await delay();
+          await write(newFile, time());
+          await waitFor([
+            [spy, 1, [EV.ADD_DIR, dpath('newdir')]],
+            [spy, 1, [EV.ADD_DIR, newDir]],
+            [spy, 1, [EV.ADD, newFile]],
+          ]);
+          ok(calledWith(spy, [EV.ADD_DIR, dpath('newdir')]));
+          ok(calledWith(spy, [EV.ADD_DIR, newDir]));
+          ok(calledWith(spy, [EV.ADD, newFile]));
+        });
+        it('should emit events on two watchers watching the same dir recursively', async () => {
+          await mkdir(dpath('shared'));
+          await delay();
+          const watcher1 = cwatch(currentDir, options);
+          const watcher2 = cwatch(currentDir, options);
+          const spy1 = await aspy(watcher1, EV.ALL);
+          const spy2 = await aspy(watcher2, EV.ALL);
+
+          const nestedPath = dpath('shared/add.txt');
+          await write(nestedPath, time());
+          await waitFor([
+            [spy1, 1, [EV.ADD, nestedPath]],
+            [spy2, 1, [EV.ADD, nestedPath]],
+          ]);
+          ok(calledWith(spy1, [EV.ADD, nestedPath]));
+          ok(calledWith(spy2, [EV.ADD, nestedPath]));
+
+          // Closing one watcher should not stop the other from receiving events
+          await watcher1.close();
+          const secondPath = dpath('shared/add2.txt');
+          await write(secondPath, time());
+          await waitFor([[spy2, 1, [EV.ADD, secondPath]]]);
+          ok(calledWith(spy2, [EV.ADD, secondPath]));
+        });
+      });
+    }
   });
   describe('getWatched', () => {
     it('should return the watched paths', async () => {
