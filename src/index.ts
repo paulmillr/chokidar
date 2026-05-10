@@ -181,7 +181,7 @@ const normalizePathToUnix = (path: Path) => toUnix(sp.normalize(toUnix(path)));
 
 // TODO: refactor
 const normalizeIgnored =
-  (cwd = '') =>
+  (cwd = process.cwd()) =>
   (path: Matcher): Matcher => {
     if (typeof path === 'string') {
       return normalizePathToUnix(sp.isAbsolute(path) ? path : sp.join(cwd, path));
