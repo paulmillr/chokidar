@@ -2,6 +2,7 @@ name: Run TS tests
 on:
   - push
   - pull_request
+permissions: {}
 jobs:
   test-ts:
     name: 'jsbt v0.5.1' # Should match commit below
