@@ -1016,15 +1016,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     });
     it('should not recurse indefinitely on circular symlinks', async () => {
       await symlink(currentDir, dpath('subdir/circular'), isWindows ? 'dir' : undefined);
-      await new Promise<void>((resolve, reject) => {
-        const watcher = cwatch(currentDir, options);
-        watcher.on(EV.ERROR, () => {
-          resolve();
-        });
-        watcher.on(EV.READY, () => {
-          reject('The watcher becomes ready, although he watches a circular symlink.');
-        });
-      });
+      await waitForWatcher(cwatch(currentDir, options));
     });
     it('should recognize changes following symlinked dirs', async () => {
       const linkedFilePath = sp.join(linkedDir, 'change.txt');
