@@ -327,6 +327,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   _streams: Set<ReaddirpStream>;
   _symlinkPaths: Map<Path, string | boolean>;
   _watched: Map<string, DirEntry>;
+  _descendedRealpaths: Set<string>;
 
   _pendingWrites: Map<string, any>;
   _pendingUnlinks: Map<string, EmitArgsWithName>;
@@ -351,6 +352,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     this._streams = new Set();
     this._symlinkPaths = new Map();
     this._watched = new Map();
+    this._descendedRealpaths = new Set();
 
     this._pendingWrites = new Map();
     this._pendingUnlinks = new Map();
@@ -558,6 +560,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     this._watched.clear();
     this._streams.clear();
     this._symlinkPaths.clear();
+    this._descendedRealpaths.clear();
     this._throttled.clear();
 
     this._closePromise = closers.length
