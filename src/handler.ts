@@ -650,9 +650,12 @@ export class NodeFsHandler {
     let closer;
 
     const oDepth = this.fsw.options.depth;
-    const alreadyDescended = this.fsw._descendedRealpaths.has(realpath);
-    if ((oDepth == null || depth <= oDepth) && !alreadyDescended) {
-      this.fsw._descendedRealpaths.add(realpath);
+    const parentRealpath = this.fsw._dirRealpaths.get(sp.dirname(dir));
+    const isCycle =
+      parentRealpath !== undefined &&
+      (parentRealpath === realpath || parentRealpath.startsWith(realpath + sp.sep));
+    if ((oDepth == null || depth <= oDepth) && !isCycle) {
+      this.fsw._dirRealpaths.set(dir, realpath);
       if (!target) {
         await this._handleRead(dir, initialAdd, wh, target, dir, depth, throttler);
         if (this.fsw.closed) return;
