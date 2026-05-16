@@ -567,6 +567,42 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   }
 
   /**
+   * Close watchers and remove all listeners from watched paths,
+   * synchronously.
+   */
+  closeSync(): void {
+    if (this.closed) {
+      return;
+    }
+    this.closed = true;
+
+    // Memory management.
+    this.removeAllListeners();
+    const closers: Array<Promise<void>> = [];
+    this._closers.forEach((closerList) =>
+      closerList.forEach((closer) => {
+        const promise = closer();
+        if (promise instanceof Promise) closers.push(promise);
+      })
+    );
+    this._streams.forEach((stream) => stream.destroy());
+    this._userIgnored = undefined;
+    this._readyCount = 0;
+    this._readyEmitted = false;
+    this._watched.forEach((dirent) => dirent.dispose());
+
+    this._closers.clear();
+    this._watched.clear();
+    this._streams.clear();
+    this._symlinkPaths.clear();
+    this._throttled.clear();
+
+    this._closePromise = closers.length
+      ? Promise.all(closers).then(() => undefined)
+      : Promise.resolve();
+  }
+
+  /**
    * Expose list of watched paths
    * @returns for chaining
    */
