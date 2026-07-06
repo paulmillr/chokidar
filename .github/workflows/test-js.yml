@@ -2,7 +2,8 @@ name: Run TS tests
 on:
   - push
   - pull_request
+permissions: {}
 jobs:
   test-ts:
-    name: 'jsbt v0.5.1' # Should match commit below
-    uses: paulmillr/jsbt/.github/workflows/test-ts-matrix.yml@a00dbc815760211c6f6986344b2da91512597810
+    name: 'jsbt v0.6.0' # Should match commit below
+    uses: paulmillr/jsbt/.github/workflows/test-matrix.yml@7c25cb0b5eadac32bfedbb3b60ca0bd4289791f1
