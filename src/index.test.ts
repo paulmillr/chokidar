@@ -1991,43 +1991,40 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     });
   });
 
-  describe('reproduction of bug in vite issue #22672', () => {
-    // https://github.com/vitejs/vite/issues/22672
-    it('should close the fs.watch handle of a deleted watched directory', async () => {
-      if (!isWindows) return true; // separator mismatch only occurs on Windows
+  it('should close the fs.watch handle of a deleted watched directory', async () => {
+    const id = testId.toString();
+    const watchedDir = sp.join(FIXTURES_PATH, id, 'to-delete');
+    await mkdir(watchedDir, { recursive: true });
+    await write(sp.join(watchedDir, 'a.txt'), 'a');
+    await delay();
 
-      const id = testId.toString();
-      const watchedDir = sp.join(FIXTURES_PATH, id, 'to-delete');
-      await mkdir(watchedDir, { recursive: true });
-      await write(sp.join(watchedDir, 'a.txt'), 'a');
-      await delay();
-
-      const watcher = cwatch(watchedDir, options);
-      try {
-        await waitForWatcher(watcher);
-
-        // We assert on the internal `_closers` map because there is no public
-        // signal that distinguishes a closed watcher from a leaked one here
-        const closers = (watcher as unknown as { _closers: Map<string, unknown[]> })._closers;
-        const dirHasCloser = () =>
-          [...closers.keys()].some((key) => sp.resolve(key) === sp.resolve(watchedDir));
-
-        // Sanity check: the watched directory has a registered fs.watch closer.
-        ok(dirHasCloser(), 'expected a closer to be registered for the watched directory');
-
-        const unlinkDirSpy = createSpy<EmitArgs, void>(function unlinkDirSpy() {});
-        watcher.on(EV.UNLINK_DIR, unlinkDirSpy);
-
-        await rmr(watchedDir);
-        await waitFor([[unlinkDirSpy, 1, [watchedDir]]]);
-
-        // The closer must have been invoked and removed; otherwise the underlying
-        // fs.watch handle is leaked and keeps firing events on the deleted path.
-        ok(!dirHasCloser(), 'fs.watch handle of the deleted watched directory was leaked');
-      } finally {
-        await watcher.close();
+    class FSWatcherWithClosers extends chokidar.FSWatcher {
+      get closers(): Map<string, unknown[]> {
+        return this._closers;
       }
-    });
+    }
+    const watcher = new FSWatcherWithClosers(options);
+    watcher.add(watchedDir);
+    WATCHERS.push(watcher);
+
+    await waitForWatcher(watcher);
+
+    const closers = watcher.closers;
+    const dirHasCloser = () =>
+      [...closers.keys()].some((key) => sp.resolve(key) === sp.resolve(watchedDir));
+
+    // Sanity check: the watched directory has a registered fs.watch closer.
+    ok(dirHasCloser(), 'expected a closer to be registered for the watched directory');
+
+    const unlinkDirSpy = createSpy<EmitArgs, void>(function unlinkDirSpy() {});
+    watcher.on(EV.UNLINK_DIR, unlinkDirSpy);
+
+    await rmr(watchedDir);
+    await waitFor([[unlinkDirSpy, 1, [watchedDir]]]);
+
+    // The closer must have been invoked and removed; otherwise the underlying
+    // fs.watch handle is leaked and keeps firing events on the deleted path.
+    ok(!dirHasCloser(), 'fs.watch handle of the deleted watched directory was leaked');
   });
 
   describe('close', () => {
