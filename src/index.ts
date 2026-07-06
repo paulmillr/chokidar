@@ -935,7 +935,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * Closes only file-specific watchers
    */
   _closeFile(path: Path): void {
-    const key = sp.normalize(path);
+    const key = normalizePathToUnix(path);
     const closers = this._closers.get(key);
     if (!closers) return;
     closers.forEach((closer) => closer());
@@ -944,7 +944,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
   _addPathCloser(path: Path, closer: () => void): void {
     if (!closer) return;
-    const key = sp.normalize(path);
+    const key = normalizePathToUnix(path);
     let list = this._closers.get(key);
     if (!list) {
       list = [];
