@@ -1,6 +1,7 @@
 *.bak
 *.log
 /coverage/
+/.bench-tmp/
 /node_modules/
 /test-fixtures/
 /*.d.ts
