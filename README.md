@@ -132,6 +132,7 @@ chokidar.watch('file', {
   ignoreInitial: false,
   ignorePermissionErrors: false,
   usePolling: false,
+  useRecursiveWatch: false,
   alwaysStat: false,
 });
 ```
@@ -179,6 +180,13 @@ chokidar.watch('file', {
   - `binaryInterval` (default: `300`). Interval of file system
     polling for binary files.
     ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
+- `useRecursiveWatch` (default: `false`). Whether to use a single native
+  `fs.watch(path, { recursive: true })` instance per watched directory tree,
+  instead of one watcher per directory. Uses ~3x less memory and makes startup
+  ~2x faster on big directory trees. Only effective on Linux, macOS and Windows
+  when `usePolling` is disabled; other platforms fall back to per-directory
+  watchers. Note that on Linux, node.js emulates recursive watching in
+  javascript, so the amount of kernel inotify watches stays the same.
 - `alwaysStat` (default: `false`). If relying upon the
   [`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
   object that may get passed with `add`, `addDir`, and `change` events, set

@@ -19,7 +19,7 @@ import { type Spy, type SpyFn, spy as createSpy } from 'tinyspy';
 import upath from 'upath';
 import type { EmitArgs, FSWatcherEventMap } from './index.js';
 
-import { EVENTS as EV, isIBMi, isMacos, isWindows } from './handler.js';
+import { canUseRecursiveWatch, EVENTS as EV, isIBMi, isMacos, isWindows } from './handler.js';
 import * as chokidar from './index.js';
 
 const TEST_TIMEOUT = 32000; // ms
@@ -2113,6 +2113,9 @@ describe('chokidar', async () => {
     describe('fs.watch (non-polling)', runTests.bind(this, { usePolling: false }));
   }
   describe('fs.watchFile (polling)', runTests.bind(this, { usePolling: true, interval: 10 }));
+  if (canUseRecursiveWatch) {
+    describe('fs.watch (recursive)', runTests.bind(this, { useRecursiveWatch: true }));
+  }
 });
 async function main() {
   const initialPath = process.cwd();
@@ -2128,7 +2131,7 @@ async function main() {
   const _content = await read(_filename, 'utf-8');
   const _only = _content.match(/\sit\.only\(/g);
   const itCount = (_only && _only.length) || _content.match(/\sit\(/g)?.length;
-  const testCount = (itCount ?? 0) * 3;
+  const testCount = (itCount ?? 0) * 4;
   while (testId++ < testCount) {
     await mkdir(dpath(''));
     await write(dpath('change.txt'), 'b');
