@@ -33,6 +33,11 @@ type BasicOpts = {
   interval: number;
   binaryInterval: number; // Used only for pooling and if different from interval
 
+  // Use a single native fs.watch(recursive: true) instance per watched
+  // directory tree, instead of one watcher per directory. Falls back to
+  // per-directory watchers on platforms without native recursive support.
+  useRecursiveWatch: boolean;
+
   alwaysStat?: boolean;
   depth?: number;
   ignorePermissionErrors: boolean;
@@ -120,6 +125,7 @@ function normalizePath(path: Path): Path {
 }
 
 function matchPatterns(patterns: MatchFunction[], testString: string, stats?: Stats): boolean {
+  if (patterns.length === 0) return false;
   const path = normalizePath(testString);
 
   for (let index = 0; index < patterns.length; index++) {
@@ -273,9 +279,6 @@ export class WatchHelper {
     this.watchPath = watchPath;
     this.fullWatchPath = sp.resolve(watchPath);
     this.dirParts = [];
-    this.dirParts.forEach((parts) => {
-      if (parts.length > 1) parts.pop();
-    });
     this.followSymlinks = follow;
     this.statMethod = follow ? STAT_METHOD_F : STAT_METHOD_L;
   }
@@ -368,6 +371,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       binaryInterval: 300,
       followSymlinks: true,
       usePolling: false,
+      useRecursiveWatch: false,
       // useAsync: false,
       atomic: true, // NOTE: overwritten later (depends on usePolling)
       ..._opts,
@@ -379,9 +383,6 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     // Always default to polling on IBM i because fs.watch() is not available on IBM i.
     if (isIBMi) opts.usePolling = true;
-    // Editor atomic write normalization enabled by default with fs.watch
-    if (opts.atomic === undefined) opts.atomic = !opts.usePolling;
-    // opts.atomic = typeof _opts.atomic === 'number' ? _opts.atomic : 100;
     // Global override. Useful for developers, who need to force polling for all
     // instances of chokidar, regardless of usage / dependency depth
     const envPoll = process.env.CHOKIDAR_USEPOLLING;
@@ -393,6 +394,9 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     }
     const envInterval = process.env.CHOKIDAR_INTERVAL;
     if (envInterval) opts.interval = Number.parseInt(envInterval, 10);
+    // Editor atomic write normalization enabled by default with fs.watch
+    if (_opts.atomic === undefined) opts.atomic = !opts.usePolling;
+    // opts.atomic = typeof _opts.atomic === 'number' ? _opts.atomic : 100;
     // This is done to emit ready only once, but each 'add' will increase that?
     let readyCalls = 0;
     this._emitReady = () => {
@@ -553,7 +557,10 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     this._readyCount = 0;
     this._readyEmitted = false;
     this._watched.forEach((dirent) => dirent.dispose());
+    this._pendingWrites.forEach((pw) => pw.cancelWait());
 
+    this._pendingWrites.clear();
+    this._pendingUnlinks.clear();
     this._closers.clear();
     this._watched.clear();
     this._streams.clear();
@@ -955,11 +962,14 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
   _readdirp(root: Path, opts?: Partial<ReaddirpOptions>): ReaddirpStream | undefined {
     if (this.closed) return;
-    const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts, depth: 0 };
+    const options = { type: EV.ALL, alwaysStat: true, lstat: true, depth: 0, ...opts };
     let stream: ReaddirpStream | undefined = readdirp(root, options);
     this._streams.add(stream);
     stream.once(STR_CLOSE, () => {
-      stream = undefined;
+      if (stream) {
+        this._streams.delete(stream);
+        stream = undefined;
+      }
     });
     stream.once(STR_END, () => {
       if (stream) {

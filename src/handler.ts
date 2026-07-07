@@ -20,6 +20,9 @@ export const isMacos: boolean = pl === 'darwin';
 export const isLinux: boolean = pl === 'linux';
 export const isFreeBSD: boolean = pl === 'freebsd';
 export const isIBMi: boolean = osType() === 'OS400';
+// Platforms where fs.watch supports `recursive: true` natively
+// (others throw ERR_FEATURE_UNAVAILABLE_ON_PLATFORM)
+export const canUseRecursiveWatch: boolean = (isWindows || isMacos || isLinux) && !isIBMi;
 
 export const EVENTS = {
   ALL: 'all',
@@ -358,6 +361,8 @@ const setFsWatchFileListener = (
   };
 };
 
+type RecursiveSeenEntry = { mtimeMs: number; size: number; addedAt?: number };
+
 /**
  * @mixin
  */
@@ -465,7 +470,7 @@ export class NodeFsHandler {
 
     // emit an add event if we're supposed to
     if (!(initialAdd && this.fsw.options.ignoreInitial) && this.fsw._isntIgnored(file)) {
-      if (!this.fsw._throttle(EV.ADD, file, 0)) return;
+      if (!this.fsw._throttle(EV.ADD, file, 0)) return closer;
       this.fsw._emit(EV.ADD, file, stats);
     }
 
@@ -667,6 +672,238 @@ export class NodeFsHandler {
   }
 
   /**
+   * Watch a whole directory tree with a single native `fs.watch(recursive: true)`
+   * instance instead of one watcher per directory (`useRecursiveWatch` option).
+   * Raw events are normalized into add/addDir/change/unlink/unlinkDir by
+   * stat-ing the reported path and diffing against the tracked directory tree.
+   * @returns closer for the watcher instance
+   */
+  async _handleDirRecursive(
+    dir: string,
+    stats: Stats,
+    initialAdd: boolean,
+    depth: number,
+    wh: WatchHelper,
+    realpath: string
+  ): Promise<(() => void) | undefined> {
+    const fsw = this.fsw;
+    const opts = fsw.options;
+    const oDepth = opts.depth;
+    // last seen stats of files reported by raw events; used to suppress the
+    // duplicate 'change' that immediately follows a create
+    const seen = new Map<Path, RecursiveSeenEntry>();
+    let watcher: NativeFsWatcher | undefined;
+    if ((oDepth == null || depth <= oDepth) && !fsw._symlinkPaths.has(realpath)) {
+      try {
+        watcher = fs_watch(
+          dir,
+          { persistent: opts.persistent, recursive: true },
+          (rawEvent, evPath) => {
+            this._handleRecursiveEvent(dir, wh, seen, rawEvent, evPath).catch(
+              this._boundHandleError
+            );
+          }
+        );
+      } catch (error) {
+        // recursive watching unavailable here (e.g. exotic filesystem):
+        // fall back to one watcher per directory
+        return this._handleDir(dir, stats, initialAdd, depth, undefined, wh, realpath);
+      }
+      watcher.on(EV.ERROR, this._boundHandleError);
+    }
+
+    const parentDir = fsw._getWatchedDir(sp.dirname(dir));
+    const tracked = parentDir.has(sp.basename(dir));
+    if (!(initialAdd && opts.ignoreInitial) && !tracked) fsw._emit(EV.ADD_DIR, dir, stats);
+    parentDir.add(sp.basename(dir));
+    fsw._getWatchedDir(dir);
+
+    if (!watcher) return;
+    await this._recursiveScan(
+      dir,
+      initialAdd,
+      wh,
+      depth,
+      oDepth == null ? undefined : oDepth - depth
+    );
+    if (fsw.closed) {
+      watcher.close();
+      return;
+    }
+    return () => {
+      seen.clear();
+      watcher.close();
+    };
+  }
+
+  /**
+   * Emit add/addDir for (and track) everything inside a dir watched recursively.
+   * Used for the initial scan and for directories that appear with contents
+   * already inside (e.g. moved in), which the OS watcher reports as one event.
+   * @param baseDepth depth of `dir` relative to the user-supplied path
+   * @param maxDepth remaining readdirp depth budget; undefined means unlimited
+   */
+  _recursiveScan(
+    dir: string,
+    initialAdd: boolean,
+    wh: WatchHelper,
+    baseDepth: number,
+    maxDepth: number | undefined
+  ): Promise<void> {
+    const fsw = this.fsw;
+    return new Promise((resolve) => {
+      const stream = fsw._readdirp(dir, {
+        fileFilter: (entry: EntryInfo) => wh.filterPath(entry),
+        // never descend into symlinked dirs: readdirp classifies them as
+        // directories, but they are still offered to fileFilter afterwards
+        // (type: 'all'), so the data handler below delegates them
+        directoryFilter: (entry: EntryInfo) =>
+          !entry.stats?.isSymbolicLink() && wh.filterDir(entry),
+        depth: maxDepth,
+      });
+      if (!stream) return resolve();
+      stream
+        .on(STR_DATA, (entry: EntryInfo) => {
+          if (fsw.closed) return;
+          const path = sp.join(dir, entry.path);
+          const item = sp.basename(path);
+          const stats = entry.stats!;
+          if (stats.isSymbolicLink()) {
+            // symlinks keep using the per-directory machinery
+            this._handleSymlink(entry, sp.dirname(path), path, item).then((handled) => {
+              if (handled || fsw.closed) return;
+              fsw._incrReadyCount();
+              const entryDepth = baseDepth + entry.path.split(/[/\\]/).length;
+              this._addToNodeFs(path, initialAdd, wh, entryDepth);
+            });
+            return;
+          }
+          const parent = fsw._getWatchedDir(sp.dirname(path));
+          if (parent.has(item)) return; // a raw event won the race
+          parent.add(item);
+          const isDir = stats.isDirectory();
+          if (isDir) fsw._getWatchedDir(path);
+          if (initialAdd && fsw.options.ignoreInitial) return;
+          fsw._emit(isDir ? EV.ADD_DIR : EV.ADD, path, stats);
+        })
+        .on(EV.ERROR, this._boundHandleError)
+        .once(STR_END, resolve)
+        .once(STR_CLOSE, resolve);
+    });
+  }
+
+  /**
+   * Normalize one raw event from a recursive fs.watch instance.
+   */
+  async _handleRecursiveEvent(
+    root: string,
+    wh: WatchHelper,
+    seen: Map<Path, RecursiveSeenEntry>,
+    rawEvent: WatchEventType,
+    evPath: string | null,
+    retried?: boolean
+  ): Promise<void> {
+    const fsw = this.fsw;
+    if (fsw.closed) return;
+    if (!retried) fsw._emitRaw(rawEvent, evPath!, { watchedPath: root });
+    if (!evPath) return;
+    const path = sp.join(root, evPath);
+    const oDepth = fsw.options.depth;
+    // number of path segments from root; matches the `depth` passed around
+    // by _handleRead/_addToNodeFs in the per-directory implementation
+    const parts = evPath.split(/[/\\]/);
+    const depth = parts.length;
+    if (oDepth != null && depth > oDepth + 1) return;
+    if (fsw._isIgnored(path)) return;
+    // in per-directory mode an ignored dir is never watched, so its contents
+    // never emit events; emulate that by checking every ancestor dir
+    let ancestor = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      ancestor = sp.join(ancestor, parts[i]);
+      if (fsw._isIgnored(ancestor)) return;
+    }
+
+    const parentPath = sp.dirname(path);
+    const item = sp.basename(path);
+    let stats: Stats;
+    try {
+      stats = await lstat(path);
+    } catch (error) {
+      // path is gone: emit unlink(s) if it was tracked
+      seen.delete(path);
+      if (fsw.closed) return;
+      if (!fsw._getWatchedDir(parentPath).has(item)) return;
+      // a tracked symlink may be atomically replaced (unlink + re-link);
+      // re-check briefly later before emitting unlink, like the throttled
+      // rescan of the per-directory implementation does implicitly
+      if (!retried && fsw._symlinkPaths.has(sp.resolve(path))) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if (fsw.closed) return;
+        return this._handleRecursiveEvent(root, wh, seen, rawEvent, evPath, true);
+      }
+      fsw._remove(parentPath, item);
+      return;
+    }
+    if (fsw.closed) return;
+    if (fsw._isIgnored(path, stats)) return;
+
+    if (stats.isSymbolicLink()) {
+      if (fsw.options.followSymlinks) {
+        // delegate to the per-directory machinery, once per link path
+        const full = sp.resolve(path);
+        if (!fsw._symlinkPaths.has(full)) {
+          fsw._symlinkPaths.set(full, true);
+          fsw._incrReadyCount();
+          this._addToNodeFs(path, false, wh, depth);
+        }
+        return;
+      }
+      // followSymlinks: false — fall through and treat the link itself like
+      // a file: a replaced link has a new inode and mtime, which emits change
+      fsw._symlinkPaths.set(sp.resolve(path), true);
+    }
+
+    const parent = fsw._getWatchedDir(parentPath);
+    if (stats.isDirectory()) {
+      if (parent.has(item)) return; // events for dir contents arrive separately
+      parent.add(item);
+      fsw._getWatchedDir(path);
+      fsw._emit(EV.ADD_DIR, path, stats);
+      // pick up entries that existed before the event was reported
+      // (e.g. a directory moved in with contents)
+      if (oDepth == null || depth <= oDepth) {
+        await this._recursiveScan(
+          path,
+          false,
+          wh,
+          depth,
+          oDepth == null ? undefined : oDepth - depth
+        );
+      }
+      return;
+    }
+
+    const prev = seen.get(path);
+    if (!parent.has(item)) {
+      seen.set(path, { mtimeMs: stats.mtimeMs, size: stats.size, addedAt: Date.now() });
+      parent.add(item);
+      fsw._emit(EV.ADD, path, stats);
+      return;
+    }
+    // a create is reported as a rename + change event pair; suppress the
+    // trailing change, like the per-directory implementation does implicitly
+    // (a file's own watcher only attaches after its add is emitted)
+    const justAdded = prev != null && prev.addedAt != null && Date.now() - prev.addedAt < 50;
+    const changed = !prev || prev.mtimeMs !== stats.mtimeMs || prev.size !== stats.size;
+    seen.set(path, {
+      mtimeMs: stats.mtimeMs,
+      size: stats.size,
+      addedAt: justAdded ? prev.addedAt : undefined,
+    });
+    if (changed && !justAdded) fsw._emit(EV.CHANGE, path, stats);
+  }
+
+  /**
    * Handle added file, directory, or glob pattern.
    * Delegates call to _handleFile / _handleDir after checks.
    * @param path to file or ir
@@ -709,15 +946,12 @@ export class NodeFsHandler {
         const absPath = sp.resolve(path);
         const targetPath = follow ? await fsrealpath(path) : path;
         if (this.fsw.closed) return;
-        closer = await this._handleDir(
-          wh.watchPath,
-          stats,
-          initialAdd,
-          depth,
-          target,
-          wh,
-          targetPath
-        );
+        const opts = this.fsw.options;
+        const recursive =
+          opts.useRecursiveWatch && !opts.usePolling && !target && canUseRecursiveWatch;
+        closer = recursive
+          ? await this._handleDirRecursive(wh.watchPath, stats, initialAdd, depth, wh, targetPath)
+          : await this._handleDir(wh.watchPath, stats, initialAdd, depth, target, wh, targetPath);
         if (this.fsw.closed) return;
         // preserve this symlink's target path
         if (absPath !== targetPath && targetPath !== undefined) {
