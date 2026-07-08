@@ -44,7 +44,7 @@ type BasicOpts = {
 
 export type Throttler = {
   timeoutObject: NodeJS.Timeout;
-  clear: () => void;
+  clear: (invokeRelease?: boolean) => number;
   count: number;
 };
 
@@ -605,6 +605,12 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     const args: EmitArgs | EmitErrorArgs = [path];
     if (stats != null) args.push(stats);
 
+    if (event === EV.UNLINK) {
+      // Cancel queued trailing `change` callbacks so `change` is never emitted after `unlink`.
+      const changeThrottler = this._throttled.get(EV.CHANGE)?.get(path) as Throttler | undefined;
+      changeThrottler?.clear(false);
+    }
+
     const awf = opts.awaitWriteFinish;
     let pw;
     if (awf && (pw = this._pendingWrites.get(path))) {
@@ -655,8 +661,11 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     }
 
     if (event === EV.CHANGE) {
-      const isThrottled = !this._throttle(EV.CHANGE, path, 50);
-      if (isThrottled) return this;
+      const isThrottled = this._throttle(EV.CHANGE, path, 50, (suppressedCount) => {
+        // Ensure at least one trailing change event when updates were suppressed.
+        if (suppressedCount > 0) void this._emit(EV.CHANGE, path);
+      });
+      if (!isThrottled) return this;
     }
 
     if (
@@ -704,7 +713,12 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * @param timeout duration of time to suppress duplicate actions
    * @returns tracking object or false if action should be suppressed
    */
-  _throttle(actionType: ThrottleType, path: Path, timeout: number): Throttler | false {
+  _throttle(
+    actionType: ThrottleType,
+    path: Path,
+    timeout: number,
+    onRelease?: (suppressedCount: number) => void
+  ): Throttler | false {
     if (!this._throttled.has(actionType)) {
       this._throttled.set(actionType, new Map());
     }
@@ -720,12 +734,13 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     // eslint-disable-next-line prefer-const
     let timeoutObject: NodeJS.Timeout;
-    const clear = () => {
+    const clear = (invokeRelease = true) => {
       const item = action.get(path);
       const count = item ? item.count : 0;
       action.delete(path);
       clearTimeout(timeoutObject);
       if (item) clearTimeout(item.timeoutObject);
+      if (invokeRelease && onRelease) onRelease(count);
       return count;
     };
     timeoutObject = setTimeout(clear, timeout);
