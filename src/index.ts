@@ -327,6 +327,11 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   _streams: Set<ReaddirpStream>;
   _symlinkPaths: Map<Path, string | boolean>;
   _watched: Map<string, DirEntry>;
+  // Absolute paths of directories we've committed to reading recursively.
+  // A directory that is only shallow-watched to detect a specific child
+  // (a `target` add for a non-existent nested path) is intentionally absent,
+  // so a recursive scan of an overlapping parent still descends into it (#1470).
+  _scannedDirs: Set<string>;
 
   _pendingWrites: Map<string, any>;
   _pendingUnlinks: Map<string, EmitArgsWithName>;
@@ -351,6 +356,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     this._streams = new Set();
     this._symlinkPaths = new Map();
     this._watched = new Map();
+    this._scannedDirs = new Set();
 
     this._pendingWrites = new Map();
     this._pendingUnlinks = new Map();
@@ -915,6 +921,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     // or a bogus entry to a file, in either case we have to remove it
     this._watched.delete(path);
     this._watched.delete(fullPath);
+    this._scannedDirs.delete(fullPath);
     const eventName: EventName = isDirectory ? EV.UNLINK_DIR : EV.UNLINK;
     if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
 
