@@ -891,6 +891,22 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(calledWith(spy, [EV.ADD_DIR, testDir]));
       ok(calledWith(spy, [EV.ADD, testPath]));
     });
+    it('should keep watching the subtree when also watching a non-existent deeply-nested path (#1470)', async () => {
+      const srcDir = dpath('a/b/c/src');
+      const file = dpath('a/b/c/src/counter.js');
+      // `a/b/c/public` is nested >=2 levels under the watched root and is never created.
+      const missingDir = dpath('a/b/c/public');
+      await mkdir(srcDir, { recursive: true });
+      await write(file, 'export const n = 1\n');
+
+      const watcher = cwatch([currentDir, missingDir], options);
+      const spy = await aspy(watcher, EV.CHANGE);
+
+      await delay();
+      await write(file, 'export const n = 2\n');
+      await waitFor([spy]);
+      ok(calledWith(spy, [file]));
+    });
   });
   describe('not watch glob patterns', () => {
     it('should not confuse glob-like filenames with globs', async () => {

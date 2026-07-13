@@ -575,11 +575,25 @@ export class NodeFsHandler {
         // Files that present in current directory snapshot
         // but absent in previous are added to watch list and
         // emit `add` event.
-        if (item === target || (!target && !previous.has(item))) {
+        //
+        // For subdirectories, "already handled" is tracked via `_scannedDirs`
+        // rather than `previous.has(item)`: a directory can be present in
+        // `previous` because it was only shallow-watched to detect a specific
+        // child (a `target` add for a non-existent nested path) without ever
+        // being read. Relying on `previous.has` there would make this recursive
+        // scan skip it and silently leave its subtree unwatched (#1470).
+        const childAbsPath = sp.resolve(directory, item);
+        const isDir = entry.stats.isDirectory();
+        const alreadyHandled = isDir ? this.fsw._scannedDirs.has(childAbsPath) : previous.has(item);
+        if (item === target || (!target && !alreadyHandled)) {
           this.fsw._incrReadyCount();
 
           // ensure relativeness of path is preserved in case of watcher reuse
           path = sp.join(dir, sp.relative(dir, path));
+
+          // Mark the directory as being read recursively before descending, so
+          // a concurrent scan of the same tree won't descend into it again.
+          if (isDir) this.fsw._scannedDirs.add(childAbsPath);
 
           this._addToNodeFs(path, initialAdd, wh, depth + 1);
         }
