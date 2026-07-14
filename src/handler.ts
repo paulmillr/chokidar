@@ -651,17 +651,36 @@ export class NodeFsHandler {
 
     const oDepth = this.fsw.options.depth;
     if ((oDepth == null || depth <= oDepth) && !this.fsw._symlinkPaths.has(realpath)) {
-      if (!target) {
-        await this._handleRead(dir, initialAdd, wh, target, dir, depth, throttler);
-        if (this.fsw.closed) return;
-      }
-
+      // Register the fs watcher BEFORE running the initial readdirp scan.
+      //
+      // Previously the scan (`_handleRead`) ran to completion and only then was
+      // the watcher attached. That left a window in which a file created inside
+      // `dir` while the scan was in progress was reported by neither side: the
+      // scan had already listed the directory contents (before the file
+      // existed) and the watcher was not attached yet, so the `add` event was
+      // silently lost (#1471 — a regression of the same race fixed in #1112).
+      //
+      // Attaching the watcher first means any creation during the scan fires the
+      // watcher, which re-reads the directory. The `previous`/`current` diff in
+      // `_handleRead` dedupes against entries the initial scan already emitted,
+      // so files reported by the scan do not produce a duplicate `add`.
       closer = this._watchWithNodeFs(dir, (dirPath, stats) => {
         // if current directory is removed, do nothing
         if (stats && stats.mtimeMs === 0) return;
 
         this._handleRead(dirPath, false, wh, target, dir, depth, throttler);
       });
+
+      if (!target) {
+        await this._handleRead(dir, initialAdd, wh, target, dir, depth, throttler);
+        if (this.fsw.closed) {
+          // The watcher was attached before the scan; if we were closed during
+          // the scan its closer will not be registered, so release it here to
+          // avoid leaking the underlying fs_watch handle.
+          if (closer) closer();
+          return;
+        }
+      }
     }
     return closer;
   }

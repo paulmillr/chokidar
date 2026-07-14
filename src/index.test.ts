@@ -559,6 +559,45 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(spy.calls[0][1]); // stats
       ok(rawSpy.called);
     });
+    it('should notice a file created in a new directory during its scan (#1471)', async () => {
+      const testDir = dpath('subdir');
+      const testPath = dpath('subdir/add.txt');
+      const spy = createSpy<EmitArgs, void>(function addSpy() {});
+      watcher.on(EV.ADD, spy);
+      equal(spy.called, false);
+
+      // Deterministically widen the race window from #1471. When the freshly
+      // added `subdir` is scanned, let the real scan of the (still empty) dir
+      // run, then create a file inside it *before* returning - i.e. inside the
+      // gap where the fs watcher used to be attached only after the scan had
+      // finished. If the watcher is attached after the scan (the bug), the fs
+      // event for this creation has no listener and the scan already listed the
+      // dir as empty, so the `add` is lost forever.
+      const handler = (watcher as unknown as { _nodeFsHandler: any })._nodeFsHandler;
+      const origHandleRead = handler._handleRead.bind(handler);
+      let injected = false;
+      handler._handleRead = (...args: any[]) => {
+        const directory = args[0];
+        const target = args[3];
+        if (!injected && !target && sp.basename(directory) === 'subdir') {
+          injected = true;
+          return (async () => {
+            const res = await origHandleRead(...args);
+            await write(testPath, time());
+            await delay(200);
+            return res;
+          })();
+        }
+        return origHandleRead(...args);
+      };
+
+      await mkdir(testDir);
+      await waitFor([spy]);
+      ok(injected); // ensure the widened window actually exercised the fix
+      equal(spy.callCount, 1); // exactly one `add`, no duplicates
+      ok(calledWith(spy, [testPath]));
+      ok(spy.calls[0][1]); // stats
+    });
     it('should watch removed and re-added directories', async () => {
       const unlinkSpy = createSpy<EmitArgs, void>(function unlinkSpy() {});
       const addSpy = createSpy<EmitArgs, void>(function addSpy() {});
