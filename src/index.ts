@@ -490,7 +490,12 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     ).then((results) => {
       if (this.closed) return;
       results.forEach((item) => {
-        if (item) this.add(sp.dirname(item), sp.basename(_origAdd || item));
+        if (!item) return;
+        const parent = sp.dirname(item);
+        // if the parent is itself, its probably `.` or similar, so skip it
+        // to avoid infinite recursion
+        if (parent === item) return;
+        this.add(parent, sp.basename(_origAdd || item));
       });
     });
 
