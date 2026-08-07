@@ -361,16 +361,16 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     const DEF_AWF = { stabilityThreshold: 2000, pollInterval: 100 };
     const opts: FSWInstanceOptions = {
       // Defaults
-      persistent: true,
-      ignoreInitial: false,
-      ignorePermissionErrors: false,
-      interval: 100,
-      binaryInterval: 300,
-      followSymlinks: true,
-      usePolling: false,
-      // useAsync: false,
-      atomic: true, // NOTE: overwritten later (depends on usePolling)
       ..._opts,
+      persistent: _opts.persistent ?? true,
+      ignoreInitial: _opts.ignoreInitial ?? false,
+      ignorePermissionErrors: _opts.ignorePermissionErrors ?? false,
+      interval: _opts.interval ?? 100,
+      binaryInterval: _opts.binaryInterval ?? 300,
+      followSymlinks: _opts.followSymlinks ?? true,
+      usePolling: _opts.usePolling ?? false,
+      // useAsync: _opts.useAsync ?? false,
+      atomic: _opts.atomic ?? true, // NOTE: overwritten later (depends on usePolling)
       // Change format
       ignored: _opts.ignored ? arrify(_opts.ignored) : arrify([]),
       awaitWriteFinish:
