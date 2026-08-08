@@ -588,6 +588,13 @@ export class NodeFsHandler {
 
     return new Promise((resolve, reject) => {
       if (!stream) return reject();
+      // A stream destroyed by an error never emits `end`, and neither does one
+      // abandoned after the watcher was closed. `close` always follows, so settle
+      // there too: leaving this pending stalls _handleDir and the ready counter.
+      stream.once(STR_CLOSE, () => {
+        stream = undefined;
+        resolve(undefined);
+      });
       stream.once(STR_END, () => {
         if (this.fsw.closed) {
           stream = undefined;

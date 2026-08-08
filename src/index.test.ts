@@ -1123,6 +1123,16 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await waitForWatcher(watcher);
       equal(readySpy.callCount, 1);
     });
+    it('should emit ready event when a symlink target path passes through a file', async () => {
+      options.followSymlinks = false;
+      // Resolving this link fails with ENOTDIR rather than the ENOENT of a
+      // dangling one, because its target path descends into a regular file.
+      await symlink(dpath('subdir/add.txt/nope'), dpath('subdir/notdir'));
+      const readySpy = createSpy(function readySpy() {});
+      const watcher = cwatch(dpath('subdir'), options).on(EV.READY, readySpy);
+      await waitForWatcher(watcher);
+      equal(readySpy.callCount, 1);
+    });
   });
   describe('watch arrays of paths/globs', () => {
     it('should watch all paths in an array', async () => {
