@@ -1,299 +1,109 @@
 /*! chokidar - MIT License (c) 2012 Paul Miller (paulmillr.com) */
-import type { Stats } from 'node:fs';
 import { EventEmitter } from 'node:events';
-import { stat as statcb } from 'node:fs';
-import { readdir, stat } from 'node:fs/promises';
+import { realpathSync, type Stats } from 'node:fs';
+import { readdir } from 'node:fs/promises';
 import * as sp from 'node:path';
-import { type EntryInfo, readdirp, type ReaddirpOptions, ReaddirpStream } from 'readdirp';
+import { readdirp, type ReaddirpOptions, ReaddirpStream } from 'readdirp';
+import { selectBackend } from './backend.js';
+import { EventPolicy } from './policy.js';
+import { ObservationEngine } from './reconcile.js';
 import {
-  EMPTY_FN,
+  type ChokidarOptions,
+  cloneOwnedMatcher,
+  compileMatchers,
+  type EmitArgs,
   EVENTS as EV,
   type EventName,
+  type FSWInstanceOptions,
   isIBMi,
+  isMatcherObject,
+  isMissingError,
+  isPermissionError,
+  isSameOrInside,
+  isStrictlyInside,
   isWindows,
-  NodeFsHandler,
+  logicalPathKey,
+  type Matcher,
+  type MatchFunction,
+  normalizeMatcher,
+  normalizePath,
   type Path,
-  STR_CLOSE,
-  STR_END,
+  type Scheduler,
+  systemScheduler,
+  type WatchBackend,
   type WatchHandlers,
-} from './handler.js';
+  WatchHelper,
+} from './runtime.js';
+import { LifecycleScope, ReconciliationQueue, TreeState, type WatcherContext } from './tree.js';
 
-export type AWF = {
-  stabilityThreshold: number;
-  pollInterval: number;
-};
+export type {
+  AWF,
+  BackendStrategy,
+  ChokidarOptions,
+  EmitArgs,
+  EmitArgsWithName,
+  EmitErrorArgs,
+  FSWInstanceOptions,
+  Matcher,
+  MatcherObject,
+  MatchFunction,
+  Scheduler,
+  SchedulerTimer,
+  Throttler,
+  ThrottleType,
+  WatchBackend
+} from './runtime.js';
 
-type BasicOpts = {
-  persistent: boolean;
-  ignoreInitial: boolean;
-  followSymlinks: boolean;
-  cwd?: string;
-  // Polling
-  usePolling: boolean;
-  interval: number;
-  binaryInterval: number; // Used only for pooling and if different from interval
-
-  alwaysStat?: boolean;
-  depth?: number;
-  ignorePermissionErrors: boolean;
-  atomic: boolean | number; // or a custom 'atomicity delay', in milliseconds (default 100)
-  // useAsync?: boolean; // Use async for stat/readlink methods
-
-  // ioLimit?: number; // Limit parallel IO operations (CPU usage + OS limits)
-};
-
-export type Throttler = {
-  timeoutObject: NodeJS.Timeout;
-  clear: () => void;
-  count: number;
-};
-
-export type ChokidarOptions = Partial<
-  BasicOpts & {
-    ignored: Matcher | Matcher[];
-    awaitWriteFinish: boolean | Partial<AWF>;
-  }
->;
-
-export type FSWInstanceOptions = BasicOpts & {
-  ignored: Matcher[]; // string | fn ->
-  awaitWriteFinish: false | AWF;
-};
-
-export type ThrottleType = 'readdir' | 'watch' | 'add' | 'remove' | 'change';
-export type EmitArgs = [path: Path, stats?: Stats];
-export type EmitErrorArgs = [error: Error, stats?: Stats];
-export type EmitArgsWithName = [event: EventName, ...EmitArgs];
-export type MatchFunction = (val: string, stats?: Stats) => boolean;
-export interface MatcherObject {
-  path: string;
-  recursive?: boolean;
-}
-export type Matcher = string | RegExp | MatchFunction | MatcherObject;
-
-const SLASH = '/';
-const SLASH_SLASH = '//';
-const ONE_DOT = '.';
-const TWO_DOTS = '..';
-const STRING_TYPE = 'string';
-const BACK_SLASH_RE = /\\/g;
-const DOUBLE_SLASH_RE = /\/\//g;
 const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
-const REPLACER_RE = /^\.[/\\]/;
+const WATCH_BACKENDS = new Set<WatchBackend>(['auto', 'native', 'native-recursive', 'polling']);
 
 function arrify<T>(item: T | T[]): T[] {
   return Array.isArray(item) ? item : [item];
 }
 
-const isMatcherObject = (matcher: Matcher): matcher is MatcherObject =>
-  typeof matcher === 'object' && matcher !== null && !(matcher instanceof RegExp);
-
-function createPattern(matcher: Matcher): MatchFunction {
-  if (typeof matcher === 'function') return matcher;
-  if (typeof matcher === 'string') return (string) => matcher === string;
-  if (matcher instanceof RegExp) return (string) => matcher.test(string);
-  if (typeof matcher === 'object' && matcher !== null) {
-    return (string) => {
-      if (matcher.path === string) return true;
-      if (matcher.recursive) {
-        const relative = sp.relative(matcher.path, string);
-        if (!relative) {
-          return false;
-        }
-        return !relative.startsWith('..') && !sp.isAbsolute(relative);
-      }
-      return false;
-    };
-  }
-  return () => false;
-}
-
-function normalizePath(path: Path): Path {
-  if (typeof path !== 'string') throw new Error('string expected');
-  path = sp.normalize(path);
-  path = path.replace(/\\/g, '/');
-  let prepend = false;
-  if (path.startsWith('//')) prepend = true;
-  path = path.replace(DOUBLE_SLASH_RE, '/');
-  if (prepend) path = '/' + path;
-  return path;
-}
-
-function matchPatterns(patterns: MatchFunction[], testString: string, stats?: Stats): boolean {
-  const path = normalizePath(testString);
-
-  for (let index = 0; index < patterns.length; index++) {
-    const pattern = patterns[index];
-    if (pattern(path, stats)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function anymatch(matchers: Matcher[], testString: undefined): MatchFunction;
-function anymatch(matchers: Matcher[], testString: string): boolean;
-function anymatch(matchers: Matcher[], testString: string | undefined): boolean | MatchFunction {
-  if (matchers == null) {
-    throw new TypeError('anymatch: specify first argument');
-  }
-
-  // Early cache for matchers.
-  const matchersArray = arrify(matchers);
-  const patterns = matchersArray.map((matcher) => createPattern(matcher));
-
-  if (testString == null) {
-    return (testString: string, stats?: Stats): boolean => {
-      return matchPatterns(patterns, testString, stats);
-    };
-  }
-
-  return matchPatterns(patterns, testString);
-}
-
-const unifyPaths = (paths_: Path | Path[]) => {
+function unifyPaths(paths_: Path | Path[]) {
   const paths = arrify(paths_).flat();
-  if (!paths.every((p) => typeof p === STRING_TYPE)) {
+  if (!paths.every((p) => typeof p === 'string')) {
     throw new TypeError(`Non-string provided as watch path: ${paths}`);
   }
-  return paths.map(normalizePathToUnix);
-};
+  return paths.map(normalizePath);
+}
 
-// If SLASH_SLASH occurs at the beginning of path, it is not replaced
-//     because "//StoragePC/DrivePool/Movies" is a valid network path
-const toUnix = (string: string) => {
-  let str = string.replace(BACK_SLASH_RE, SLASH);
-  let prepend = false;
-  if (str.startsWith(SLASH_SLASH)) {
-    prepend = true;
-  }
-  str = str.replace(DOUBLE_SLASH_RE, SLASH);
-  if (prepend) {
-    str = SLASH + str;
-  }
-  return str;
-};
-
-// Our version of upath.normalize
-// TODO: this is not equal to path-normalize module - investigate why
-const normalizePathToUnix = (path: Path) => toUnix(sp.normalize(toUnix(path)));
-
-// TODO: refactor
-const normalizeIgnored =
-  (cwd = '') =>
-  (path: Matcher): Matcher => {
-    if (typeof path === 'string') {
-      return normalizePathToUnix(sp.isAbsolute(path) ? path : sp.join(cwd, path));
-    } else {
-      return path;
-    }
-  };
-
-const getAbsolutePath = (path: Path, cwd: Path) => {
+function getAbsolutePath(path: Path, cwd: Path) {
   if (sp.isAbsolute(path)) {
     return path;
   }
   return sp.join(cwd, path);
-};
+}
 
-const EMPTY_SET = Object.freeze(new Set<string>());
-/**
- * Directory entry.
- */
-class DirEntry {
-  path: Path;
-  _removeWatcher: (dir: string, base: string) => void;
-  items: Set<Path>;
-
-  constructor(dir: Path, removeWatcher: (dir: string, base: string) => void) {
-    this.path = dir;
-    this._removeWatcher = removeWatcher;
-    this.items = new Set<Path>();
-  }
-
-  add(item: string): void {
-    const { items } = this;
-    if (!items) return;
-    if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
-  }
-
-  async remove(item: string): Promise<void> {
-    const { items } = this;
-    if (!items) return;
-    items.delete(item);
-    if (items.size > 0) return;
-
-    const dir = this.path;
-    try {
-      await readdir(dir);
-    } catch (err) {
-      if (this._removeWatcher) {
-        this._removeWatcher(sp.dirname(dir), sp.basename(dir));
-      }
-    }
-  }
-
-  has(item: string): boolean | undefined {
-    const { items } = this;
-    if (!items) return;
-    return items.has(item);
-  }
-
-  getChildren(): string[] {
-    const { items } = this;
-    if (!items) return [];
-    return [...items.values()];
-  }
-
-  dispose(): void {
-    this.items.clear();
-    this.path = '';
-    this._removeWatcher = EMPTY_FN;
-    this.items = EMPTY_SET;
-    Object.freeze(this);
+function validatePositiveFinite(name: string, value: number): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new TypeError(`${name} must be a finite number greater than zero`);
   }
 }
 
-const STAT_METHOD_F = 'stat';
-const STAT_METHOD_L = 'lstat';
-export class WatchHelper {
-  fsw: FSWatcher;
-  path: string;
-  watchPath: string;
-  fullWatchPath: string;
-  dirParts: string[][];
-  followSymlinks: boolean;
-  statMethod: 'stat' | 'lstat';
-
-  constructor(path: string, follow: boolean, fsw: FSWatcher) {
-    this.fsw = fsw;
-    const watchPath = path;
-    this.path = path = path.replace(REPLACER_RE, '');
-    this.watchPath = watchPath;
-    this.fullWatchPath = sp.resolve(watchPath);
-    this.dirParts = [];
-    this.dirParts.forEach((parts) => {
-      if (parts.length > 1) parts.pop();
-    });
-    this.followSymlinks = follow;
-    this.statMethod = follow ? STAT_METHOD_F : STAT_METHOD_L;
+function validateNonNegativeFinite(name: string, value: number): void {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new TypeError(`${name} must be a finite non-negative number`);
   }
+}
 
-  entryPath(entry: EntryInfo): Path {
-    return sp.join(this.watchPath, sp.relative(this.watchPath, entry.fullPath));
+function validateOptions(opts: FSWInstanceOptions): void {
+  validatePositiveFinite('pollingInterval', opts.pollingInterval);
+  validatePositiveFinite('pollingBinaryInterval', opts.pollingBinaryInterval);
+  if (typeof opts.atomic === 'number') validateNonNegativeFinite('atomic', opts.atomic);
+  else if (typeof opts.atomic !== 'boolean') {
+    throw new TypeError('atomic must be a boolean or finite non-negative number');
   }
-
-  filterPath(entry: EntryInfo): boolean {
-    const { stats } = entry;
-    if (stats && stats.isSymbolicLink()) return this.filterDir(entry);
-    const resolvedPath = this.entryPath(entry);
-    // TODO: what if stats is undefined? remove !
-    return this.fsw._isntIgnored(resolvedPath, stats) && this.fsw._hasReadPermissions(stats!);
+  if (opts.depth !== undefined && (!Number.isSafeInteger(opts.depth) || opts.depth < 0)) {
+    throw new TypeError('depth must be a non-negative safe integer');
   }
-
-  filterDir(entry: EntryInfo): boolean {
-    return this.fsw._isntIgnored(this.entryPath(entry), entry.stats);
+  if (opts.awaitWriteFinish) {
+    validatePositiveFinite('awaitWriteFinish.pollInterval', opts.awaitWriteFinish.pollInterval);
+    validateNonNegativeFinite(
+      'awaitWriteFinish.stabilityThreshold',
+      opts.awaitWriteFinish.stabilityThreshold
+    );
   }
 }
 
@@ -318,106 +128,152 @@ export interface FSWatcherEventMap {
  *       .on('add', path => log('File', path, 'was added'))
  */
 export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
-  closed: boolean;
   options: FSWInstanceOptions;
+  private lifecycle: LifecycleScope;
+  private tree: TreeState;
+  private reconciliation: ReconciliationQueue;
+  private events: EventPolicy;
 
-  _closers: Map<string, Array<any>>;
-  _ignoredPaths: Set<Matcher>;
-  _throttled: Map<ThrottleType, Map<any, any>>;
-  _streams: Set<ReaddirpStream>;
-  _symlinkPaths: Map<Path, string | boolean>;
-  _watched: Map<string, DirEntry>;
+  get closed(): boolean {
+    return this.lifecycle !== undefined && this.lifecycle.state !== 'OPEN';
+  }
 
-  _pendingWrites: Map<string, any>;
-  _pendingUnlinks: Map<string, EmitArgsWithName>;
-  _readyCount: number;
-  _emitReady: () => void;
-  _closePromise?: Promise<void>;
-  _userIgnored?: MatchFunction;
-  _readyEmitted: boolean;
-  _emitRaw: WatchHandlers['rawEmitter'];
-  _boundRemove: (dir: string, item: string) => void;
+  private ignoredPaths: Set<Matcher>;
+  private streams: Set<ReaddirpStream>;
 
-  _nodeFsHandler: NodeFsHandler;
+  private pendingAdds: Map<string, symbol>;
+  private pathMutation: number;
+  private pathBarriers: Map<string, number>;
+  private closePromise?: Promise<void>;
+  private userIgnored?: MatchFunction;
+  private unwatchIgnored?: MatchFunction;
+  private readyEmitted: boolean;
+  private readyPending: boolean;
+  private readyScheduled: boolean;
+  private emitRaw: WatchHandlers['rawEmitter'];
+  private handler: ObservationEngine;
+  private scheduler: Scheduler;
 
   // Not indenting methods for history sake; for now.
-  constructor(_opts: ChokidarOptions = {}) {
+  constructor(_opts: ChokidarOptions = {}, scheduler: Scheduler = systemScheduler) {
     super();
-    this.closed = false;
 
-    this._closers = new Map();
-    this._ignoredPaths = new Set<Matcher>();
-    this._throttled = new Map();
-    this._streams = new Set();
-    this._symlinkPaths = new Map();
-    this._watched = new Map();
+    if (_opts.backend !== undefined && !WATCH_BACKENDS.has(_opts.backend)) {
+      throw new TypeError('backend must be auto, native, native-recursive, or polling');
+    }
 
-    this._pendingWrites = new Map();
-    this._pendingUnlinks = new Map();
-    this._readyCount = 0;
-    this._readyEmitted = false;
+    this.ignoredPaths = new Set<Matcher>();
+    this.streams = new Set();
 
+    this.pendingAdds = new Map();
+    this.pathMutation = 0;
+    this.pathBarriers = new Map();
+    this.readyEmitted = false;
+    this.readyPending = false;
+    this.readyScheduled = false;
+    this.scheduler = scheduler;
     const awf = _opts.awaitWriteFinish;
     const DEF_AWF = { stabilityThreshold: 2000, pollInterval: 100 };
     const opts: FSWInstanceOptions = {
+      ..._opts,
       // Defaults
-      persistent: true,
-      ignoreInitial: false,
-      ignorePermissionErrors: false,
+      persistent: _opts.persistent ?? true,
+      ignoreInitial: _opts.ignoreInitial ?? false,
+      ignorePermissionErrors: _opts.ignorePermissionErrors ?? false,
+      pollingInterval: _opts.pollingInterval ?? _opts.interval ?? 100,
+      pollingBinaryInterval: _opts.pollingBinaryInterval ?? _opts.binaryInterval ?? 300,
       interval: 100,
       binaryInterval: 300,
-      followSymlinks: true,
-      usePolling: false,
+      followSymlinks: _opts.followSymlinks ?? true,
+      backend: _opts.backend ?? 'auto',
+      usePolling: _opts.usePolling ?? false,
+      // `undefined` already means unlimited traversal. Preserve the common
+      // `depth: Infinity` spelling without forcing the per-directory backend.
+      depth: _opts.depth === Number.POSITIVE_INFINITY ? undefined : _opts.depth,
+      backendStrategy: 'native-per-directory',
+      backendCapabilities: undefined as never,
       // useAsync: false,
-      atomic: true, // NOTE: overwritten later (depends on usePolling)
-      ..._opts,
+      atomic: _opts.atomic ?? true,
       // Change format
-      ignored: _opts.ignored ? arrify(_opts.ignored) : arrify([]),
+      ignored: Object.freeze(_opts.ignored ? arrify(_opts.ignored).map(cloneOwnedMatcher) : []),
       awaitWriteFinish:
-        awf === true ? DEF_AWF : typeof awf === 'object' ? { ...DEF_AWF, ...awf } : false,
+        awf === true
+          ? Object.freeze({ ...DEF_AWF })
+          : typeof awf === 'object'
+            ? Object.freeze({ ...DEF_AWF, ...awf })
+            : false,
     };
 
     // Always default to polling on IBM i because fs.watch() is not available on IBM i.
-    if (isIBMi) opts.usePolling = true;
-    // Editor atomic write normalization enabled by default with fs.watch
-    if (opts.atomic === undefined) opts.atomic = !opts.usePolling;
-    // opts.atomic = typeof _opts.atomic === 'number' ? _opts.atomic : 100;
+    if (_opts.usePolling === true || isIBMi) opts.backend = 'polling';
     // Global override. Useful for developers, who need to force polling for all
     // instances of chokidar, regardless of usage / dependency depth
     const envPoll = process.env.CHOKIDAR_USEPOLLING;
     if (envPoll !== undefined) {
       const envLower = envPoll.toLowerCase();
-      if (envLower === 'false' || envLower === '0') opts.usePolling = false;
-      else if (envLower === 'true' || envLower === '1') opts.usePolling = true;
-      else opts.usePolling = !!envLower;
+      const envPolling =
+        envLower === 'false' || envLower === '0'
+          ? false
+          : envLower === 'true' || envLower === '1'
+            ? true
+            : !!envLower;
+      if (envPolling) opts.backend = 'polling';
+      else if (opts.backend === 'polling') opts.backend = 'auto';
     }
     const envInterval = process.env.CHOKIDAR_INTERVAL;
-    if (envInterval) opts.interval = Number.parseInt(envInterval, 10);
-    // This is done to emit ready only once, but each 'add' will increase that?
-    let readyCalls = 0;
-    this._emitReady = () => {
-      readyCalls++;
-      if (readyCalls >= this._readyCount) {
-        this._emitReady = EMPTY_FN;
-        this._readyEmitted = true;
-        // use process.nextTick to allow time for listener to be bound
-        process.nextTick(() => this.emit(EV.READY));
-      }
+    if (envInterval !== undefined) opts.pollingInterval = Number(envInterval);
+    // Preserve resolved values for callers that still read the deprecated fields.
+    opts.interval = opts.pollingInterval;
+    opts.binaryInterval = opts.pollingBinaryInterval;
+    opts.usePolling = opts.backend === 'polling';
+    opts.backendCapabilities = selectBackend(opts);
+    opts.backendStrategy = opts.backendCapabilities.kind;
+    // Editor atomic write normalization is enabled by default only with fs.watch.
+    // Inspect the raw option so the merged default cannot hide an implicit choice.
+    if (_opts.atomic === undefined) opts.atomic = !opts.usePolling;
+    validateOptions(opts);
+    this.emitRaw = (...args) => {
+      if (!this.closed) this.emit(EV.RAW, ...args);
     };
-    this._emitRaw = (...args) => this.emit(EV.RAW, ...args);
-
-    this._boundRemove = this._remove.bind(this);
 
     this.options = opts;
-    this._nodeFsHandler = new NodeFsHandler(this);
+    this.lifecycle = new LifecycleScope(
+      () => {
+        if (this.readyPending) this.queueReady();
+      },
+      (error) => {
+        if (!this.closed)
+          this.handleError(error instanceof Error ? error : new Error(String(error)));
+      }
+    );
+    this.tree = new TreeState(() => !this.options.backendCapabilities.polling);
+    this.reconciliation = new ReconciliationQueue(this.lifecycle);
+    this.events = new EventPolicy({
+      options: this.options,
+      scheduler: this.scheduler,
+      lifecycle: this.lifecycle,
+      isClosed: () => this.closed,
+      capturePathGeneration: () => this.capturePathGeneration(),
+      isPathGenerationActive: (path, generation) => this.isPathGenerationActive(path, generation),
+      isReady: () => this.readyEmitted,
+      remove: (directory, item) => this.removePath(directory, item),
+      handleError: (error) => this.handleError(error),
+      publish: (event, args) => this.emitWithAll(event, args as EmitArgs),
+    });
+    void this.emitRaw;
+    void this.createHelper;
+    void this.addPathCloser;
+    void this.createScanStream;
+    this.handler = new ObservationEngine(this as unknown as WatcherContext);
     // You’re frozen when your heart’s not open.
     Object.freeze(opts);
   }
 
-  _addIgnoredPath(matcher: Matcher): void {
+  private addIgnoredPath(matcher: Matcher): void {
+    matcher = this.ignoredMatcher(matcher);
     if (isMatcherObject(matcher)) {
       // return early if we already have a deeply equal matcher object
-      for (const ignored of this._ignoredPaths) {
+      for (const ignored of this.ignoredPaths) {
         if (
           isMatcherObject(ignored) &&
           ignored.path === matcher.path &&
@@ -428,35 +284,80 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       }
     }
 
-    this._ignoredPaths.add(matcher);
+    this.ignoredPaths.add(matcher);
+    this.unwatchIgnored = undefined;
   }
 
-  _removeIgnoredPath(matcher: Matcher): void {
-    this._ignoredPaths.delete(matcher);
+  private removeIgnoredPath(matcher: Matcher): void {
+    matcher = this.ignoredMatcher(matcher);
+    this.ignoredPaths.delete(matcher);
 
     // now find any matcher objects with the matcher as path
     if (typeof matcher === 'string') {
-      for (const ignored of this._ignoredPaths) {
+      for (const ignored of this.ignoredPaths) {
         // TODO (43081j): make this more efficient.
         // probably just make a `this._ignoredDirectories` or some
         // such thing.
         if (isMatcherObject(ignored) && ignored.path === matcher) {
-          this._ignoredPaths.delete(ignored);
+          this.ignoredPaths.delete(ignored);
         }
       }
     }
+    this.unwatchIgnored = undefined;
+  }
+
+  private ignoredMatcher(matcher: Matcher): Matcher {
+    if (typeof matcher === 'string') return logicalPathKey(matcher);
+    if (isMatcherObject(matcher)) {
+      return { path: logicalPathKey(matcher.path), recursive: matcher.recursive };
+    }
+    return matcher;
+  }
+
+  private capturePathGeneration(): number {
+    return this.pathMutation;
+  }
+
+  private invalidatePath(path: Path): void {
+    this.pathBarriers.set(logicalPathKey(path), ++this.pathMutation);
+  }
+
+  private isPathGenerationActive(path: Path, generation: number): boolean {
+    if (this.lifecycle.state !== 'OPEN') return false;
+    if (this.pathBarriers.size === 0) return true;
+    const logicalKey = logicalPathKey(path);
+    for (const [barrier, barrierGeneration] of this.pathBarriers) {
+      if (barrierGeneration <= generation) continue;
+      if (isSameOrInside(barrier, logicalKey)) return false;
+    }
+    return true;
+  }
+
+  private queueReady(): void {
+    if (this.closed || this.readyEmitted) return;
+    this.readyPending = true;
+    if (this.lifecycle.tasks.size > 0 || this.readyScheduled) return;
+    this.readyScheduled = true;
+    process.nextTick(() => {
+      this.readyScheduled = false;
+      if (this.closed || this.readyEmitted || this.lifecycle.tasks.size > 0) return;
+      this.readyPending = false;
+      this.readyEmitted = true;
+      this.emit(EV.READY);
+    });
   }
 
   // Public methods
 
   /**
    * Adds paths to be watched on an existing FSWatcher instance.
-   * @param paths_ file or file list. Other arguments are unused
+   * @param paths_ file or file list
    */
-  add(paths_: Path | Path[], _origAdd?: string, _internal?: boolean): FSWatcher {
+  add(paths_: Path | Path[]): FSWatcher {
+    if (this.closed) {
+      throw new Error('Cannot add paths after FSWatcher.close() has been called');
+    }
     const { cwd } = this.options;
-    this.closed = false;
-    this._closePromise = undefined;
     let paths = unifyPaths(paths_);
     if (cwd) {
       paths = paths.map((path) => {
@@ -468,31 +369,26 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     }
 
     paths.forEach((path) => {
-      this._removeIgnoredPath(path);
+      this.removeIgnoredPath(path);
     });
 
-    this._userIgnored = undefined;
-
-    if (!this._readyCount) this._readyCount = 0;
-    this._readyCount += paths.length;
-    Promise.all(
+    if (!this.readyEmitted) this.readyPending = true;
+    const addTask = Promise.all(
       paths.map(async (path) => {
-        const res = await this._nodeFsHandler._addToNodeFs(
-          path,
-          !_internal,
-          undefined,
-          0,
-          _origAdd
-        );
-        if (res) this._emitReady();
-        return res;
+        const key = logicalPathKey(path);
+        if (this.lifecycle.closers.has(key) || this.pendingAdds.has(key)) return;
+        const pendingToken = Symbol(key);
+        const pathGeneration = this.capturePathGeneration();
+        this.pendingAdds.set(key, pendingToken);
+        try {
+          await this.handler.addRoot(path, true, pathGeneration);
+        } finally {
+          if (this.pendingAdds.get(key) === pendingToken) this.pendingAdds.delete(key);
+        }
       })
-    ).then((results) => {
-      if (this.closed) return;
-      results.forEach((item) => {
-        if (item) this.add(sp.dirname(item), sp.basename(_origAdd || item));
-      });
-    });
+    );
+    this.lifecycle.track(addTask);
+    if (!this.readyEmitted) this.queueReady();
 
     return this;
   }
@@ -502,29 +398,28 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    */
   unwatch(paths_: Path | Path[]): FSWatcher {
     if (this.closed) return this;
-    const paths = unifyPaths(paths_);
+    let paths = unifyPaths(paths_);
     const { cwd } = this.options;
+    if (cwd) paths = paths.map((path) => getAbsolutePath(path, cwd));
 
     paths.forEach((path) => {
-      // convert to absolute path unless relative path already matches
-      if (!sp.isAbsolute(path) && !this._closers.has(path)) {
-        if (cwd) path = sp.join(cwd, path);
-        path = sp.resolve(path);
-      }
+      const key = logicalPathKey(path);
+      const isDirectory = this.tree.watched.has(key);
 
-      this._closePath(path);
+      this.invalidatePath(key);
+      this.pendingAdds.delete(key);
+      this.events.cancelPath(key);
+      this.closePath(key, isDirectory);
 
-      this._addIgnoredPath(path);
-      if (this._watched.has(path)) {
-        this._addIgnoredPath({
-          path,
+      this.addIgnoredPath(key);
+      if (isDirectory) {
+        this.addIgnoredPath({
+          path: key,
           recursive: true,
         });
       }
 
-      // reset the cached userIgnored anymatch fn
-      // to make ignoredPaths changes effective
-      this._userIgnored = undefined;
+      this.unwatchIgnored = undefined;
     });
 
     return this;
@@ -534,36 +429,34 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * Close watchers and remove all listeners from watched paths.
    */
   close(): Promise<void> {
-    if (this._closePromise) {
-      return this._closePromise;
+    if (this.closePromise) {
+      return this.closePromise;
     }
-    this.closed = true;
+    const closers = this.lifecycle.beginClose();
 
     // Memory management.
     this.removeAllListeners();
-    const closers: Array<Promise<void>> = [];
-    this._closers.forEach((closerList) =>
-      closerList.forEach((closer) => {
-        const promise = closer();
-        if (promise instanceof Promise) closers.push(promise);
-      })
-    );
-    this._streams.forEach((stream) => stream.destroy());
-    this._userIgnored = undefined;
-    this._readyCount = 0;
-    this._readyEmitted = false;
-    this._watched.forEach((dirent) => dirent.dispose());
+    this.events.close();
+    this.pendingAdds.clear();
+    this.streams.forEach((stream) => stream.destroy());
+    this.userIgnored = undefined;
+    this.unwatchIgnored = undefined;
+    this.readyEmitted = false;
+    this.tree.dispose();
+    this.pathBarriers.clear();
+    this.streams.clear();
+    this.reconciliation.clear();
 
-    this._closers.clear();
-    this._watched.clear();
-    this._streams.clear();
-    this._symlinkPaths.clear();
-    this._throttled.clear();
-
-    this._closePromise = closers.length
-      ? Promise.all(closers).then(() => undefined)
-      : Promise.resolve();
-    return this._closePromise;
+    this.closePromise = (async () => {
+      const closerResults = await Promise.allSettled(closers);
+      await this.lifecycle.drain();
+      this.lifecycle.finishClose();
+      const failed = closerResults.find(
+        (result): result is PromiseRejectedResult => result.status === 'rejected'
+      );
+      if (failed) throw failed.reason;
+    })();
+    return this.closePromise;
   }
 
   /**
@@ -572,15 +465,16 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    */
   getWatched(): Record<string, string[]> {
     const watchList: Record<string, string[]> = {};
-    this._watched.forEach((entry, dir) => {
+    this.tree.watched.forEach((entry) => {
+      const dir = entry.path;
       const key = this.options.cwd ? sp.relative(this.options.cwd, dir) : dir;
-      const index = key || ONE_DOT;
+      const index = key || '.';
       watchList[index] = entry.getChildren().sort();
     });
     return watchList;
   }
 
-  emitWithAll(event: EventName, args: EmitArgs): void {
+  private emitWithAll(event: EventName, args: EmitArgs): void {
     this.emit(event, ...args);
     if (event !== EV.ERROR) this.emit(EV.ALL, event, ...args);
   }
@@ -590,271 +484,114 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
   /**
    * Normalize and emit events.
-   * Calling _emit DOES NOT MEAN emit() would be called!
+   * Calling emitEvent DOES NOT MEAN emit() would be called!
    * @param event Type of event
    * @param path File or directory path
    * @param stats arguments to be passed with event
-   * @returns the error if defined, otherwise the value of the FSWatcher instance's `closed` flag
    */
-  async _emit(event: EventName, path: Path, stats?: Stats): Promise<this | undefined> {
+  private async emitEvent(event: EventName, path: Path, stats?: Stats): Promise<void> {
     if (this.closed) return;
+    await this.events.emit(event, path, stats);
+  }
 
-    const opts = this.options;
-    if (isWindows) path = sp.normalize(path);
-    if (opts.cwd) path = sp.relative(opts.cwd, path);
-    const args: EmitArgs | EmitErrorArgs = [path];
-    if (stats != null) args.push(stats);
-
-    const awf = opts.awaitWriteFinish;
-    let pw;
-    if (awf && (pw = this._pendingWrites.get(path))) {
-      pw.lastChange = new Date();
-      return this;
-    }
-
-    if (opts.atomic) {
-      if (event === EV.UNLINK) {
-        this._pendingUnlinks.set(path, [event, ...args]);
-        setTimeout(
-          () => {
-            this._pendingUnlinks.forEach((entry: EmitArgsWithName, path: Path) => {
-              this.emit(...entry);
-              this.emit(EV.ALL, ...entry);
-              this._pendingUnlinks.delete(path);
-            });
-          },
-          typeof opts.atomic === 'number' ? opts.atomic : 100
-        );
-        return this;
-      }
-      if (event === EV.ADD && this._pendingUnlinks.has(path)) {
-        event = EV.CHANGE;
-        this._pendingUnlinks.delete(path);
-      }
-    }
-
-    if (awf && (event === EV.ADD || event === EV.CHANGE) && this._readyEmitted) {
-      const awfEmit = (err?: Error, stats?: Stats) => {
-        if (err) {
-          event = EV.ERROR;
-          (args as unknown as EmitErrorArgs)[0] = err;
-          this.emitWithAll(event, args);
-        } else if (stats) {
-          // if stats doesn't exist the file must have been deleted
-          if (args.length > 1) {
-            args[1] = stats;
-          } else {
-            args.push(stats);
-          }
-          this.emitWithAll(event, args);
-        }
-      };
-
-      this._awaitWriteFinish(path, awf.stabilityThreshold, event, awfEmit);
-      return this;
-    }
-
-    if (event === EV.CHANGE) {
-      const isThrottled = !this._throttle(EV.CHANGE, path, 50);
-      if (isThrottled) return this;
-    }
-
+  /** Common handler for backend and reconciliation failures. */
+  private handleError(error: unknown): void {
+    if (this.closed) return;
+    const normalized = error instanceof Error ? error : new Error(String(error));
     if (
-      opts.alwaysStat &&
-      stats === undefined &&
-      (event === EV.ADD || event === EV.ADD_DIR || event === EV.CHANGE)
+      !isMissingError(normalized) &&
+      (!this.options.ignorePermissionErrors || !isPermissionError(normalized))
     ) {
-      const fullPath = opts.cwd ? sp.join(opts.cwd, path) : path;
-      let stats;
-      try {
-        stats = await stat(fullPath);
-      } catch (err) {
-        // do nothing
-      }
-      // Suppress event when fs_stat fails, to avoid sending undefined 'stat'
-      if (!stats || this.closed) return;
-      args.push(stats);
-    }
-    this.emitWithAll(event, args);
-
-    return this;
-  }
-
-  /**
-   * Common handler for errors
-   * @returns The error if defined, otherwise the value of the FSWatcher instance's `closed` flag
-   */
-  _handleError(error: Error): Error | boolean {
-    const code = error && (error as Error & { code: string }).code;
-    if (
-      error &&
-      code !== 'ENOENT' &&
-      code !== 'ENOTDIR' &&
-      (!this.options.ignorePermissionErrors || (code !== 'EPERM' && code !== 'EACCES'))
-    ) {
-      this.emit(EV.ERROR, error);
-    }
-    return error || this.closed;
-  }
-
-  /**
-   * Helper utility for throttling
-   * @param actionType type being throttled
-   * @param path being acted upon
-   * @param timeout duration of time to suppress duplicate actions
-   * @returns tracking object or false if action should be suppressed
-   */
-  _throttle(actionType: ThrottleType, path: Path, timeout: number): Throttler | false {
-    if (!this._throttled.has(actionType)) {
-      this._throttled.set(actionType, new Map());
-    }
-
-    const action = this._throttled.get(actionType);
-    if (!action) throw new Error('invalid throttle');
-    const actionPath = action.get(path);
-
-    if (actionPath) {
-      actionPath.count++;
-      return false;
-    }
-
-    // eslint-disable-next-line prefer-const
-    let timeoutObject: NodeJS.Timeout;
-    const clear = () => {
-      const item = action.get(path);
-      const count = item ? item.count : 0;
-      action.delete(path);
-      clearTimeout(timeoutObject);
-      if (item) clearTimeout(item.timeoutObject);
-      return count;
-    };
-    timeoutObject = setTimeout(clear, timeout);
-    const thr = { timeoutObject, clear, count: 0 };
-    action.set(path, thr);
-    return thr;
-  }
-
-  _incrReadyCount(): number {
-    return this._readyCount++;
-  }
-
-  /**
-   * Awaits write operation to finish.
-   * Polls a newly created file for size variations. When files size does not change for 'threshold' milliseconds calls callback.
-   * @param path being acted upon
-   * @param threshold Time in milliseconds a file size must be fixed before acknowledging write OP is finished
-   * @param event
-   * @param awfEmit Callback to be called when ready for event to be emitted.
-   */
-  _awaitWriteFinish(
-    path: Path,
-    threshold: number,
-    event: EventName,
-    awfEmit: (err?: Error, stat?: Stats) => void
-  ): void {
-    const awf = this.options.awaitWriteFinish;
-    if (typeof awf !== 'object') return;
-    const pollInterval = awf.pollInterval as unknown as number;
-    let timeoutHandler: NodeJS.Timeout;
-
-    let fullPath = path;
-    if (this.options.cwd && !sp.isAbsolute(path)) {
-      fullPath = sp.join(this.options.cwd, path);
-    }
-
-    const now = new Date();
-
-    const writes = this._pendingWrites;
-    function awaitWriteFinishFn(prevStat?: Stats): void {
-      statcb(fullPath, (err, curStat) => {
-        if (err || !writes.has(path)) {
-          if (err && err.code !== 'ENOENT') awfEmit(err);
-          return;
-        }
-
-        const now = Number(new Date());
-
-        if (prevStat && curStat.size !== prevStat.size) {
-          writes.get(path).lastChange = now;
-        }
-        const pw = writes.get(path);
-        const df = now - pw.lastChange;
-
-        if (df >= threshold) {
-          writes.delete(path);
-          awfEmit(undefined, curStat);
-        } else {
-          timeoutHandler = setTimeout(awaitWriteFinishFn, pollInterval, curStat);
-        }
-      });
-    }
-
-    if (!writes.has(path)) {
-      writes.set(path, {
-        lastChange: now,
-        cancelWait: () => {
-          writes.delete(path);
-          clearTimeout(timeoutHandler);
-          return event;
-        },
-      });
-      timeoutHandler = setTimeout(awaitWriteFinishFn, pollInterval);
+      this.emit(EV.ERROR, normalized);
     }
   }
 
   /**
    * Determines whether user has asked to ignore this path.
    */
-  _isIgnored(path: Path, stats?: Stats): boolean {
+  private isIgnored(path: Path, stats?: Stats): boolean {
     if (this.options.atomic && DOT_RE.test(path)) return true;
-    if (!this._userIgnored) {
+    if (!this.userIgnored) {
       const { cwd } = this.options;
       const ign = this.options.ignored;
 
-      const ignored = (ign || []).map(normalizeIgnored(cwd));
-      const ignoredPaths = [...this._ignoredPaths];
-      const list: Matcher[] = [...ignoredPaths.map(normalizeIgnored(cwd)), ...ignored];
-      this._userIgnored = anymatch(list, undefined);
+      const ignored = (ign || []).map((matcher) => normalizeMatcher(matcher, cwd));
+      const direct = compileMatchers(ignored);
+      const pathMatchers = ignored.filter(
+        (matcher) => typeof matcher === 'string' || isMatcherObject(matcher)
+      );
+      const canonical = compileMatchers(pathMatchers);
+      const pathAliases = new Map<string, string>();
+      this.userIgnored = (candidate, candidateStats) => {
+        if (direct(candidate, candidateStats)) return true;
+        if (isWindows || pathMatchers.length === 0) return false;
+
+        const absoluteCandidate = sp.resolve(candidate);
+        for (const [alias, realPath] of pathAliases) {
+          const relative = sp.relative(alias, absoluteCandidate);
+          if (isSameOrInside(alias, absoluteCandidate)) {
+            return canonical(sp.join(realPath, relative), candidateStats);
+          }
+        }
+        try {
+          // macOS commonly exposes /var through the /private/var symlink. Cache
+          // the root projection so descendants avoid a realpath syscall each.
+          const realPath = realpathSync.native(absoluteCandidate);
+          pathAliases.set(absoluteCandidate, realPath);
+          return realPath !== absoluteCandidate && canonical(realPath, candidateStats);
+        } catch {
+          return false;
+        }
+      };
+    }
+    if (this.userIgnored(path, stats)) return true;
+    if (this.ignoredPaths.size === 0) return false;
+    if (!this.unwatchIgnored) {
+      this.unwatchIgnored = compileMatchers([...this.ignoredPaths]);
     }
 
-    return this._userIgnored(path, stats);
+    return this.unwatchIgnored(logicalPathKey(path), stats);
   }
 
-  _isntIgnored(path: Path, stat?: Stats): boolean {
-    return !this._isIgnored(path, stat);
+  private isUnwatched(path: Path): boolean {
+    if (this.ignoredPaths.size === 0) return false;
+    if (!this.unwatchIgnored) {
+      this.unwatchIgnored = compileMatchers([...this.ignoredPaths]);
+    }
+    return this.unwatchIgnored(logicalPathKey(path));
   }
 
   /**
    * Provides a set of common helpers and properties relating to symlink handling.
    * @param path file or directory pattern being watched
    */
-  _getWatchHelpers(path: Path): WatchHelper {
-    return new WatchHelper(path, this.options.followSymlinks, this);
+  private createHelper(path: Path): WatchHelper {
+    return new WatchHelper(path, this.options.followSymlinks, {
+      capturePathGeneration: () => this.capturePathGeneration(),
+      isntIgnored: (candidate, stats) => !this.isIgnored(candidate, stats),
+    });
   }
 
-  // Directory helpers
-  // -----------------
-
-  /**
-   * Provides directory tracking objects
-   * @param directory path of the directory
-   */
-  _getWatchedDir(directory: string): DirEntry {
-    const dir = sp.resolve(directory);
-    if (!this._watched.has(dir)) this._watched.set(dir, new DirEntry(dir, this._boundRemove));
-    return this._watched.get(dir)!;
+  private removeTreeItem(directory: string, item: string): void {
+    const entry = this.tree.getDirectory(directory);
+    if (!entry.remove(item)) return;
+    const path = entry.path;
+    const generation = this.lifecycle.generation;
+    this.lifecycle.track(
+      (async () => {
+        try {
+          await readdir(path);
+        } catch {
+          if (this.lifecycle.isActive(generation)) {
+            this.removePath(sp.dirname(path), sp.basename(path));
+          }
+        }
+      })()
+    );
   }
 
   // File helpers
   // ------------
-
-  /**
-   * Check for read permissions: https://stackoverflow.com/a/11781404/1358405
-   */
-  _hasReadPermissions(stats: Stats): boolean {
-    if (this.options.ignorePermissionErrors) return true;
-    return Boolean(Number(stats.mode) & 0o400);
-  }
 
   /**
    * Handles emitting unlink events for
@@ -863,110 +600,144 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * @param directory within which the following item is located
    * @param item      base path of item/directory
    */
-  _remove(directory: string, item: string, isDirectory?: boolean): void {
+  private removePath(directory: string, item: string, isDirectory?: boolean): void {
     // if what is being deleted is a directory, get that directory's paths
     // for recursive deleting and cleaning of watched object
     // if it is not a directory, nestedDirectoryChildren will be empty array
     const path = sp.join(directory, item);
-    const fullPath = sp.resolve(path);
-    isDirectory =
-      isDirectory != null ? isDirectory : this._watched.has(path) || this._watched.has(fullPath);
+    const logicalKey = logicalPathKey(path);
+    isDirectory = isDirectory != null ? isDirectory : this.tree.watched.has(logicalKey);
 
     // prevent duplicate handling in case of arriving here nearly simultaneously
-    // via multiple paths (such as _handleFile and _handleDir)
-    if (!this._throttle('remove', path, 100)) return;
+    // via multiple paths (such as handleFile and handleDirectory)
+    if (!this.events.throttle('remove', path, 100)) return;
 
     // if the only watched file is removed, watch for its return
-    if (!isDirectory && this._watched.size === 1) {
-      this.add(directory, item, true);
+    if (!isDirectory && this.tree.watched.size === 1) {
+      this.lifecycle.track(
+        this.handler.addRoot(directory, false, this.capturePathGeneration(), item)
+      );
     }
 
     // This will create a new entry in the watched object in either case
     // so we got to do the directory check beforehand
-    const wp = this._getWatchedDir(path);
+    const wp = this.tree.getDirectory(path);
     const nestedDirectoryChildren = wp.getChildren();
 
     // Recursively remove children directories / files.
-    nestedDirectoryChildren.forEach((nested) => this._remove(path, nested));
+    nestedDirectoryChildren.forEach((nested) => this.removePath(path, nested));
 
     // Check if item was on the watched list and remove it
-    const parent = this._getWatchedDir(directory);
+    const parent = this.tree.getDirectory(directory);
     const wasTracked = parent.has(item);
-    parent.remove(item);
+    this.removeTreeItem(directory, item);
 
     // Fixes issue #1042 -> Relative paths were detected and added as symlinks
     // (https://github.com/paulmillr/chokidar/blob/e1753ddbc9571bdc33b4a4af172d52cb6e611c10/lib/nodefs-handler.js#L612),
     // but never removed from the map in case the path was deleted.
     // This leads to an incorrect state if the path was recreated:
     // https://github.com/paulmillr/chokidar/blob/e1753ddbc9571bdc33b4a4af172d52cb6e611c10/lib/nodefs-handler.js#L553
-    if (this._symlinkPaths.has(fullPath)) {
-      this._symlinkPaths.delete(fullPath);
+    if (this.tree.symlinkPaths.has(logicalKey)) {
+      this.tree.symlinkPaths.delete(logicalKey);
     }
 
     // If we wait for this file to be fully written, cancel the wait.
-    let relPath = path;
-    if (this.options.cwd) relPath = sp.relative(this.options.cwd, path);
-    if (this.options.awaitWriteFinish && this._pendingWrites.has(relPath)) {
-      const event = this._pendingWrites.get(relPath).cancelWait();
-      if (event === EV.ADD) return;
+    const pendingWrite = this.events.pendingWrites.get(logicalKey);
+    let suppressEvent = false;
+    if (this.options.awaitWriteFinish && pendingWrite) {
+      const event = pendingWrite.cancelWait();
+      suppressEvent = event === EV.ADD;
     }
 
     // The Entry will either be a directory that just got removed
     // or a bogus entry to a file, in either case we have to remove it
-    this._watched.delete(path);
-    this._watched.delete(fullPath);
+    this.tree.watched.delete(logicalKey);
+    this.tree.observed.delete(logicalKey);
     const eventName: EventName = isDirectory ? EV.UNLINK_DIR : EV.UNLINK;
-    if (wasTracked && !this._isIgnored(path)) this._emit(eventName, path);
+    if (wasTracked && !suppressEvent && !this.isIgnored(path)) this.emitEvent(eventName, path);
 
     // Avoid conflicts if we later create another file with the same name
-    this._closePath(path);
+    this.closePath(path);
   }
 
   /**
    * Closes all watchers for a path
    */
-  _closePath(path: Path): void {
-    this._closeFile(path);
-    const dir = sp.dirname(path);
-    this._getWatchedDir(dir).remove(sp.basename(path));
+  private closePath(path: Path, recursive = false): void {
+    const logicalKey = logicalPathKey(path);
+    const contains = (candidate: string): boolean => {
+      if (candidate === logicalKey) return true;
+      if (!recursive) return false;
+      return isStrictlyInside(logicalKey, candidate);
+    };
+
+    [...this.lifecycle.closers.keys()].filter(contains).forEach((key) => this.closeFile(key));
+    if (recursive) {
+      [...this.tree.watched.entries()].forEach(([key, entry]) => {
+        if (!contains(key)) return;
+        entry.dispose();
+        this.tree.watched.delete(key);
+      });
+      [...this.tree.observed.keys()]
+        .filter(contains)
+        .forEach((key) => this.tree.observed.delete(key));
+      [...this.tree.symlinkPaths.keys()]
+        .filter(contains)
+        .forEach((key) => this.tree.symlinkPaths.delete(key));
+      this.events.cancelWhere(contains);
+      this.reconciliation.forgetPending(
+        (scope, candidate) => contains(scope) || contains(candidate)
+      );
+      [...this.pendingAdds.keys()].filter(contains).forEach((key) => this.pendingAdds.delete(key));
+    }
+    const dir = sp.dirname(logicalKey);
+    this.removeTreeItem(dir, sp.basename(logicalKey));
   }
 
   /**
    * Closes only file-specific watchers
    */
-  _closeFile(path: Path): void {
-    const key = sp.normalize(path);
-    const closers = this._closers.get(key);
-    if (!closers) return;
-    closers.forEach((closer) => closer());
-    this._closers.delete(key);
-  }
-
-  _addPathCloser(path: Path, closer: () => void): void {
-    if (!closer) return;
-    const key = sp.normalize(path);
-    let list = this._closers.get(key);
-    if (!list) {
-      list = [];
-      this._closers.set(key, list);
-    }
-    list.push(closer);
-  }
-
-  _readdirp(root: Path, opts?: Partial<ReaddirpOptions>): ReaddirpStream | undefined {
-    if (this.closed) return;
-    const options = { type: EV.ALL, alwaysStat: true, lstat: true, ...opts, depth: 0 };
-    let stream: ReaddirpStream | undefined = readdirp(root, options);
-    this._streams.add(stream);
-    stream.once(STR_CLOSE, () => {
-      stream = undefined;
-    });
-    stream.once(STR_END, () => {
-      if (stream) {
-        this._streams.delete(stream);
-        stream = undefined;
+  private closeFile(path: Path): void {
+    const key = logicalPathKey(path);
+    const closers = this.lifecycle.takeClosers(key);
+    if (closers.length === 0) return;
+    closers.forEach((closer) => {
+      try {
+        const result = closer();
+        if (result instanceof Promise) this.lifecycle.track(result);
+      } catch (error) {
+        this.lifecycle.track(Promise.reject(error));
       }
     });
+  }
+
+  private addPathCloser(path: Path, closer: () => void | Promise<void>): void {
+    if (!closer) return;
+    if (this.closed || this.isUnwatched(path)) {
+      try {
+        const result = closer();
+        if (result instanceof Promise) this.lifecycle.track(result);
+      } catch (error) {
+        this.lifecycle.track(Promise.reject(error));
+      }
+      return;
+    }
+    const key = logicalPathKey(path);
+    this.lifecycle.addCloser(key, closer);
+  }
+
+  private createScanStream(
+    root: Path,
+    opts?: Partial<ReaddirpOptions>
+  ): ReaddirpStream | undefined {
+    if (this.closed) return;
+    const options = { type: EV.ALL, alwaysStat: true, lstat: true, depth: 0, ...opts };
+    const stream = readdirp(root, options);
+    this.streams.add(stream);
+    const finalize = () => this.streams.delete(stream);
+    stream.once('close', finalize);
+    stream.once('end', finalize);
+    stream.once(EV.ERROR, finalize);
     return stream;
   }
 }
