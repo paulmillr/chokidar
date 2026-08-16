@@ -48,7 +48,6 @@
   "license": "MIT",
   "scripts": {
     "build": "tsc",
-    "lint": "prettier --check src benchmark scripts .github/funding.yml .github/workflows package.json README.md",
     "format": "prettier --write src benchmark scripts .github/funding.yml .github/workflows package.json README.md",
     "test": "node index.test.js",
     "benchmark": "node benchmark/bench.mjs",

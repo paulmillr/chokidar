@@ -51,7 +51,7 @@ export type {
   SchedulerTimer,
   Throttler,
   ThrottleType,
-  WatchBackend
+  WatchBackend,
 } from './runtime.js';
 
 const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
