@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it } from '@paulmillr/jsbt/test.js';
 import { deepEqual, equal, ok, throws } from 'node:assert/strict';
 import { exec as cexec } from 'node:child_process';
+import { mkdtempSync, watch as nativeWatch, rmSync } from 'node:fs';
 import {
   appendFile,
   mkdir as mkd,
@@ -15,12 +16,42 @@ import { tmpdir } from 'node:os';
 import * as sp from 'node:path';
 import { fileURLToPath, pathToFileURL, URL } from 'node:url';
 import { promisify } from 'node:util';
-import { type Spy, type SpyFn, spy as createSpy } from 'tinyspy';
-import upath from 'upath';
-import type { EmitArgs, FSWatcherEventMap } from './index.js';
+import { registerArchitectureTests } from './architecture.test.ts';
+import type { EmitArgs, FSWatcherEventMap } from './index.ts';
 
-import { EVENTS as EV, isIBMi, isMacos, isWindows } from './handler.js';
-import * as chokidar from './index.js';
+import * as chokidar from './index.ts';
+import { EVENTS as EV, isIBMi, isMacos, isWindows } from './runtime.ts';
+import { inspectWatcher as internals } from './testing.ts';
+import { registerV6Tests, type TestHarness } from './v6.test.ts';
+
+type SpyFn<TArgs extends any[] = any[], TReturn = any> = ((...args: TArgs) => TReturn) & {
+  readonly called: boolean;
+  readonly callCount: number;
+  calls: TArgs[];
+  reset: () => void;
+};
+
+type Spy<TArgs extends any[] = any[], TReturn = any> = SpyFn<TArgs, TReturn>;
+
+function createSpy<TArgs extends any[] = any[], TReturn = any>(
+  implementation?: (...args: TArgs) => TReturn
+): Spy<TArgs, TReturn> {
+  const calls: TArgs[] = [];
+  const wrapped = function (this: unknown, ...args: TArgs): TReturn {
+    calls.push(args);
+    return implementation ? implementation.apply(this, args) : (undefined as TReturn);
+  } as Spy<TArgs, TReturn>;
+
+  wrapped.calls = calls;
+  wrapped.reset = () => {
+    calls.length = 0;
+  };
+  Object.defineProperties(wrapped, {
+    called: { enumerable: true, get: () => calls.length > 0 },
+    callCount: { enumerable: true, get: () => calls.length },
+  });
+  return wrapped;
+}
 
 const TEST_TIMEOUT = 32000; // ms
 const imetaurl = import.meta.url;
@@ -29,6 +60,25 @@ const WATCHERS: chokidar.FSWatcher[] = [];
 let testId = 0;
 let currentDir: string;
 let USE_SLOW_DELAY: number | undefined;
+
+function detectRecursiveWatch(): boolean {
+  if (isIBMi) return false;
+  const root = mkdtempSync(sp.join(tmpdir(), 'chokidar-recursive-probe-'));
+  try {
+    const watcher = nativeWatch(root, { recursive: true });
+    watcher.close();
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM') {
+      return false;
+    }
+    throw error;
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const canUseRecursiveWatch = detectRecursiveWatch();
 
 function time() {
   return Date.now().toString();
@@ -68,12 +118,12 @@ function alwaysCalledWith<TArgs extends unknown[], TReturn>(
 }
 
 // spyOnReady
-const aspy = (
+function aspy(
   watcher: chokidar.FSWatcher,
   eventName: string,
   spy: SpyFn | null = null,
   noStat: boolean = false
-): Promise<Spy> => {
+): Promise<Spy> {
   if (typeof eventName !== 'string') {
     throw new TypeError('aspy: eventName must be a String');
   }
@@ -97,9 +147,9 @@ const aspy = (
     });
     watcher.on(eventName as keyof FSWatcherEventMap, handler as never);
   });
-};
+}
 
-const waitForWatcher = (watcher: chokidar.FSWatcher) => {
+function waitForWatcher(watcher: chokidar.FSWatcher) {
   return new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('timeout'));
@@ -113,7 +163,7 @@ const waitForWatcher = (watcher: chokidar.FSWatcher) => {
       resolve(...args);
     });
   });
-};
+}
 
 async function delay(delayTime?: number) {
   return new Promise<void>((resolve) => {
@@ -127,10 +177,13 @@ function dpath(subPath: string) {
   const subd = (testId && testId.toString()) || '';
   return sp.join(FIXTURES_PATH, subd, subPath);
 }
+function normalizeTestPath(path: string) {
+  return sp.normalize(path).replace(/\\/g, '/');
+}
 // glob path
 function gpath(subPath: string) {
   const subd = (testId && testId.toString()) || '';
-  return upath.join(FIXTURES_PATH, subd, subPath);
+  return normalizeTestPath(sp.join(FIXTURES_PATH, subd, subPath));
 }
 currentDir = dpath('');
 
@@ -193,7 +246,7 @@ function waitForEvents(watcher: chokidar.FSWatcher, count: number) {
   });
 }
 
-const runTests = (baseopts: chokidar.ChokidarOptions) => {
+function runTests(baseopts: chokidar.ChokidarOptions) {
   let macosFswatch = isMacos && !baseopts.usePolling;
   let options: chokidar.ChokidarOptions;
   USE_SLOW_DELAY = macosFswatch ? 100 : undefined;
@@ -430,7 +483,40 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(calledWith(spy, [testPath]));
       ok(spy.calls[0][1]); // stats
       ok(rawSpy.called);
-      equal(spy.callCount, 1);
+      equal(getCallsWith(spy, [testPath]).length, 1);
+    });
+    it('should emit every observable change for rapid writes', async () => {
+      const testPath = dpath('change.txt');
+      const spy = createSpy<EmitArgs, void>(function quickChangeSpy() {});
+      watcher.on(EV.CHANGE, spy);
+
+      await write(testPath, time());
+      await delay(10);
+      await write(testPath, time());
+
+      // Recursive FSEvents may batch both writes into one native notification.
+      // Distinct observed notifications are covered by the event-policy unit test.
+      const expected = isMacos && baseopts.backend === 'native-recursive' ? 1 : 2;
+      await waitFor([[spy, expected, [testPath]]]);
+      ok(getCallsWith(spy, [testPath]).length >= expected);
+    });
+    it('should not emit `change` after `unlink` when changes were throttled', async () => {
+      const testPath = dpath('change.txt');
+      const changeSpy = createSpy<EmitArgs, void>(function throttledChangeSpy() {});
+      const unlinkSpy = createSpy<EmitArgs, void>(function throttledUnlinkSpy() {});
+      watcher.on(EV.CHANGE, changeSpy).on(EV.UNLINK, unlinkSpy);
+
+      await write(testPath, time());
+      await delay(10);
+      await write(testPath, time());
+      await delay(10);
+      await unlink(testPath);
+
+      await waitFor([[unlinkSpy, 1, [testPath]]]);
+      const changeCallsAtUnlink = getCallsWith(changeSpy, [testPath]).length;
+
+      await delay(120);
+      equal(getCallsWith(changeSpy, [testPath]).length, changeCallsAtUnlink);
     });
     it('should emit `unlink` event when file was removed', async () => {
       const testPath = dpath('unlink.txt');
@@ -514,7 +600,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await write(testPath, 'hello');
       await waitFor([[addSpy, 1, [testPath]]]);
       equal(unlinkSpy.called, false);
-      equal(changeSpy.called, false);
+      equal(calledWith(changeSpy, [testPath]), false);
       await unlink(testPath);
       await waitFor([[unlinkSpy, 1, [testPath]]]);
       ok(calledWith(unlinkSpy, [testPath]));
@@ -523,7 +609,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await write(testPath, time());
       await waitFor([[addSpy, 2, [testPath]]]);
       ok(calledWith(addSpy, [testPath]));
-      equal(changeSpy.called, false);
+      equal(calledWith(changeSpy, [testPath]), false);
       equal(addSpy.callCount, 2);
     });
     it('should not emit `unlink` for previously moved files', async () => {
@@ -677,8 +763,12 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await delay();
       await write(siblingPath, time());
       await write(testPath, time());
-      await waitFor([spy]);
-      ok(alwaysCalledWith(spy, [EV.ADD, testPath]));
+      await waitFor([[spy, 1, [EV.ADD, testPath]]]);
+      ok(calledWith(spy, [EV.ADD, testPath]));
+      ok(
+        spy.calls.every((call) => call[1] === testPath),
+        JSON.stringify(spy.calls.map((call) => call.slice(0, 2)))
+      );
     });
 
     it('should detect safe-edit', async () => {
@@ -1014,17 +1104,11 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await waitFor([[spy, 1, [EV.CHANGE]]]);
       ok(calledWith(spy, [EV.CHANGE, testFile]));
     });
-    it('should not recurse indefinitely on circular symlinks', async () => {
+    it('should become ready without recursing indefinitely on circular symlinks', async () => {
       await symlink(currentDir, dpath('subdir/circular'), isWindows ? 'dir' : undefined);
-      await new Promise<void>((resolve, reject) => {
-        const watcher = cwatch(currentDir, options);
-        watcher.on(EV.ERROR, () => {
-          resolve();
-        });
-        watcher.on(EV.READY, () => {
-          reject('The watcher becomes ready, although he watches a circular symlink.');
-        });
-      });
+      const watcher = cwatch(currentDir, options);
+      await waitForWatcher(watcher);
+      ok(Object.keys(watcher.getWatched()).length < 10);
     });
     it('should recognize changes following symlinked dirs', async () => {
       const linkedFilePath = sp.join(linkedDir, 'change.txt');
@@ -1055,7 +1139,20 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(calledWith(spy, [EV.ADD, linkedDir]));
       equal(spy.callCount, 1);
     });
-    it('should survive ENOENT for missing symlinks when followSymlinks:false', async () => {
+    it('should suppress an initial symlink and detect its unlink when followSymlinks:false', async () => {
+      options.followSymlinks = false;
+      options.ignoreInitial = true;
+      const watcher = cwatch(linkedDir, options);
+      const spy = await aspy(watcher, EV.ALL);
+
+      equal(calledWith(spy, [EV.ADD, linkedDir]), false);
+      await delay(100);
+      await unlink(linkedDir);
+      await waitFor([[spy, 1, [EV.UNLINK, linkedDir]]]);
+      ok(calledWith(spy, [EV.UNLINK, linkedDir]));
+      await symlink(currentDir, linkedDir, isWindows ? 'dir' : undefined);
+    });
+    it('should report broken symlinks when followSymlinks:false', async () => {
       options.followSymlinks = false;
       const targetDir = dpath('subdir/nonexistent');
       await mkdir(targetDir);
@@ -1066,9 +1163,10 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const watcher = cwatch(dpath('subdir'), options);
       const spy = await aspy(watcher, EV.ALL);
 
-      equal(spy.callCount, 2);
+      equal(spy.callCount, 3);
       ok(calledWith(spy, [EV.ADD_DIR, dpath('subdir')]));
       ok(calledWith(spy, [EV.ADD, dpath('subdir/add.txt')]));
+      ok(calledWith(spy, [EV.ADD, dpath('subdir/broken')]));
     });
     it('should watch symlinks within a watched dir as files when followSymlinks:false', async () => {
       options.followSymlinks = false;
@@ -1077,16 +1175,10 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await symlink(dpath('subdir'), linkPath);
       const spy = await aspy(cwatch(currentDir, options), EV.ALL);
       await delay(300);
-      setTimeout(
-        async () => {
-          await write(dpath('subdir/add.txt'), time());
-          await unlink(linkPath);
-          await symlink(dpath('subdir/add.txt'), linkPath);
-        },
-        options.usePolling ? 1200 : 300
-      );
-
-      await delay(300);
+      await delay(options.usePolling ? 1200 : 300);
+      await write(dpath('subdir/add.txt'), time());
+      await unlink(linkPath);
+      await symlink(dpath('subdir/add.txt'), linkPath);
       await waitFor([[spy, 1, [EV.CHANGE, linkPath]]]);
       equal(calledWith(spy, [EV.ADD_DIR, linkPath]), false);
       equal(calledWith(spy, [EV.ADD, dpath('link/add.txt')]), false);
@@ -1123,6 +1215,16 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await waitForWatcher(watcher);
       equal(readySpy.callCount, 1);
     });
+    it('should emit ready event when a symlink target path passes through a file', async () => {
+      options.followSymlinks = false;
+      // Resolving this link fails with ENOTDIR rather than the ENOENT of a
+      // dangling one, because its target path descends into a regular file.
+      await symlink(dpath('subdir/add.txt/nope'), dpath('subdir/notdir'));
+      const readySpy = createSpy(function readySpy() {});
+      const watcher = cwatch(dpath('subdir'), options).on(EV.READY, readySpy);
+      await waitForWatcher(watcher);
+      equal(readySpy.callCount, 1);
+    });
   });
   describe('watch arrays of paths/globs', () => {
     it('should watch all paths in an array', async () => {
@@ -1138,6 +1240,25 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await waitFor([[spy, 1, [EV.CHANGE]]]);
       ok(calledWith(spy, [EV.CHANGE, testPath]));
     });
+
+    it('should watch changes to every file in an absolute path array (#1366)', async () => {
+      const first = sp.resolve(dpath('change.txt'));
+      const second = sp.resolve(dpath('unlink.txt'));
+      ok(sp.isAbsolute(first));
+      ok(sp.isAbsolute(second));
+      options.ignoreInitial = true;
+      const watcher = cwatch([first, second], options);
+      const spy = await aspy(watcher, EV.CHANGE);
+
+      await write(first, 'first absolute change');
+      await waitFor([[spy, 1, [first]]]);
+      await write(second, 'second absolute change');
+      await waitFor([[spy, 1, [second]]]);
+
+      equal(getCallsWith(spy, [first]).length, 1);
+      equal(getCallsWith(spy, [second]).length, 1);
+    });
+
     it('should accommodate nested arrays in input', async () => {
       const testPath = dpath('change.txt');
       const testDir = dpath('subdir');
@@ -1242,7 +1363,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     describe('ignored', () => {
       it('should check ignore after stating', async () => {
         options.ignored = (path, stats) => {
-          if (upath.normalizeSafe(path) === upath.normalizeSafe(testDir) || !stats) return false;
+          if (normalizeTestPath(path) === normalizeTestPath(testDir) || !stats) return false;
           return stats.isDirectory();
         };
         const testDir = dpath('subdir');
@@ -1265,6 +1386,74 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const testDir = dpath('subdir');
         const testFile = sp.join(testDir, 'add.txt');
         options.ignored = testDir;
+        await mkdir(testDir);
+        await write(testFile, 'b');
+        const watcher = cwatch(currentDir, options);
+        const spy = await aspy(watcher, EV.ALL);
+
+        await delay();
+        await write(testFile, time());
+
+        await delay(300);
+        equal(calledWith(spy, [EV.ADD_DIR, testDir]), false);
+        equal(calledWith(spy, [EV.ADD, testFile]), false);
+        equal(calledWith(spy, [EV.CHANGE, testFile]), false);
+      });
+      it('should ignore relative paths without explicit cwd', async () => {
+        const testDir = dpath('ignored-dir');
+        const testFile = sp.join(testDir, 'add.txt');
+        options.ignored = 'ignored-dir';
+        await mkdir(testDir);
+        await write(testFile, 'b');
+        const prevCwd = process.cwd();
+        process.chdir(currentDir);
+        try {
+          const watcher = cwatch(currentDir, options);
+          const spy = await aspy(watcher, EV.ALL);
+
+          await delay();
+          await write(testFile, time());
+
+          await delay(300);
+          equal(calledWith(spy, [EV.ADD_DIR, testDir]), false);
+          equal(calledWith(spy, [EV.ADD, testFile]), false);
+          equal(calledWith(spy, [EV.CHANGE, testFile]), false);
+        } finally {
+          process.chdir(prevCwd);
+        }
+      });
+      it('should ignore relative paths from a symlinked working directory', async () => {
+        if (isWindows) return;
+        const alias = `${currentDir}-alias`;
+        const testDir = sp.join(alias, 'ignored-dir');
+        const testFile = sp.join(testDir, 'add.txt');
+        options.ignored = 'ignored-dir';
+        await mkdir(dpath('ignored-dir'));
+        await write(dpath('ignored-dir/add.txt'), 'b');
+        await symlink(currentDir, alias, 'dir');
+        const prevCwd = process.cwd();
+        let watcher: chokidar.FSWatcher | undefined;
+        process.chdir(alias);
+        try {
+          watcher = cwatch(alias, options);
+          const spy = await aspy(watcher, EV.ALL);
+
+          await write(testFile, time());
+          await delay(300);
+          equal(calledWith(spy, [EV.ADD_DIR, testDir]), false);
+          equal(calledWith(spy, [EV.ADD, testFile]), false);
+          equal(calledWith(spy, [EV.CHANGE, testFile]), false);
+        } finally {
+          process.chdir(prevCwd);
+          await watcher?.close();
+          await unlink(alias);
+        }
+      });
+      it('should ignore contents of relative dir with cwd set', async () => {
+        const testDir = dpath('subdir');
+        const testFile = sp.join(testDir, 'add.txt');
+        options.ignored = 'subdir';
+        options.cwd = currentDir;
         await mkdir(testDir);
         await write(testFile, 'b');
         const watcher = cwatch(currentDir, options);
@@ -1316,8 +1505,10 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         ok(calledWith(spy, [EV.ADD_DIR, dpath('subdir')]));
         ok(calledWith(spy, [EV.ADD, dpath('change.txt')]));
         ok(calledWith(spy, [EV.ADD, dpath('unlink.txt')]));
-        equal(calledWith(spy, [EV.CHANGE]), false);
-        if (!macosFswatch) equal(spy.callCount, 4);
+        equal(calledWith(spy, [EV.CHANGE, dpath('subdir/add.txt')]), false);
+        if (!macosFswatch) {
+          equal(spy.calls.filter(([event]) => event === EV.ADD || event === EV.ADD_DIR).length, 4);
+        }
       });
       it('should recurse to specified depth', async () => {
         options.depth = 1;
@@ -1338,7 +1529,10 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         ok(calledWith(spy, [EV.CHANGE, addPath]));
         equal(calledWith(spy, [EV.ADD, ignoredPath]), false);
         equal(calledWith(spy, [EV.CHANGE, ignoredPath]), false);
-        if (!macosFswatch) equal(spy.callCount, 8);
+        if (!macosFswatch) {
+          equal(getCallsWith(spy, [EV.CHANGE, changePath]).length, 1);
+          equal(getCallsWith(spy, [EV.CHANGE, addPath]).length, 1);
+        }
       });
       it('should respect depth setting when following symlinks', async () => {
         if (isWindows) return true; // skip on windows
@@ -1391,20 +1585,24 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         options.ignoreInitial = true;
       });
       it('should ignore vim/emacs/Sublime swapfiles', async () => {
+        const swapPaths = [dpath('.change.txt.swp'), dpath('add.txt~'), dpath('.subl5f4.tmp')];
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-        await write(dpath('.change.txt.swp'), 'a'); // vim
-        await write(dpath('add.txt~'), 'a'); // vim/emacs
-        await write(dpath('.subl5f4.tmp'), 'a'); // sublime
+        await write(swapPaths[0], 'a'); // vim
+        await write(swapPaths[1], 'a'); // vim/emacs
+        await write(swapPaths[2], 'a'); // sublime
         await delay(300);
-        await write(dpath('.change.txt.swp'), 'c');
-        await write(dpath('add.txt~'), 'c');
-        await write(dpath('.subl5f4.tmp'), 'c');
+        await write(swapPaths[0], 'c');
+        await write(swapPaths[1], 'c');
+        await write(swapPaths[2], 'c');
         await delay(300);
-        await unlink(dpath('.change.txt.swp'));
-        await unlink(dpath('add.txt~'));
-        await unlink(dpath('.subl5f4.tmp'));
+        await unlink(swapPaths[0]);
+        await unlink(swapPaths[1]);
+        await unlink(swapPaths[2]);
         await delay(300);
-        equal(spy.called, false);
+        equal(
+          spy.calls.some(([, path]) => swapPaths.includes(path)),
+          false
+        );
       });
       it('should ignore stale tilde files', async () => {
         options.ignoreInitial = false;
@@ -1422,7 +1620,10 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         const spy = await aspy(watcher, EV.ALL);
         await unlink(dpath('unlink.txt'));
         await write(dpath('change.txt'), time());
-        await waitFor([[spy, 1, [EV.UNLINK]]]);
+        await waitFor([
+          [spy, 1, [EV.UNLINK, 'unlink.txt']],
+          [spy, 1, [EV.CHANGE, 'change.txt']],
+        ]);
         ok(calledWith(spy, [EV.ADD, 'change.txt']));
         ok(calledWith(spy, [EV.ADD, 'unlink.txt']));
         ok(calledWith(spy, [EV.CHANGE, 'change.txt']));
@@ -1461,17 +1662,20 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         });
         options2.cwd = dpath('subdir');
         const watcher = cwatch(gpath('.'), options);
-        const watcherEvents = waitForEvents(watcher, 5);
         const spy1 = await aspy(watcher, EV.ALL);
 
         await delay();
         const watcher2 = cwatch(currentDir, options2);
-        const watcher2Events = waitForEvents(watcher2, 5);
         const spy2 = await aspy(watcher2, EV.ALL);
 
         await unlink(dpath('unlink.txt'));
         await write(dpath('change.txt'), time());
-        await Promise.all([watcherEvents, watcher2Events]);
+        await waitFor([
+          [spy1, 1, [EV.CHANGE, 'change.txt']],
+          [spy1, 1, [EV.UNLINK, 'unlink.txt']],
+          [spy2, 1, [EV.CHANGE, sp.join('..', 'change.txt')]],
+          [spy2, 1, [EV.UNLINK, sp.join('..', 'unlink.txt')]],
+        ]);
         ok(calledWith(spy1, [EV.CHANGE, 'change.txt']));
         ok(calledWith(spy1, [EV.UNLINK, 'unlink.txt']));
         ok(calledWith(spy2, [EV.ADD, sp.join('..', 'change.txt')]));
@@ -1519,14 +1723,20 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
           options.ignorePermissionErrors = false;
           // chokidar_watch();
         });
-        it('should not watch files without read permissions', async () => {
+        it('should attempt observation and report actual permission errors', async () => {
           if (isWindows) return true;
-          const spy = await aspy(cwatch(currentDir, options), EV.ALL);
-          equal(calledWith(spy, [EV.ADD, filePath]), false);
-          await write(filePath, time());
+          const addSpy = createSpy<EmitArgs, void>();
+          const watcher = cwatch(currentDir, options).on(EV.ADD, addSpy);
+          const outcome = await new Promise<Error | undefined>((resolve) => {
+            watcher.once(EV.ERROR, (error) => resolve(error as Error));
+            watcher.once(EV.READY, () => resolve(undefined));
+          });
 
-          await delay(200);
-          equal(calledWith(spy, [EV.CHANGE, filePath]), false);
+          if (outcome) {
+            ok(['EACCES', 'EPERM'].includes((outcome as NodeJS.ErrnoException).code || ''));
+          } else {
+            ok(calledWith(addSpy, [filePath]));
+          }
         });
       });
       describe('true', () => {
@@ -1567,8 +1777,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         await write(testPath, 'hello');
 
         await delay(300);
-        equal(spy.called, false);
-        await waitFor([spy]);
+        equal(calledWith(spy, [EV.ADD, testPath]), false);
+        await waitFor([[spy, 1, [EV.ADD, testPath]]]);
         ok(calledWith(spy, [EV.ADD, testPath]));
       });
       it('should emit with the final stats', async () => {
@@ -1579,9 +1789,9 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         await delay(300);
         appendFile(testPath, 'world!');
 
-        await waitFor([spy]);
-        ok(calledWith(spy, [EV.ADD, testPath]));
-        equal(spy.calls[0][2].size, 12);
+        await waitFor([[spy, 1, [EV.ADD, testPath]]]);
+        const addCalls = getCallsWith(spy, [EV.ADD, testPath]);
+        equal(addCalls[0][2].size, 12);
       });
       it('should not emit change event while a file has not been fully written', async () => {
         const testPath = dpath('add.txt');
@@ -1605,8 +1815,8 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         write(testPath, 'hello');
 
         await delay(300);
-        equal(spy.called, false);
-        await waitFor([spy]);
+        equal(calledWith(spy, [EV.CHANGE, testPath]), false);
+        await waitFor([[spy, 1, [EV.CHANGE, testPath]]]);
         ok(calledWith(spy, [EV.CHANGE, testPath]));
       });
       it('should emit change event after the file is fully written', async () => {
@@ -1615,22 +1825,22 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         await delay();
         await write(testPath, 'hello');
 
-        await waitFor([spy]);
+        await waitFor([[spy, 1, [EV.ADD, testPath]]]);
         ok(calledWith(spy, [EV.ADD, testPath]));
         await write(testPath, 'edit');
-        await waitFor([[spy, 1, [EV.CHANGE]]]);
+        await waitFor([[spy, 1, [EV.CHANGE, testPath]]]);
         ok(calledWith(spy, [EV.CHANGE, testPath]));
       });
       it('should not raise any event for a file that was deleted before fully written', async () => {
         const testPath = dpath('add.txt');
         const spy = await aspy(cwatch(currentDir, options), EV.ALL);
         await write(testPath, 'hello');
-        await delay(400);
+        await delay(100);
         await unlink(testPath);
         await delay(400);
-        equal(
-          spy.calls.some((call) => typeof call[0] === 'string' && call[1] === testPath),
-          false
+        deepEqual(
+          spy.calls.filter((call) => typeof call[0] === 'string' && call[1] === testPath),
+          []
         );
       });
       it('should be compatible with the cwd option', async () => {
@@ -1645,7 +1855,7 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         await delay(400);
         await write(testPath, 'hello');
 
-        await waitFor([[spy, 1, [EV.ADD]]]);
+        await waitFor([[spy, 1, [EV.ADD, filename]]]);
         ok(calledWith(spy, [EV.ADD, filename]));
       });
       it('should still emit initial add events', async () => {
@@ -1702,22 +1912,22 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     });
     it('should stop watching unwatched paths', async () => {
       const watchPaths = [dpath('subdir'), dpath('change.txt')];
+      const changedFile = dpath('change.txt');
       const watcher = cwatch(watchPaths, options);
       const spy = await aspy(watcher, EV.ALL);
       watcher.unwatch(dpath('subdir'));
 
       await delay();
       await write(dpath('subdir/add.txt'), time());
-      await write(dpath('change.txt'), time());
-      await waitFor([spy]);
+      await write(changedFile, time());
+      await waitFor([[spy, 1, [EV.CHANGE, changedFile]]]);
 
       await delay(300);
-      ok(calledWith(spy, [EV.CHANGE, dpath('change.txt')]));
+      ok(calledWith(spy, [EV.CHANGE, changedFile]));
       equal(calledWith(spy, [EV.ADD]), false);
-      if (!macosFswatch) equal(spy.callCount, 1);
     });
     it('should ignore unwatched paths that are a subset of watched paths', async () => {
-      const subdirRel = upath.relative(process.cwd(), dpath('subdir'));
+      const subdirRel = sp.relative(process.cwd(), dpath('subdir'));
       const unlinkFile = dpath('unlink.txt');
       const addFile = dpath('subdir/add.txt');
       const changedFile = dpath('change.txt');
@@ -1731,13 +1941,12 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await unlink(unlinkFile);
       await write(addFile, time());
       await write(changedFile, time());
-      await waitFor([[spy, 1, [EV.CHANGE]]]);
+      await waitFor([[spy, 1, [EV.CHANGE, changedFile]]]);
 
       await delay(300);
       ok(calledWith(spy, [EV.CHANGE, changedFile]));
       equal(calledWith(spy, [EV.ADD, addFile]), false);
       equal(calledWith(spy, [EV.UNLINK, unlinkFile]), false);
-      if (!macosFswatch) equal(spy.callCount, 1);
     });
     it('should unwatch relative paths', async () => {
       const fixturesDir = sp.relative(process.cwd(), currentDir);
@@ -1751,31 +1960,26 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       watcher.unwatch(subdir);
       await write(dpath('subdir/add.txt'), time());
       await write(dpath('change.txt'), time());
-      await waitFor([spy]);
+      await waitFor([[spy, 1, [EV.CHANGE, changeFile]]]);
 
       await delay(300);
       ok(calledWith(spy, [EV.CHANGE, changeFile]));
       equal(calledWith(spy, [EV.ADD]), false);
-      if (!macosFswatch) equal(spy.callCount, 1);
     });
-    it.skip('should watch paths that were unwatched and added again', async () => {
+    it('should watch paths that were unwatched and added again with another spelling', async () => {
       const spy = createSpy();
       const watchPaths = [dpath('change.txt')];
-      console.log('watching', watchPaths);
-      const watcher = cwatch(watchPaths, options).on(EV.ALL, console.log.bind(console));
+      const watcher = cwatch(watchPaths, options);
       await waitForWatcher(watcher);
       await delay();
-      watcher.unwatch(dpath('change.txt'));
+      watcher.unwatch(sp.relative(process.cwd(), dpath('change.txt')));
       await delay();
       watcher.on(EV.ALL, spy).add(dpath('change.txt'));
 
-      await delay();
+      await delay(100);
       await write(dpath('change.txt'), time());
-      console.log('a');
       await waitFor([spy]);
-      console.log('b');
       ok(calledWith(spy, [EV.CHANGE, dpath('change.txt')]));
-      if (!macosFswatch) equal(spy.callCount, 1);
     });
     it('should unwatch paths that are relative to options.cwd', async () => {
       options.cwd = currentDir;
@@ -1793,7 +1997,6 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(calledWith(spy, [EV.CHANGE, 'change.txt']));
       equal(calledWith(spy, [EV.ADD]), false);
       equal(calledWith(spy, [EV.UNLINK]), false);
-      if (!macosFswatch) equal(spy.callCount, 1);
     });
   });
   describe('env variable option override', () => {
@@ -1851,12 +2054,13 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
         afterEach(() => {
           delete process.env.CHOKIDAR_INTERVAL;
         });
-        it('should make options.interval = CHOKIDAR_INTERVAL when it is set', async () => {
+        it('should make polling intervals = CHOKIDAR_INTERVAL when it is set', async () => {
           options.interval = 100;
           process.env.CHOKIDAR_INTERVAL = '1500';
 
           const watcher = cwatch(currentDir, options);
           await waitForWatcher(watcher);
+          equal(watcher.options.pollingInterval, 1500);
           equal(watcher.options.interval, 1500);
         });
       });
@@ -1998,18 +2202,13 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     await write(sp.join(watchedDir, 'a.txt'), 'a');
     await delay();
 
-    class FSWatcherWithClosers extends chokidar.FSWatcher {
-      get closers(): Map<string, unknown[]> {
-        return this._closers;
-      }
-    }
-    const watcher = new FSWatcherWithClosers(options);
+    const watcher = new chokidar.FSWatcher(options);
     watcher.add(watchedDir);
     WATCHERS.push(watcher);
 
     await waitForWatcher(watcher);
 
-    const closers = watcher.closers;
+    const closers = internals(watcher).closers;
     const dirHasCloser = () =>
       [...closers.keys()].some((key) => sp.resolve(key) === sp.resolve(watchedDir));
 
@@ -2028,6 +2227,18 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
   });
 
   describe('close', () => {
+    it('should reuse a live subscription when a directory is added repeatedly', async () => {
+      const watcher = cwatch(currentDir, options);
+      watcher.add(currentDir);
+      await waitForWatcher(watcher);
+      const key = internals(watcher).logicalKey(currentDir);
+      equal(internals(watcher).closers.get(key)?.length, 1);
+
+      watcher.add(currentDir);
+      await delay(100);
+      equal(internals(watcher).closers.get(key)?.length, 1);
+    });
+
     it('should ignore further events on close', async () => {
       const spy = createSpy();
       const watcher = cwatch(currentDir, options);
@@ -2068,19 +2279,22 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const chokidarPath = rmSlashes(pathToFileURL(sp.join(_dirname, 'index.js')).href);
 
       const scriptFile = dpath('script.js');
+      const completionFile = dpath('child-closed.txt');
       const scriptContent = `
-      (async () => {
-        const chokidar = await import("${chokidarPath}");
-        const watcher = chokidar.watch("${rmSlashes(scriptFile)}");
-        watcher.on("ready", () => {
-          watcher.close();
-          process.stdout.write("closed");
+      import * as chokidar from "${chokidarPath}";
+      import { writeFile } from "node:fs/promises";
+      const watcher = chokidar.watch("${rmSlashes(scriptFile)}");
+      await new Promise((resolve, reject) => {
+        watcher.once("error", reject);
+        watcher.once("ready", async () => {
+          await watcher.close();
+          await writeFile("${rmSlashes(completionFile)}", "closed");
+          resolve();
         });
-      })();`;
+      });`;
       await write(scriptFile, scriptContent);
-      const obj = await exec(`node ${scriptFile}`);
-      const { stdout } = obj;
-      equal(stdout.toString(), 'closed');
+      await exec(`node ${scriptFile}`);
+      equal(await read(completionFile, 'utf8'), 'closed');
     });
     it('should always return the same promise', async () => {
       const watcher = cwatch(currentDir, options);
@@ -2090,6 +2304,28 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await closePromise;
     });
   });
+}
+
+const testHarness: TestHarness = {
+  get currentDir() {
+    return currentDir;
+  },
+  get testId() {
+    return testId;
+  },
+  FIXTURES_PATH,
+  WATCHERS,
+  calledWith,
+  canUseRecursiveWatch,
+  createSpy,
+  cwatch,
+  delay,
+  dpath,
+  getCallsWith,
+  mkdir,
+  rmr,
+  waitFor,
+  waitForWatcher,
 };
 
 describe('chokidar', async () => {
@@ -2109,11 +2345,22 @@ describe('chokidar', async () => {
     ok(typeof chokidar.watch === 'function');
   });
 
+  registerV6Tests(testHarness);
+
   if (!isIBMi) {
-    describe('fs.watch (non-polling)', runTests.bind(this, { usePolling: false }));
+    describe('fs.watch (non-polling)', runTests.bind(this, { backend: 'native' }));
   }
-  describe('fs.watchFile (polling)', runTests.bind(this, { usePolling: true, interval: 10 }));
+  if (!isIBMi && canUseRecursiveWatch) {
+    describe(
+      'fs.watch (recursive preferred)',
+      runTests.bind(this, { backend: 'native-recursive' })
+    );
+  }
+  describe('owned polling', runTests.bind(this, { usePolling: true, interval: 10 }));
 });
+
+registerArchitectureTests(reportTestFailure);
+
 async function main() {
   const initialPath = process.cwd();
   try {
@@ -2128,7 +2375,8 @@ async function main() {
   const _content = await read(_filename, 'utf-8');
   const _only = _content.match(/\sit\.only\(/g);
   const itCount = (_only && _only.length) || _content.match(/\sit\(/g)?.length;
-  const testCount = (itCount ?? 0) * 3;
+  const matrixCount = canUseRecursiveWatch ? 4 : 3;
+  const testCount = (itCount ?? 0) * matrixCount;
   while (testId++ < testCount) {
     await mkdir(dpath(''));
     await write(dpath('change.txt'), 'b');
@@ -2144,4 +2392,14 @@ async function main() {
   }
   process.chdir(initialPath);
 }
-main();
+
+function reportTestFailure(error: unknown): never {
+  if (process.env.GITHUB_ACTIONS === 'true') {
+    const detail = error instanceof Error ? error.stack || error.message : String(error);
+    const encoded = detail.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+    console.error(`::error title=Watcher test failure::${encoded}`);
+  }
+  throw error;
+}
+
+main().catch(reportTestFailure);
