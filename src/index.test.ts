@@ -1991,6 +1991,43 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
     });
   });
 
+  describe('reproduction of bug in issue #1378', () => {
+    it('should emit an error event instead of an unhandled rejection when add() fails internally', async () => {
+      // Watch nothing initially so the only _addToNodeFs call under test is
+      // the explicit watcher.add() below, not an unrelated directory scan.
+      const watcher = cwatch([], { persistent: true });
+      const unhandled: unknown[] = [];
+      const onUnhandled = (reason: unknown) => unhandled.push(reason);
+      process.on('unhandledRejection', onUnhandled);
+      try {
+        const caught = new Promise<Error>((resolve, reject) => {
+          const timeout = setTimeout(
+            () => reject(new Error('timed out waiting for an error event')),
+            2000
+          );
+          watcher.once('error', (err: unknown) => {
+            clearTimeout(timeout);
+            resolve(err as Error);
+          });
+        });
+        // Simulate the ENOSPC-style failure reported in the issue: something
+        // inside _addToNodeFs rejects after add() has already returned
+        // synchronously, so the caller has no way to .catch() it directly.
+        (watcher as any)._nodeFsHandler._addToNodeFs = async () => {
+          throw new Error('simulated ENOSPC from _addToNodeFs');
+        };
+        watcher.add(sp.join(currentDir, 'somefile-for-1378'));
+        const error = await caught;
+        ok(error.message.includes('simulated ENOSPC from _addToNodeFs'));
+        await delay(50);
+        deepEqual(unhandled, []);
+      } finally {
+        process.off('unhandledRejection', onUnhandled);
+        watcher.close();
+      }
+    });
+  });
+
   it('should close the fs.watch handle of a deleted watched directory', async () => {
     const id = testId.toString();
     const watchedDir = sp.join(FIXTURES_PATH, id, 'to-delete');
