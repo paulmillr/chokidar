@@ -487,12 +487,21 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
         if (res) this._emitReady();
         return res;
       })
-    ).then((results) => {
-      if (this.closed) return;
-      results.forEach((item) => {
-        if (item) this.add(sp.dirname(item), sp.basename(_origAdd || item));
+    )
+      .then((results) => {
+        if (this.closed) return;
+        results.forEach((item) => {
+          if (item) this.add(sp.dirname(item), sp.basename(_origAdd || item));
+        });
+      })
+      .catch((error) => {
+        // Route a rejection from _addToNodeFs (e.g. ENOSPC when the OS is out
+        // of file watchers) through the same error path everything else in
+        // this class uses, instead of letting it become an unhandled
+        // rejection with no way for a caller to hear about it. add() itself
+        // stays synchronous, so this is the only way to surface the failure.
+        this._handleError(error);
       });
-    });
 
     return this;
   }
