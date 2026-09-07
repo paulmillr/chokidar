@@ -718,7 +718,10 @@ export class NodeFsHandler {
           wh,
           targetPath
         );
-        if (this.fsw.closed) return;
+        if (this.fsw.closed) {
+          if (closer) closer();
+          return;
+        }
         // preserve this symlink's target path
         if (absPath !== targetPath && targetPath !== undefined) {
           this.fsw._symlinkPaths.set(absPath, targetPath);
@@ -730,7 +733,10 @@ export class NodeFsHandler {
         this.fsw._getWatchedDir(parent).add(wh.watchPath);
         this.fsw._emit(EV.ADD, wh.watchPath, stats);
         closer = await this._handleDir(parent, stats, initialAdd, depth, path, wh, targetPath);
-        if (this.fsw.closed) return;
+        if (this.fsw.closed) {
+          if (closer) closer();
+          return;
+        }
 
         // preserve this symlink's target path
         if (targetPath !== undefined) {

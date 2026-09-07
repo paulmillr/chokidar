@@ -892,6 +892,26 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(calledWith(spy, [EV.ADD, testPath]));
     });
   });
+  describe('close during scan', () => {
+    it('closes a dir handle whose closer close() can no longer register', async () => {
+      const testDir = dpath('race');
+      await mkdir(testDir);
+      const watcher = new chokidar.FSWatcher(options);
+      const w: any = watcher._nodeFsHandler;
+      const orig = w._watchWithNodeFs.bind(w);
+      const leaks = () =>
+        (process as any).getActiveResourcesInfo().filter((r: string) => r === 'FSEventWrap').length;
+      const baseline = leaks();
+      w._watchWithNodeFs = (path: string, listener: unknown) => {
+        const closer = orig(path, listener);
+        if (sp.normalize(path) === sp.normalize(testDir)) void watcher.close();
+        return closer;
+      };
+      watcher.add(testDir);
+      await delay(100);
+      ok(leaks() <= baseline);
+    });
+  });
   describe('not watch glob patterns', () => {
     it('should not confuse glob-like filenames with globs', async () => {
       const filePath = dpath('nota[glob].txt');
