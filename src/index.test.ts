@@ -2109,6 +2109,30 @@ describe('chokidar', async () => {
     ok(typeof chokidar.watch === 'function');
   });
 
+  describe('issue #1474', () => {
+    it('should stop walking up when dirname equals the missing path', async () => {
+      const watcher = new chokidar.FSWatcher({
+        persistent: false,
+        usePolling: true,
+        interval: 100,
+        ignoreInitial: true,
+      });
+      WATCHERS.push(watcher);
+      let calls = 0;
+      watcher._nodeFsHandler._addToNodeFs = async (path: string) => {
+        calls++;
+        return path;
+      };
+      watcher.add('sub/spec.yaml');
+      await delay(80);
+      await watcher.close();
+      ok(
+        calls >= 3 && calls <= 8,
+        `add() walk-up should stop at the path root, got ${calls} attempts`
+      );
+    });
+  });
+
   if (!isIBMi) {
     describe('fs.watch (non-polling)', runTests.bind(this, { usePolling: false }));
   }
