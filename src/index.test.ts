@@ -891,6 +891,42 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       ok(calledWith(spy, [EV.ADD_DIR, testDir]));
       ok(calledWith(spy, [EV.ADD, testPath]));
     });
+    it('should watch non-existent file even if ignored matches its parent', async () => {
+      const testPath = dpath('add.js');
+      const siblingPath = dpath('sibling.txt');
+      options.ignored = (path) => !path.endsWith('.js');
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ALL);
+
+      await delay();
+      await write(siblingPath, time());
+      await write(testPath, time());
+      await waitFor([[spy, 1, [EV.ADD, testPath]]]);
+      ok(calledWith(spy, [EV.ADD, testPath]));
+      equal(calledWith(spy, [EV.ADD, siblingPath]), false);
+    });
+    it('should watch non-existent file even if ignored matches directories', async () => {
+      const testPath = dpath('add.txt');
+      options.ignored = (_path, stats) => !!stats && stats.isDirectory();
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ADD);
+
+      await delay();
+      await write(testPath, time());
+      await waitFor([spy]);
+      ok(calledWith(spy, [testPath]));
+    });
+    it('should still ignore a missing path that itself matches ignored', async () => {
+      const testPath = dpath('add.txt');
+      options.ignored = (path) => path.endsWith('.txt');
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ADD);
+
+      await delay();
+      await write(testPath, time());
+      await delay(300);
+      equal(spy.called, false);
+    });
   });
   describe('not watch glob patterns', () => {
     it('should not confuse glob-like filenames with globs', async () => {

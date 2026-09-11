@@ -683,7 +683,9 @@ export class NodeFsHandler {
     target?: string
   ): Promise<string | false | undefined> {
     const ready = this.fsw._emitReady;
-    if (this.fsw._isIgnored(path) || this.fsw.closed) {
+    // When `target` is set, `path` is a fallback parent of a missing watch path
+    // that already passed ignored. Do not ignore the parent (issue #1374).
+    if ((!target && this.fsw._isIgnored(path)) || this.fsw.closed) {
       ready();
       return false;
     }
@@ -698,7 +700,7 @@ export class NodeFsHandler {
     try {
       const stats = await statMethods[wh.statMethod](wh.watchPath);
       if (this.fsw.closed) return;
-      if (this.fsw._isIgnored(wh.watchPath, stats)) {
+      if (!target && this.fsw._isIgnored(wh.watchPath, stats)) {
         ready();
         return false;
       }
