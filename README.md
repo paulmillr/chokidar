@@ -170,8 +170,7 @@ chokidar.watch('file', {
   leads to high CPU utilization, consider setting this to `false`. It is
   typically necessary to **set this to `true` to successfully watch files over
   a network**, and it may be necessary to successfully watch files in other
-  non-standard situations. Setting to `true` explicitly on MacOS overrides the
-  `useFsEvents` default. You may also set the CHOKIDAR_USEPOLLING env variable
+  non-standard situations. You may also set the CHOKIDAR_USEPOLLING env variable
   to true (1) or false (0) in order to override this option.
 - _Polling-specific settings_ (effective when `usePolling: true`)
   - `interval` (default: `100`). Interval of file system polling, in milliseconds. You may also
@@ -209,7 +208,7 @@ chokidar.watch('file', {
 - `ignorePermissionErrors` (default: `false`). Indicates whether to watch files
   that don't have read permissions if possible. If watching fails due to `EPERM`
   or `EACCES` with this set to `true`, the errors will be suppressed silently.
-- `atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
+- `atomic` (default: `true`).
   Automatically filters out artifacts that occur when using editors that use
   "atomic writes" instead of writing directly to the source file. If a file is
   re-added within 100 ms of being deleted, Chokidar emits a `change` event
