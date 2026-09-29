@@ -736,8 +736,21 @@ export class NodeFsHandler {
         if (targetPath !== undefined) {
           this.fsw._symlinkPaths.set(sp.resolve(path), targetPath);
         }
-      } else {
+      } else if (stats.isFile()) {
         closer = this._handleFile(wh.watchPath, stats, initialAdd);
+      } else {
+        // sockets/FIFOs/devices: fs.watch throws UV_UNKNOWN on macOS (#1391)
+        const dir = this.fsw._getWatchedDir(sp.dirname(wh.watchPath));
+        const basename = sp.basename(wh.watchPath);
+        if (!dir.has(basename)) {
+          dir.add(basename);
+          if (
+            !(initialAdd && this.fsw.options.ignoreInitial) &&
+            this.fsw._isntIgnored(wh.watchPath)
+          ) {
+            this.fsw._emit(EV.ADD, wh.watchPath, stats);
+          }
+        }
       }
       ready();
 

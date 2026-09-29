@@ -11,6 +11,7 @@ import {
   unlink,
   writeFile as write,
 } from 'node:fs/promises';
+import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import * as sp from 'node:path';
 import { fileURLToPath, pathToFileURL, URL } from 'node:url';
@@ -114,6 +115,20 @@ const waitForWatcher = (watcher: chokidar.FSWatcher) => {
     });
   });
 };
+
+function listenUnixSocket(path: string): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(path, () => resolve(server));
+  });
+}
+
+function closeServer(server: Server): Promise<void> {
+  return new Promise((resolve, reject) => {
+    server.close((err) => (err ? reject(err) : resolve()));
+  });
+}
 
 async function delay(delayTime?: number) {
   return new Promise<void>((resolve) => {
@@ -1122,6 +1137,26 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       const watcher = cwatch(dpath('subdir'), options).on(EV.READY, readySpy);
       await waitForWatcher(watcher);
       equal(readySpy.callCount, 1);
+    });
+    it('should not error when a watched directory contains a unix socket', async () => {
+      if (isWindows) return;
+      const sockPath = dpath('test.sock');
+      const server = await listenUnixSocket(sockPath);
+      try {
+        const errorSpy = createSpy(function errorSpy() {});
+        const readySpy = createSpy(function readySpy() {});
+        const watcher = cwatch(currentDir, options).on(EV.ERROR, errorSpy).on(EV.READY, readySpy);
+        await waitForWatcher(watcher);
+        equal(readySpy.callCount, 1);
+        equal(errorSpy.callCount, 0);
+        const changeSpy = createSpy<EmitArgs, void>(function changeSpy() {});
+        watcher.on(EV.CHANGE, changeSpy);
+        await write(dpath('change.txt'), time());
+        await waitFor([changeSpy]);
+        ok(calledWith(changeSpy, [dpath('change.txt')]));
+      } finally {
+        await closeServer(server);
+      }
     });
   });
   describe('watch arrays of paths/globs', () => {
