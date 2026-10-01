@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, it } from '@paulmillr/jsbt/test.js';
 import { deepEqual, equal, ok, throws } from 'node:assert/strict';
-import { exec as cexec } from 'node:child_process';
+import { exec as cexec, execFile as cexecFile } from 'node:child_process';
 import {
   appendFile,
   mkdir as mkd,
@@ -34,6 +34,7 @@ function time() {
   return Date.now().toString();
 }
 const exec = promisify(cexec);
+const execFile = promisify(cexecFile);
 function rmr(dir: string) {
   return rm(dir, { recursive: true, force: true });
 }
@@ -666,6 +667,78 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await write(testPath, 're-added');
       await waitFor([addSpy]);
       ok(calledWith(addSpy, [testPath]));
+    });
+
+    if (baseopts.usePolling && !isWindows) {
+      it('should stop retrying when the process cwd is deleted', async () => {
+        const childCwd = dpath('removed-cwd');
+        await mkdir(sp.join(childCwd, 'sub'), { recursive: true });
+        await write(sp.join(childCwd, 'sub/spec.yaml'), 'test');
+        const scriptFile = dpath('deleted-cwd.mjs');
+        const chokidarPath = new URL('./index.js', imetaurl).href;
+        await write(
+          scriptFile,
+          `
+          import { equal } from 'node:assert/strict';
+          import { rm } from 'node:fs/promises';
+          import { watch } from ${JSON.stringify(chokidarPath)};
+
+          const watcher = watch('sub/spec.yaml', { usePolling: true, interval: 10, atomic: false });
+          const handler = watcher._nodeFsHandler;
+          const addToNodeFs = handler._addToNodeFs.bind(handler);
+          let rootAttempts = 0;
+          let reachedRoot;
+          const rootAttempt = new Promise((resolve) => { reachedRoot = resolve; });
+          handler._addToNodeFs = async (...args) => {
+            const result = await addToNodeFs(...args);
+            if (args[0] === '.') {
+              rootAttempts++;
+              reachedRoot();
+            }
+            return result;
+          };
+
+          try {
+            await new Promise((resolve, reject) => {
+              watcher.once('error', reject);
+              watcher.once('unlink', (path) => {
+                equal(path, 'sub/spec.yaml');
+                resolve();
+              });
+              watcher.once('ready', () => {
+                rm(${JSON.stringify(childCwd)}, { recursive: true, force: true }).catch(reject);
+              });
+            });
+            await rootAttempt;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            equal(rootAttempts, 1, 'should attempt the current directory only once');
+          } finally {
+            await watcher.close();
+          }
+          process.stdout.write('closed');
+          `
+        );
+        const { stdout } = await execFile(process.execPath, [scriptFile], {
+          cwd: childCwd,
+          timeout: TEST_TIMEOUT,
+          killSignal: 'SIGKILL',
+        });
+        equal(stdout, 'closed');
+      });
+    }
+
+    it('should watch a missing relative file from its parent directory', async () => {
+      const testPath = dpath('relative-add.txt');
+      const relativePath = sp.relative(process.cwd(), testPath);
+      const watcher = cwatch(relativePath, options);
+      const closerSpy = createSpy(watcher._addPathCloser.bind(watcher));
+      watcher._addPathCloser = closerSpy;
+      const spy = await aspy(watcher, EV.ADD);
+
+      await waitFor([[closerSpy, 1, [sp.dirname(relativePath)]]]);
+      await write(testPath, 'added');
+      await waitFor([spy]);
+      ok(calledWith(spy, [relativePath]));
     });
 
     it('should ignore unwatched siblings', async () => {
