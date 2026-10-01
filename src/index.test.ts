@@ -751,7 +751,15 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       await write(siblingPath, time());
       await write(testPath, time());
       await waitFor([spy]);
-      ok(alwaysCalledWith(spy, [EV.ADD, testPath]));
+      ok(
+        alwaysCalledWith(spy, [EV.ADD, testPath]),
+        JSON.stringify(
+          spy.calls.map(([event, path]) => [
+            event,
+            typeof path === 'string' ? sp.relative(currentDir, path) : `<${typeof path}>`,
+          ])
+        )
+      );
     });
 
     it('should detect safe-edit', async () => {
