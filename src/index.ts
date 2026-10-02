@@ -215,7 +215,9 @@ class DirEntry {
   add(item: string): void {
     const { items } = this;
     if (!items) return;
-    if (item !== ONE_DOT && item !== TWO_DOTS) items.add(item);
+    // A filesystem root's basename is '' and its parent is itself, so watching one
+    // listed '' as its own child, and the first scan then unlinked every entry.
+    if (item !== ONE_DOT && item !== TWO_DOTS && item !== '') items.add(item);
   }
 
   async remove(item: string): Promise<void> {

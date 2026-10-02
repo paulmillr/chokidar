@@ -1903,6 +1903,23 @@ const runTests = (baseopts: chokidar.ChokidarOptions) => {
       equal(events.length, 1);
     });
   });
+  describe('reproduction of bug in issue #1184', () => {
+    // Stat-ing system files at a Windows drive root (e.g. pagefile.sys) can fail
+    // with EBUSY, which is not what this covers. A POSIX root has the same empty
+    // basename as `C:\`, so the bug reproduces there.
+    if (isWindows) return true;
+    it('should not emit unlink events when watching the filesystem root', async () => {
+      options.depth = 0;
+      options.ignoreInitial = true;
+      const watcher = cwatch(sp.parse(process.cwd()).root, options);
+      const spy = createSpy();
+      watcher.on(EV.UNLINK, spy);
+      watcher.on(EV.UNLINK_DIR, spy);
+      await waitForWatcher(watcher);
+      await delay(300);
+      deepEqual(spy.calls, []);
+    });
+  });
   describe('reproduction of bug in issue #1024', () => {
     it('should detect changes to folders, even if they were deleted before', async () => {
       const id = testId.toString();
