@@ -11,6 +11,7 @@ import {
   utimes,
   writeFile as write,
 } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import * as sp from 'node:path';
 import type { EmitArgs, FSWatcherEventMap, Scheduler, SchedulerTimer } from './index.js';
 
@@ -438,6 +439,30 @@ export function registerV6Tests(context: TestHarness): void {
         const failure = Object.assign(new Error('simulated exact-target failure'), { code: 'EIO' });
         equal(await backendTesting.failNativeWatch(resourcePath, failure), true);
         await waitFor([[errorSpy, 1, [failure]]]);
+      }
+    });
+
+    it('should not open exact target fallbacks for macOS sockets (#1391)', async () => {
+      if (!isMacos) return true;
+      const socketPath = dpath('exact-fallback.sock');
+      const server = createServer();
+      await new Promise<void>((resolve) => server.listen(socketPath, resolve));
+      const opened: string[] = [];
+      backendTesting.setNativeWatchFactory((path, options, listener) => {
+        opened.push(path);
+        return nativeWatch(path, options, listener);
+      });
+      try {
+        const watcher = cwatch(socketPath, { backend: 'native' });
+        const errorSpy = createSpy<[unknown], void>();
+        watcher.on(EV.ERROR, errorSpy);
+        await waitForWatcher(watcher);
+        await watcher.close();
+        deepEqual(errorSpy.calls, []);
+        deepEqual(opened, [sp.dirname(sp.resolve(socketPath))]);
+      } finally {
+        backendTesting.setNativeWatchFactory();
+        await new Promise((resolve) => server.close(resolve));
       }
     });
   });

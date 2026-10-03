@@ -1558,8 +1558,10 @@ export class ObservationEngine {
           retainsNativeFact
         );
         const targetPath = followedTarget ?? (retainsNativeFact ? wh.watchPath : undefined);
+        // fs.watch cannot open sockets, FIFOs or devices on macOS (UNKNOWN), so
+        // only regular files get the exact fallback; the parent still covers them.
         const targetCloser = targetPath
-          ? this.subscribeMappedFile(wh.watchPath, targetPath, wh, depth)
+          ? this.subscribeMappedFile(wh.watchPath, targetPath, wh, depth, isMacos && stats.isFile())
           : undefined;
         let parentCloser: (() => void | Promise<void>) | undefined;
         if (retainsNativeFact && followedTarget) {

@@ -58,6 +58,14 @@ const DOT_RE = /\..*\.(sw[px])$|~$|\.subl.*\.tmp/;
 const WATCH_BACKENDS = new Set<WatchBackend>(['auto', 'native', 'native-recursive', 'polling']);
 const DEF_AWF = Object.freeze({ stabilityThreshold: 2000, pollInterval: 100 });
 
+function* ancestorKeys(path: Path): Generator<string> {
+  let current = sp.resolve(path);
+  for (let parent = sp.dirname(current); parent !== current; parent = sp.dirname(parent)) {
+    yield logicalPathKey(parent);
+    current = parent;
+  }
+}
+
 function arrify<T>(item: T | T[]): T[] {
   return Array.isArray(item) ? item : [item];
 }
@@ -148,6 +156,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   private closePromise?: Promise<void>;
   private userIgnored?: MatchFunction;
   private realDirs: Map<string, string | undefined>;
+  private roots: Set<string>;
+  private rootAncestors: Map<string, number>;
   private unwatchIgnored?: MatchFunction;
   private readyEmitted: boolean;
   private readyPending: boolean;
@@ -170,6 +180,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     this.pathMutation = 0;
     this.pathBarriers = new Map();
     this.realDirs = new Map();
+    this.roots = new Set();
+    this.rootAncestors = new Map();
     this.readyEmitted = false;
     this.readyPending = false;
     this.readyScheduled = false;
@@ -367,6 +379,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     paths.forEach((path) => {
       this.removeIgnoredPath(path);
+      this.addRootAncestors(path);
     });
 
     if (!this.readyEmitted) this.readyPending = true;
@@ -404,6 +417,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       const isDirectory = this.tree.watched.has(key);
 
       this.invalidatePath(key);
+      this.removeRootAncestors(key);
       this.pendingAdds.delete(key);
       this.events.cancelPath(key);
       this.closePath(key, isDirectory);
@@ -435,6 +449,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     this.removeAllListeners();
     this.events.close();
     this.pendingAdds.clear();
+    this.roots.clear();
+    this.rootAncestors.clear();
     this.streams.forEach((stream) => stream.destroy());
     this.userIgnored = undefined;
     this.unwatchIgnored = undefined;
@@ -544,13 +560,40 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
         );
       };
     }
-    if (this.userIgnored(path, stats)) return true;
+    // Directories above a watched path stay watchable, so a missing path can be
+    // observed through its parent (#1374). Their other contents are still filtered.
+    if (this.userIgnored(path, stats) && !this.isRootAncestor(path, stats)) return true;
     if (this.ignoredPaths.size === 0) return false;
     if (!this.unwatchIgnored) {
       this.unwatchIgnored = compileMatchers([...this.ignoredPaths]);
     }
 
     return this.unwatchIgnored(logicalPathKey(path), stats);
+  }
+
+  private isRootAncestor(path: Path, stats?: Stats): boolean {
+    // Regular files are never ancestors; skip the resolve on the hot scan path.
+    if (stats?.isFile()) return false;
+    return this.rootAncestors.has(logicalPathKey(path));
+  }
+
+  /** Records every directory above a requested root; refcounted across roots. */
+  private addRootAncestors(path: Path): void {
+    const key = logicalPathKey(path);
+    if (this.roots.has(key)) return;
+    this.roots.add(key);
+    for (const ancestor of ancestorKeys(path)) {
+      this.rootAncestors.set(ancestor, (this.rootAncestors.get(ancestor) ?? 0) + 1);
+    }
+  }
+
+  private removeRootAncestors(path: Path): void {
+    if (!this.roots.delete(logicalPathKey(path))) return;
+    for (const ancestor of ancestorKeys(path)) {
+      const count = (this.rootAncestors.get(ancestor) ?? 1) - 1;
+      if (count > 0) this.rootAncestors.set(ancestor, count);
+      else this.rootAncestors.delete(ancestor);
+    }
   }
 
   private realDirectory(directory: string): string | undefined {

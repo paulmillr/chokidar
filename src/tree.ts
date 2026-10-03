@@ -242,7 +242,9 @@ export class DirEntry {
   }
 
   add(item: string): void {
-    if (item !== CURRENT && item !== PARENT) this.items.add(item);
+    // A filesystem root's basename is '' and its dirname is itself; listing ''
+    // would make the root its own child and unlink everything after a scan.
+    if (item !== CURRENT && item !== PARENT && item !== '') this.items.add(item);
   }
 
   /** Returns true when removing `item` left the directory empty. */
