@@ -6,6 +6,7 @@ import {
   appendFile,
   mkdir as mkd,
   readFile as read,
+  realpath,
   rename,
   rm,
   symlink,
@@ -1449,6 +1450,27 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
           await unlink(alias);
         }
       });
+      it('should ignore unlink of a file ignored by real path under a symlinked root', async () => {
+        if (isWindows) return;
+        const alias = `${currentDir}-alias`;
+        const aliasFile = sp.join(alias, 'ignored.txt');
+        await write(dpath('ignored.txt'), 'b');
+        options.ignored = sp.join(await realpath(currentDir), 'ignored.txt');
+        await symlink(currentDir, alias, 'dir');
+        let watcher: chokidar.FSWatcher | undefined;
+        try {
+          watcher = cwatch(alias, options);
+          const spy = await aspy(watcher, EV.ALL);
+
+          await unlink(dpath('ignored.txt'));
+          await delay(300);
+          equal(calledWith(spy, [EV.ADD, aliasFile]), false);
+          equal(calledWith(spy, [EV.UNLINK, aliasFile]), false);
+        } finally {
+          await watcher?.close();
+          await unlink(alias);
+        }
+      });
       it('should ignore contents of relative dir with cwd set', async () => {
         const testDir = dpath('subdir');
         const testFile = sp.join(testDir, 'add.txt');
@@ -1925,6 +1947,14 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
       await delay(300);
       ok(calledWith(spy, [EV.CHANGE, changedFile]));
       equal(calledWith(spy, [EV.ADD]), false);
+    });
+    it('should not create directory entries when unwatching an untracked path', async () => {
+      const watcher = cwatch(currentDir, options);
+      await waitForWatcher(watcher);
+      const untrackedDir = dpath('never-watched');
+
+      watcher.unwatch(sp.join(untrackedDir, 'file.txt'));
+      equal(internals(watcher).watched.has(internals(watcher).logicalKey(untrackedDir)), false);
     });
     it('should ignore unwatched paths that are a subset of watched paths', async () => {
       const subdirRel = sp.relative(process.cwd(), dpath('subdir'));

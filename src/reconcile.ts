@@ -173,7 +173,7 @@ export class ObservationEngine {
         {
           publish,
           errHandler: this.reportError,
-          rawEmitter: this.fsw.emitRaw,
+          rawEmitter: (...args) => this.fsw.emitRaw(...args),
         },
         initialStats,
         this.fsw.lifecycle.abortController.signal
@@ -186,7 +186,7 @@ export class ObservationEngine {
         {
           publish,
           errHandler: this.reportError,
-          rawEmitter: this.fsw.emitRaw,
+          rawEmitter: (...args) => this.fsw.emitRaw(...args),
         },
         this.fsw.lifecycle.abortController.signal
       );
@@ -1104,7 +1104,11 @@ export class ObservationEngine {
     const result = subscribeRecursiveNative(
       dir,
       fsw.options.persistent,
-      { publish: processTrigger, failure: handleFailure, rawEmitter: fsw.emitRaw },
+      {
+        publish: processTrigger,
+        failure: handleFailure,
+        rawEmitter: (...args) => fsw.emitRaw(...args),
+      },
       fsw.lifecycle.abortController.signal
     );
     if (result.kind === 'unsupported') return false;
