@@ -6,12 +6,14 @@ import {
   appendFile,
   mkdir as mkd,
   readFile as read,
+  realpath,
   rename,
   rm,
   symlink,
   unlink,
   writeFile as write,
 } from 'node:fs/promises';
+import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import * as sp from 'node:path';
 import { fileURLToPath, pathToFileURL, URL } from 'node:url';
@@ -169,6 +171,14 @@ async function delay(delayTime?: number) {
   return new Promise<void>((resolve) => {
     const timer = delayTime || USE_SLOW_DELAY || 20;
     setTimeout(resolve, timer);
+  });
+}
+
+function listenSocket(path: string): Promise<Server> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once('error', reject);
+    server.listen(path, () => resolve(server));
   });
 }
 
@@ -753,6 +763,49 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
       await waitFor([addSpy]);
       ok(calledWith(addSpy, [testPath]));
     });
+    it('should detect unlink and re-add even if ignored matches the parent (#1374)', async () => {
+      options.ignoreInitial = true;
+      options.ignored = (path) => !path.endsWith('.js');
+      const unlinkSpy = createSpy<EmitArgs, void>(function unlinkSpy() {});
+      const addSpy = createSpy<EmitArgs, void>(function addSpy() {});
+      const testPath = dpath('unlink.js');
+      await write(testPath, 'b');
+      const watcher = cwatch(testPath, options).on(EV.UNLINK, unlinkSpy).on(EV.ADD, addSpy);
+      await waitForWatcher(watcher);
+
+      await delay();
+      await unlink(testPath);
+      await waitFor([[unlinkSpy, 1, [testPath]]]);
+
+      await delay();
+      await write(testPath, 're-added');
+      await waitFor([[addSpy, 1, [testPath]]]);
+    });
+    it('should not error on sockets (#1391)', async () => {
+      if (isWindows) return true;
+      const socketPath = dpath('a.sock');
+      const realSocketPath = dpath('real.sock');
+      const linkPath = dpath('link.sock');
+      const filePath = dpath('change.txt');
+      const servers = await Promise.all([listenSocket(socketPath), listenSocket(realSocketPath)]);
+      try {
+        await symlink(realSocketPath, linkPath);
+        for (const watched of [currentDir, socketPath, linkPath]) {
+          const errorSpy = createSpy<[unknown], void>();
+          const watcher = cwatch(watched, options).on(EV.ERROR, errorSpy);
+          const spy = await aspy(watcher, EV.ALL);
+          ok(calledWith(spy, [EV.ADD, watched === currentDir ? linkPath : watched]));
+          if (watched === currentDir) {
+            await write(filePath, time());
+            await waitFor([[spy, 1, [EV.CHANGE, filePath]]]);
+          }
+          await watcher.close();
+          deepEqual(errorSpy.calls, []);
+        }
+      } finally {
+        await Promise.all(servers.map((server) => new Promise((resolve) => server.close(resolve))));
+      }
+    });
 
     it('should ignore unwatched siblings', async () => {
       const testPath = dpath('add.txt');
@@ -980,6 +1033,55 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
       await waitFor([[spy, 1, [EV.ADD]]]);
       ok(calledWith(spy, [EV.ADD_DIR, testDir]));
       ok(calledWith(spy, [EV.ADD, testPath]));
+    });
+    it('should watch non-existent file even if ignored matches its parent (#1374)', async () => {
+      const testPath = dpath('add.js');
+      const siblingPath = dpath('sibling.txt');
+      options.ignored = (path) => !path.endsWith('.js');
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ALL);
+
+      await delay();
+      await write(siblingPath, time());
+      await write(testPath, time());
+      await waitFor([[spy, 1, [EV.ADD, testPath]]]);
+      equal(calledWith(spy, [EV.ADD, siblingPath]), false);
+    });
+    it('should watch non-existent file even if ignored matches directories (#1374)', async () => {
+      const testPath = dpath('add.txt');
+      options.ignored = (_path, stats) => !!stats?.isDirectory();
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ADD);
+
+      await delay();
+      await write(testPath, time());
+      await waitFor([[spy, 1, [testPath]]]);
+    });
+    it('should watch non-existent nested file even if ignored matches its ancestors', async () => {
+      const testDir = dpath('subdir/nested');
+      const testPath = sp.join(testDir, 'add.js');
+      options.ignored = (path) => !path.endsWith('.js');
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ADD);
+
+      await delay();
+      await mkdir(testDir, { recursive: true });
+      await delay();
+      await write(sp.join(testDir, 'sibling.txt'), time());
+      await write(testPath, time());
+      await waitFor([[spy, 1, [testPath]]]);
+      equal(calledWith(spy, [sp.join(testDir, 'sibling.txt')]), false);
+    });
+    it('should still ignore a non-existent path that itself matches ignored', async () => {
+      const testPath = dpath('add.txt');
+      options.ignored = (path) => path.endsWith('.txt');
+      const watcher = cwatch(testPath, options);
+      const spy = await aspy(watcher, EV.ADD);
+
+      await delay();
+      await write(testPath, time());
+      await delay(300);
+      equal(spy.called, false);
     });
   });
   describe('not watch glob patterns', () => {
@@ -1376,6 +1478,18 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
         equal(spy.callCount, 1);
         ok(calledWith(spy, [sp.join(testDir, 'add.txt')]));
       });
+      it('should not ignore a nested file that shares an ignored top-level name', async () => {
+        const nestedFile = dpath('subdir/add.txt');
+        options.ignored = dpath('add.txt');
+        await mkdir(dpath('subdir'));
+        await write(dpath('add.txt'), 'a');
+        await write(nestedFile, 'b');
+        const watcher = cwatch(currentDir, options);
+        const spy = await aspy(watcher, EV.ALL);
+
+        ok(calledWith(spy, [EV.ADD, nestedFile]));
+        equal(calledWith(spy, [EV.ADD, dpath('add.txt')]), false);
+      });
       it('should not choke on an ignored watch path', async () => {
         options.ignored = () => {
           return true;
@@ -1445,6 +1559,27 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
           equal(calledWith(spy, [EV.CHANGE, testFile]), false);
         } finally {
           process.chdir(prevCwd);
+          await watcher?.close();
+          await unlink(alias);
+        }
+      });
+      it('should ignore unlink of a file ignored by real path under a symlinked root', async () => {
+        if (isWindows) return;
+        const alias = `${currentDir}-alias`;
+        const aliasFile = sp.join(alias, 'ignored.txt');
+        await write(dpath('ignored.txt'), 'b');
+        options.ignored = sp.join(await realpath(currentDir), 'ignored.txt');
+        await symlink(currentDir, alias, 'dir');
+        let watcher: chokidar.FSWatcher | undefined;
+        try {
+          watcher = cwatch(alias, options);
+          const spy = await aspy(watcher, EV.ALL);
+
+          await unlink(dpath('ignored.txt'));
+          await delay(300);
+          equal(calledWith(spy, [EV.ADD, aliasFile]), false);
+          equal(calledWith(spy, [EV.UNLINK, aliasFile]), false);
+        } finally {
           await watcher?.close();
           await unlink(alias);
         }
@@ -1926,6 +2061,14 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
       ok(calledWith(spy, [EV.CHANGE, changedFile]));
       equal(calledWith(spy, [EV.ADD]), false);
     });
+    it('should not create directory entries when unwatching an untracked path', async () => {
+      const watcher = cwatch(currentDir, options);
+      await waitForWatcher(watcher);
+      const untrackedDir = dpath('never-watched');
+
+      watcher.unwatch(sp.join(untrackedDir, 'file.txt'));
+      equal(internals(watcher).watched.has(internals(watcher).logicalKey(untrackedDir)), false);
+    });
     it('should ignore unwatched paths that are a subset of watched paths', async () => {
       const subdirRel = sp.relative(process.cwd(), dpath('subdir'));
       const unlinkFile = dpath('unlink.txt');
@@ -2065,6 +2208,23 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
         });
       });
     }
+  });
+  describe('reproduction of bug in issue #1184', () => {
+    it('should not emit unlink events when watching the filesystem root', async () => {
+      // Stat-ing system files at a Windows drive root can fail with EBUSY; a
+      // POSIX root has the same empty basename, so it covers the bug.
+      if (isWindows) return true;
+      options.depth = 0;
+      options.ignoreInitial = true;
+      const watcher = cwatch(sp.parse(process.cwd()).root, options);
+      const spy = createSpy<[string, string], void>();
+      watcher.on(EV.ALL, (event, path) => {
+        if (event === EV.UNLINK || event === EV.UNLINK_DIR) spy(event, path);
+      });
+      await waitForWatcher(watcher);
+      await delay(300);
+      deepEqual(spy.calls, []);
+    });
   });
   describe('reproduction of bug in issue #1040', () => {
     it('should detect change on symlink folders when consolidateThreshhold is reached', async () => {

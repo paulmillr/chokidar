@@ -109,7 +109,9 @@ chokidar.watch('dir-or-file', {
 
 - `ignored` (default: none). One matcher or an array of matchers. The whole path is tested (as
   passed to `watch()`, joined with `cwd` if set), not just the basename. Ignoring a directory
-  ignores everything inside it. A matcher is one of:
+  ignores everything inside it. Directories above a path passed to `watch()` / `add()` are never
+  ignored, so a missing path is still watched through its parent; their other contents are still
+  filtered. A matcher is one of:
   - a **string**: an exact path. Relative strings are resolved against `cwd` (or the process
     cwd). Globs are not supported; see [upgrading](#upgrading) for the replacement pattern.
   - a **RegExp**: tested against the whole path with forward slashes, on Windows too, e.g.

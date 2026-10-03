@@ -173,7 +173,7 @@ export class ObservationEngine {
         {
           publish,
           errHandler: this.reportError,
-          rawEmitter: this.fsw.emitRaw,
+          rawEmitter: (...args) => this.fsw.emitRaw(...args),
         },
         initialStats,
         this.fsw.lifecycle.abortController.signal
@@ -186,7 +186,7 @@ export class ObservationEngine {
         {
           publish,
           errHandler: this.reportError,
-          rawEmitter: this.fsw.emitRaw,
+          rawEmitter: (...args) => this.fsw.emitRaw(...args),
         },
         this.fsw.lifecycle.abortController.signal
       );
@@ -1104,7 +1104,11 @@ export class ObservationEngine {
     const result = subscribeRecursiveNative(
       dir,
       fsw.options.persistent,
-      { publish: processTrigger, failure: handleFailure, rawEmitter: fsw.emitRaw },
+      {
+        publish: processTrigger,
+        failure: handleFailure,
+        rawEmitter: (...args) => fsw.emitRaw(...args),
+      },
       fsw.lifecycle.abortController.signal
     );
     if (result.kind === 'unsupported') return false;
@@ -1554,8 +1558,10 @@ export class ObservationEngine {
           retainsNativeFact
         );
         const targetPath = followedTarget ?? (retainsNativeFact ? wh.watchPath : undefined);
+        // fs.watch cannot open sockets, FIFOs or devices on macOS (UNKNOWN), so
+        // only regular files get the exact fallback; the parent still covers them.
         const targetCloser = targetPath
-          ? this.subscribeMappedFile(wh.watchPath, targetPath, wh, depth)
+          ? this.subscribeMappedFile(wh.watchPath, targetPath, wh, depth, isMacos && stats.isFile())
           : undefined;
         let parentCloser: (() => void | Promise<void>) | undefined;
         if (retainsNativeFact && followedTarget) {

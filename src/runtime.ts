@@ -240,9 +240,9 @@ export class WatchHelper {
     this.pathGeneration = context.capturePathGeneration();
   }
   fork(path: string): WatchHelper {
+    // Filters must resolve scan entries against the fork's own watchPath, not
+    // the parent's, or nested entries are matched as if they were siblings.
     const helper = new WatchHelper(path, this.followSymlinks, this.context);
-    helper.filterPath = (entry) => this.filterPath(entry);
-    helper.filterDir = (entry) => this.filterDir(entry);
     helper.recursiveRoot = this.recursiveRoot;
     helper.recursiveDisabled = this.recursiveDisabled;
     helper.observationTrigger = this.observationTrigger;

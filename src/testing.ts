@@ -171,7 +171,7 @@ export function inspectWatcher(watcher: FSWatcher): WatcherInternals {
     handler: internal.handler,
     scheduler: internal.scheduler,
     streams: internal.streams,
-    emitRaw: internal.emitRaw,
+    emitRaw: (...args) => internal.emitRaw(...args),
     get readyEmitted(): boolean {
       return internal.readyEmitted;
     },

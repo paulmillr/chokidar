@@ -242,12 +242,14 @@ export class DirEntry {
   }
 
   add(item: string): void {
-    if (item !== CURRENT && item !== PARENT) this.items.add(item);
+    // A filesystem root's basename is '' and its dirname is itself; listing ''
+    // would make the root its own child and unlink everything after a scan.
+    if (item !== CURRENT && item !== PARENT && item !== '') this.items.add(item);
   }
 
+  /** Returns true when removing `item` left the directory empty. */
   remove(item: string): boolean {
-    this.items.delete(item);
-    return this.items.size === 0;
+    return this.items.delete(item) && this.items.size === 0;
   }
 
   has(item: string): boolean {
@@ -288,6 +290,11 @@ export class TreeState {
       this.watched.set(key, entry);
     }
     return entry;
+  }
+
+  /** Looks up a directory entry without creating one. */
+  peekDirectory(directory: string): DirEntry | undefined {
+    return this.watched.get(logicalPathKey(sp.resolve(directory)));
   }
 
   recordObserved(
