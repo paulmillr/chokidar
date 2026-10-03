@@ -4,295 +4,257 @@ Minimal and efficient cross-platform file watching library
 
 ## Why?
 
-There are many reasons to prefer Chokidar to raw fs.watch / fs.watchFile in 2026:
+Raw `fs.watch` / `fs.watchFile` are useless: `fs.watch` reports many changes as an
+non-transparent `rename`, can fire twice for one change, and recursive watching differs across
+platforms. Chokidar normalizes all of that:
 
-- Events are properly reported
-  - macOS events report filenames
-  - events are not reported twice
-  - changes are reported as add / change / unlink instead of useless `rename`
-- Atomic writes are supported, using `atomic` option
-  - Some file editors use them
-- Chunked writes are supported, using `awaitWriteFinish` option
-  - Large files are commonly written in chunks
-- File / dir filtering is supported
-- Symbolic links are supported
-- Recursive watching is always supported, instead of partial when using raw events
-  - Includes a way to limit recursion depth
+- Proper `add` / `change` / `unlink` (and `addDir` / `unlinkDir`) events, verified, deduplicated, with
+  paths on every platform.
+- Native `fs.watch` by default, which keeps CPU usage down; stat-based polling is available for
+  network and other unusual filesystems.
+- Recursive watching everywhere, with an optional depth limit, path filtering, and symlink support.
+- Editor "atomic writes" (`atomic`) and chunked writes of large files (`awaitWriteFinish`) are
+  handled.
 
-Chokidar relies on the Node.js core `fs` module, but when using
-`fs.watch` and `fs.watchFile` for watching, it normalizes the events it
-receives, often checking for truth by getting file stats and/or dir contents.
-The `fs.watch`-based implementation is the default, which
-avoids polling and keeps CPU usage down. Be advised that chokidar will initiate
-watchers recursively for everything within scope of the paths that have been
-specified, so be judicious about not wasting system resources by watching much
-more than needed. For some cases, `fs.watchFile`, which utilizes polling and uses more resources, is used.
+Chokidar watches everything under the paths you give it, so scope them (and use `ignored` /
+`depth`) rather than watching more than you need.
 
-Made for [Brunch](https://brunch.io/) in 2012,
-it is now used in [~30 million repositories](https://www.npmjs.com/browse/depended/chokidar) and
-has proven itself in production environments.
-
-- **Nov 2025 update:** v5 is out. Makes package ESM-only and increases minimum node.js requirement to v20.
-- **Sep 2024 update:** v4 is out! It decreases dependency count from 13 to 1, removes
-support for globs, adds support for ESM / Common.js modules, and bumps minimum node.js version from v8 to v14.
-Check out [upgrading](#upgrading).
+Made for [Brunch](https://brunch.io/) in 2012, it is now used in
+[30+ million projects](https://www.npmjs.com/browse/depended/chokidar) and has proven itself
+in production environments. The current major is [v6 (Aug 2026)](#changelog).
 
 ## Getting started
-
-Install with npm:
 
 ```sh
 npm install chokidar
 ```
 
-Use it in your code:
+```js
+import chokidar from 'chokidar';
+// or: import { watch } from 'chokidar';
+// or: const chokidar = require('chokidar');
 
-```javascript
+chokidar.watch('src').on('all', (event, path) => console.log(event, path));
+```
+
+A fuller example:
+
+```js
 import chokidar from 'chokidar';
 
-// One-liner for current directory
-chokidar.watch('.').on('all', (event, path) => {
-  console.log(event, path);
+const watcher = chokidar.watch('src', {
+  // strings are exact paths (not globs), regexes test the whole path, functions get (path, stats?)
+  ignored: [
+    /(^|\/)\../, // dotfiles
+    (path, stats) => stats?.isFile() && !path.endsWith('.js'), // only .js files
+  ],
+  ignoreInitial: true, // don't emit add/addDir for files that already exist
 });
 
-// Extended options
-// ----------------
-
-// Initialize watcher.
-const watcher = chokidar.watch('file, dir, or array', {
-  ignored: (path, stats) => stats?.isFile() && !path.endsWith('.js'), // only watch js files
-  persistent: true,
-});
-
-// Something to use when events are received.
-const log = console.log.bind(console);
-// Add event listeners.
 watcher
-  .on('add', (path) => log(`File ${path} has been added`))
-  .on('change', (path) => log(`File ${path} has been changed`))
-  .on('unlink', (path) => log(`File ${path} has been removed`));
+  .on('add', (path, stats) => console.log('added', path, stats?.size))
+  .on('change', (path) => console.log('changed', path))
+  .on('unlink', (path) => console.log('removed', path))
+  .on('ready', () => console.log('initial scan done'))
+  .on('error', (err) => console.error(err));
 
-// More possible events.
-watcher
-  .on('addDir', (path) => log(`Directory ${path} has been added`))
-  .on('unlinkDir', (path) => log(`Directory ${path} has been removed`))
-  .on('error', (error) => log(`Watcher error: ${error}`))
-  .on('ready', () => log('Initial scan complete. Ready for changes'))
-  .on('raw', (event, path, details) => {
-    // internal
-    log('Raw event info:', event, path, details);
-  });
+watcher.add(['lib', 'index.js']); // add more paths later
+watcher.unwatch('lib'); // synchronous
+console.log(watcher.getWatched()); // { '/abs': ['src'], '/abs/src': ['a.js', 'sub'], ... }
+await watcher.close(); // async and terminal: create a new watcher to resume
+```
 
-// 'add', 'addDir' and 'change' events also receive stat() results as second
-// argument when available: https://nodejs.org/api/fs.html#fs_class_fs_stats
-watcher.on('change', (path, stats) => {
-  if (stats) console.log(`File ${path} changed size to ${stats.size}`);
+Recipes:
+
+```js
+// Large or chunked writes, and editors that save via temp file + rename
+chokidar.watch('uploads', {
+  awaitWriteFinish: { stabilityThreshold: 2000, pollInterval: 100 }, // wait for size to settle
+  atomic: 100, // unlink + add within 100 ms becomes one change
 });
 
-// Watch new files.
-watcher.add('new-file');
-watcher.add(['new-file-2', 'new-file-3']);
+// Network or otherwise unusual filesystems where fs.watch is unreliable
+chokidar.watch('/mnt/nfs/data', { backend: 'polling', pollingInterval: 500 });
+```
 
-// Get list of actual paths being watched on the filesystem
-let watchedPaths = watcher.getWatched();
+## API
 
-// Un-watch some files.
-await watcher.unwatch('new-file');
+`chokidar.watch(paths, [options])` returns an [`FSWatcher`](#methods). `paths` is a string or an
+array of strings; files are watched, directories are watched recursively. All options with their
+defaults:
 
-// Stop watching. The method is async!
-await watcher.close().then(() => console.log('closed'));
-
-// Full list of options. See below for descriptions.
-// Do not use this example!
-chokidar.watch('file', {
-  persistent: true,
-
-  // ignore .txt files
-  ignored: (file) => file.endsWith('.txt'),
-  // watch only .txt files
-  // ignored: (file, _stats) => _stats?.isFile() && !file.endsWith('.txt'),
-
-  awaitWriteFinish: true, // emit single event when chunked writes are completed
-  atomic: true, // emit proper events when "atomic writes" (mv _tmp file) are used
-
-  // The options also allow specifying custom intervals in ms
-  // awaitWriteFinish: {
-  //   stabilityThreshold: 2000,
-  //   pollInterval: 100
-  // },
-  // atomic: 100,
-
-  interval: 100,
-  binaryInterval: 300,
-
-  cwd: '.',
-  depth: 99,
-
-  followSymlinks: true,
+```js
+chokidar.watch('dir-or-file', {
+  // Filtering
+  ignored: undefined, // matcher or array of matchers, see below
   ignoreInitial: false,
-  ignorePermissionErrors: false,
-  usePolling: false,
+  followSymlinks: true,
+  cwd: undefined,
+  depth: undefined, // unlimited
+  // Backend
+  backend: 'auto', // 'auto' | 'native' | 'native-recursive' | 'polling'
+  pollingInterval: 100, // polling backend only
+  pollingBinaryInterval: 300, // polling backend only
+  // Event timing
+  atomic: true, // false with backend: 'polling'; or a number of ms
+  awaitWriteFinish: false, // or true, or { stabilityThreshold: 2000, pollInterval: 100 }
   alwaysStat: false,
+  // Errors and lifecycle
+  ignorePermissionErrors: false,
+  persistent: true,
 });
 ```
 
-`chokidar.watch(paths, [options])`
+#### Filtering
 
-- `paths` (string or array of strings). Paths to files, dirs to be watched
-  recursively.
-- `options` (object) Options object as defined below:
+- `ignored` (default: none). One matcher or an array of matchers. The whole path is tested (as
+  passed to `watch()`, joined with `cwd` if set), not just the basename. Ignoring a directory
+  ignores everything inside it. A matcher is one of:
+  - a **string**: an exact path. Relative strings are resolved against `cwd` (or the process
+    cwd). Globs are not supported; see [upgrading](#upgrading) for the replacement pattern.
+  - a **RegExp**: tested against the whole path with forward slashes, on Windows too, e.g.
+    `/(^|\/)\../` for dotfiles or `/\/node_modules\//`.
+  - a **function** `(path, stats?) => boolean`: may be called twice per path, first with the path
+    only, then with the path and its [`fs.Stats`](https://nodejs.org/api/fs.html#class-fsstats), so
+    guard stat-based checks with `stats?.isFile()`.
+  - an **object** `{ path, recursive?: boolean }`: an exact path, plus its subtree when
+    `recursive` is true.
+- `ignoreInitial` (default: `false`). When `true`, `add` / `addDir` are not emitted for paths
+  discovered during the initial scan (before `ready`).
+- `followSymlinks` (default: `true`). When `false`, symlinks are watched as themselves rather
+  than followed; retargeting a link emits `change`.
+- `cwd` (no default). Base directory that `paths` are resolved against; emitted paths are
+  relative to it.
+- `depth` (default: `undefined`, unlimited). Maximum number of subdirectory levels to traverse.
+  `Infinity` means unlimited.
 
-#### Persistence
+#### Backend
 
-- `persistent` (default: `true`). Indicates whether the process
-  should continue to run as long as files are being watched.
+- `backend` (default: `auto`). Selects the filesystem observation backend:
+  - `auto` uses native recursive watching on macOS and Windows and native per-directory
+    watching elsewhere.
+  - `native` uses one `fs.watch` subscription per directory.
+  - `native-recursive` prefers `fs.watch({ recursive: true })` and falls back to per-directory
+    watching where recursive watching is unavailable. A finite `depth` also uses per-directory
+    watching so nothing beyond the requested tree is subscribed.
+  - `polling` uses Chokidar's stat-based polling scheduler. Useful for network and other
+    non-standard filesystems; uses more CPU.
+- `pollingInterval` (default: `100`) and `pollingBinaryInterval` (default: `300`, for recognized
+  binary file extensions): polling periods in milliseconds, polling backend only. Polling compares
+  size, modification time, existence, and (except on Windows) inode between polls; an in-place
+  write that changes none of these is not detected.
+- Environment overrides: `CHOKIDAR_USEPOLLING` forces polling when truthy and disables it when
+  falsy, even if `backend: 'polling'` is set in code; `CHOKIDAR_INTERVAL` overrides
+  `pollingInterval`.
+- Deprecated aliases kept for compatibility: `usePolling: true` means `backend: 'polling'`;
+  `interval` / `binaryInterval` mean `pollingInterval` / `pollingBinaryInterval` (the new
+  spellings win when both are given).
 
-#### Path filtering
+#### Event timing
 
-- `ignored` function, regex, or path. Defines files/paths to be ignored.
-  The whole relative or absolute path is tested, not just filename. If a function with two arguments
-  is provided, it gets called twice per path - once with a single argument (the path), second
-  time with two arguments (the path and the
-  [`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
-  object of that path).
-- `ignoreInitial` (default: `false`). If set to `false` then `add`/`addDir` events are also emitted for matching paths while
-  instantiating the watching as chokidar discovers these file paths (before the `ready` event).
-- `followSymlinks` (default: `true`). When `false`, only the
-  symlinks themselves will be watched for changes instead of following
-  the link references and bubbling events through the link's path.
-- `cwd` (no default). The base directory from which watch `paths` are to be
-  derived. Paths emitted with events will be relative to this.
+- `atomic` (default: `true` with native backends, `false` with polling; or a number of
+  milliseconds). Editors that save through a temp file and rename produce `unlink` then `add`;
+  within the window (100 ms by default) Chokidar emits a single `change` instead. It also ignores
+  common editor temp files (`.swp` / `.swx`, `~` backups, Sublime `.subl*.tmp`).
+- `awaitWriteFinish` (default: `false`). By default `add` / `change` fire as soon as a file
+  appears or changes, which for large or chunked writes can be before the write is finished.
+  Set to `true` (or `{ stabilityThreshold: 2000, pollInterval: 100 }`) to hold `add` / `change`
+  until the file size has stayed constant for `stabilityThreshold` ms, checked every
+  `pollInterval` ms. The right threshold depends on the OS and hardware: higher is safer and less
+  responsive. Events from the initial scan are not held.
+- `alwaysStat` (default: `false`). Always pass an
+  [`fs.Stats`](https://nodejs.org/api/fs.html#class-fsstats) object with `add` / `addDir` /
+  `change`, issuing an extra `stat` when the backend did not provide one.
 
-#### Performance
+#### Errors and lifecycle
 
-- `usePolling` (default: `false`).
-  Whether to use fs.watchFile (backed by polling), or fs.watch. If polling
-  leads to high CPU utilization, consider setting this to `false`. It is
-  typically necessary to **set this to `true` to successfully watch files over
-  a network**, and it may be necessary to successfully watch files in other
-  non-standard situations. Setting to `true` explicitly on MacOS overrides the
-  `useFsEvents` default. You may also set the CHOKIDAR_USEPOLLING env variable
-  to true (1) or false (0) in order to override this option.
-- _Polling-specific settings_ (effective when `usePolling: true`)
-  - `interval` (default: `100`). Interval of file system polling, in milliseconds. You may also
-    set the CHOKIDAR_INTERVAL env variable to override this option.
-  - `binaryInterval` (default: `300`). Interval of file system
-    polling for binary files.
-    ([see list of binary extensions](https://github.com/sindresorhus/binary-extensions/blob/master/binary-extensions.json))
-- `alwaysStat` (default: `false`). If relying upon the
-  [`fs.Stats`](https://nodejs.org/api/fs.html#fs_class_fs_stats)
-  object that may get passed with `add`, `addDir`, and `change` events, set
-  this to `true` to ensure it is provided even in cases where it wasn't
-  already available from the underlying watch events.
-- `depth` (default: `undefined`). If set, limits how many levels of
-  subdirectories will be traversed.
-- `awaitWriteFinish` (default: `false`).
-  By default, the `add` event will fire when a file first appears on disk, before
-  the entire file has been written. Furthermore, in some cases some `change`
-  events will be emitted while the file is being written. In some cases,
-  especially when watching for large files there will be a need to wait for the
-  write operation to finish before responding to a file creation or modification.
-  Setting `awaitWriteFinish` to `true` (or a truthy value) will poll file size,
-  holding its `add` and `change` events until the size does not change for a
-  configurable amount of time. The appropriate duration setting is heavily
-  dependent on the OS and hardware. For accurate detection this parameter should
-  be relatively high, making file watching much less responsive.
-  Use with caution.
-  - _`options.awaitWriteFinish` can be set to an object in order to adjust
-    timing params:_
-  - `awaitWriteFinish.stabilityThreshold` (default: 2000). Amount of time in
-    milliseconds for a file size to remain constant before emitting its event.
-  - `awaitWriteFinish.pollInterval` (default: 100). File size polling interval, in milliseconds.
+- `ignorePermissionErrors` (default: `false`). When `true`, `EPERM` / `EACCES` errors from
+  unreadable paths are suppressed instead of emitted.
+- `persistent` (default: `true`). Whether the watcher keeps the process alive while it is
+  watching.
 
-#### Errors
+### Methods
 
-- `ignorePermissionErrors` (default: `false`). Indicates whether to watch files
-  that don't have read permissions if possible. If watching fails due to `EPERM`
-  or `EACCES` with this set to `true`, the errors will be suppressed silently.
-- `atomic` (default: `true` if `useFsEvents` and `usePolling` are `false`).
-  Automatically filters out artifacts that occur when using editors that use
-  "atomic writes" instead of writing directly to the source file. If a file is
-  re-added within 100 ms of being deleted, Chokidar emits a `change` event
-  rather than `unlink` then `add`. If the default of 100 ms does not work well
-  for you, you can override it by setting `atomic` to a custom value, in
-  milliseconds.
+- `.add(paths)`: start watching more files or directories (string or array).
+- `.unwatch(paths)`: stop watching files or directories (string or array). Synchronous; the paths
+  stay ignored until they are `.add()`ed again.
+- `.close()`: **async and terminal.** Removes all listeners and stops all owned work. Repeated
+  calls return the same Promise; once closing has started, `.add()` throws and a new `FSWatcher`
+  is required.
+- `.getWatched()`: an object whose keys are the watched directories (absolute unless `cwd` is
+  set) and whose values are arrays of the entry names inside each.
+- `.on(event, listener)`: `FSWatcher` is an `EventEmitter`; see events below.
 
-### Methods & Events
+### Events
 
-`chokidar.watch()` produces an instance of `FSWatcher`. Methods of `FSWatcher`:
-
-- `.add(path / paths)`: Add files, directories for tracking.
-  Takes an array of strings or just one string.
-- `.on(event, callback)`: Listen for an FS event.
-  Available events: `add`, `addDir`, `change`, `unlink`, `unlinkDir`, `ready`,
-  `raw`, `error`.
-  Additionally `all` is available which gets emitted with the underlying event
-  name and path for every event other than `ready`, `raw`, and `error`. `raw` is internal, use it carefully.
-- `.unwatch(path / paths)`: Stop watching files or directories.
-  Takes an array of strings or just one string.
-- `.close()`: **async** Removes all listeners from watched files. Asynchronous, returns Promise. Use with `await` to ensure bugs don't happen.
-- `.getWatched()`: Returns an object representing all the paths on the file
-  system being watched by this `FSWatcher` instance. The object's keys are all the
-  directories (using absolute paths unless the `cwd` option was used), and the
-  values are arrays of the names of the items contained in each directory.
-
-### CLI
-
-Check out third party [chokidar-cli](https://github.com/open-cli-tools/chokidar-cli),
-which allows to execute a command on each change, or get a stdio stream of change events.
+| Event                     | Listener arguments                                                 |
+| ------------------------- | ------------------------------------------------------------------ |
+| `add`, `addDir`, `change` | `(path, stats?)`; `stats` when available, always with `alwaysStat` |
+| `unlink`, `unlinkDir`     | `(path)`                                                           |
+| `all`                     | `(event, path, stats?)` for each of the five events above          |
+| `ready`                   | none; the initial scan is complete                                 |
+| `error`                   | `(error)`                                                          |
+| `raw`                     | `(event, path, details)` from the backend; unstable, use with care |
 
 ## Troubleshooting
 
-Sometimes, Chokidar runs out of file handles, causing `EMFILE` and `ENOSP` errors:
-
-- `bash: cannot set terminal process group (-1): Inappropriate ioctl for device bash: no job control in this shell`
-- `Error: watch /home/ ENOSPC`
-
-There are two things that can cause it.
-
-1. Exhausted file handles for generic fs operations
-   - Can be solved by using [graceful-fs](https://www.npmjs.com/package/graceful-fs),
-     which can monkey-patch native `fs` module used by chokidar: `let fs = require('fs'); let grfs = require('graceful-fs'); grfs.gracefulify(fs);`
-   - Can also be solved by tuning OS: `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`.
-2. Exhausted file handles for `fs.watch`
-   - Can't seem to be solved by graceful-fs or OS tuning
-   - It's possible to start using `usePolling: true`, which will switch backend to resource-intensive `fs.watchFile`
-
-All fsevents-related issues (`WARN optional dep failed`, `fsevents is not a constructor`) are solved by upgrading to v4+.
+- **`ENOSPC: System limit for number of file watchers reached`** (Linux): the inotify watch limit
+  is exhausted. Raise it with
+  `echo fs.inotify.max_user_watches=524288 | sudo tee -a /etc/sysctl.conf && sudo sysctl -p`, or
+  watch less: narrow `paths`, add `ignored` (for example `node_modules`), set `depth`.
+- **`EMFILE: too many open files`**: the process file-descriptor limit is exhausted. Watch less as
+  above, raise the limit (`ulimit -n 65536`), or use `backend: 'polling'`, which holds no watch
+  handles at the cost of CPU.
+- `fsevents`-related install errors (`WARN optional dep failed`, `fsevents is not a constructor`)
+  are solved by upgrading to v4+.
 
 ## Changelog
 
-- **v4 (Sep 2024):** remove glob support and bundled fsevents. Decrease dependency count from 13 to 1. Rewrite in typescript. Bumps minimum node.js requirement to v14+
-- **v3 (Apr 2019):** massive CPU & RAM consumption improvements; reduces deps / package size by a factor of 17x and bumps Node.js requirement to v8.16+.
-- **v2 (Dec 2017):** globs are now posix-style-only. Tons of bugfixes.
-- **v1 (Apr 2015):** glob support, symlink support, tons of bugfixes. Node 0.8+ is supported
-- **v0.1 (Apr 2012):** Initial release, extracted from [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
+- **v6 (Aug 2026):** complete rewrite; new fs.watch(recursive) backend on macos + windows; requires Node.js 22+
+- **v5 (Nov 2025):** ESM-only; requires Node.js 20+
+- **v4 (Sep 2024):** remove glob support & fsevents dependency, decrease dep count from 13
+  to 1; requires Node.js 14+
+- **v3 (Apr 2019):** massive CPU & RAM consumption improvements; 17x decrease in pkg size + deps; requires Node.js 8.16+
+- **v2 (Dec 2017):** posix-style globs; bugfixes
+- **v1 (Apr 2015):** glob support, symlink support, tons of bugfixes; requires Node.js 0.8+
+- **v0.1 (Apr 2012):** extracted from
+  [Brunch](https://github.com/brunch/brunch/blob/9847a065aea300da99bd0753f90354cde9de1261/src/helpers.coffee#L66)
 
 ### Upgrading
 
-If you've used globs before and want do replicate the functionality with v4:
+Version 6 requires Node.js 22.22 or newer. An `FSWatcher` cannot be reopened after `.close()`
+starts; construct a new watcher instead. Polling now defaults `atomic` to `false`, while an
+explicit `atomic` value is preserved. Use `pollingInterval` and `pollingBinaryInterval` for
+polling configuration; the v5 `interval` and `binaryInterval` spellings remain as deprecated
+aliases.
+
+Globs were removed in v4. To replicate them:
 
 ```js
 // v3
-chok.watch('**/*.js');
-chok.watch('./directory/**/*');
+chokidar.watch('**/*.js');
+chokidar.watch('./directory/**/*');
 
-// v4
-chok.watch('.', {
+// v4+: filter instead
+chokidar.watch('.', {
   ignored: (path, stats) => stats?.isFile() && !path.endsWith('.js'), // only watch js files
 });
-chok.watch('./directory');
+chokidar.watch('./directory');
 
-// other way
+// or expand the glob yourself
 import { glob } from 'node:fs/promises';
-const watcher = watch(await Array.fromAsync(glob('**/*.js')));
+const watcher = chokidar.watch(await Array.fromAsync(glob('**/*.js')));
 
 // unwatching
-// v3
-chok.unwatch('**/*.js');
-// v4
-chok.unwatch(await Array.fromAsync(glob('**/*.js')));
+watcher.unwatch('**/*.js'); // v3
+watcher.unwatch(await Array.fromAsync(glob('**/*.js'))); // v4+
 ```
+
+## Contributing
+
+Run `npm ci && npm run build && npm test` (tests import the built files, so build first).
+Internals and design requirements are documented in [docs/architecture.md](docs/architecture.md);
+the cross-platform CI setup is in [docs/vm-testing.md](docs/vm-testing.md).
 
 ## Also
 
