@@ -32,36 +32,6 @@ import type {
   TreeState,
 } from './tree.js';
 
-type InternalWatcher = {
-  lifecycle: LifecycleScope;
-  tree: TreeState;
-  reconciliation: ReconciliationQueue;
-  events: EventPolicy;
-  handler: ObservationEngine;
-  scheduler: Scheduler;
-  streams: Set<ReaddirpStream>;
-  readyEmitted: boolean;
-  emitRaw: WatchHandlers['rawEmitter'];
-  createHelper(path: Path): WatchHelper;
-  emitEvent(event: EventName, path: Path, stats?: Stats): Promise<void>;
-  capturePathGeneration(): number;
-  isIgnored(path: Path, stats?: Stats): boolean;
-  addPathCloser(path: Path, closer: () => void | Promise<void>): void;
-  removePath(directory: string, item: string, isDirectory?: boolean): void;
-  createScanStream(root: Path, options?: Partial<ReaddirpOptions>): ReaddirpStream | undefined;
-};
-
-type AddPathAttemptHost = {
-  addPathOnce(
-    path: string,
-    initialAdd: boolean,
-    priorHelper: WatchHelper | undefined,
-    depth: number,
-    target?: string,
-    pathGeneration?: number
-  ): Promise<'complete' | 'watch-parent'>;
-};
-
 export type WatcherInternals = {
   lifecycle: LifecycleScope;
   state: LifecycleState;
@@ -90,7 +60,6 @@ export type WatcherInternals = {
   createHelper(path: Path): WatchHelper;
   emitEvent(event: EventName, path: Path, stats?: Stats): Promise<void>;
   logicalKey(path: Path): LogicalPathKey;
-  capturePathGeneration(): number;
   isIgnored(path: Path, stats?: Stats): boolean;
   awaitWriteFinish(
     path: Path,
@@ -147,11 +116,11 @@ export const backendTesting = {
 
 /** Deliberately unpackaged test seam for race injection and state assertions. */
 export function inspectWatcher(watcher: FSWatcher): WatcherInternals {
-  const internal = watcher as unknown as InternalWatcher;
+  const internal = watcher;
   const { lifecycle, tree, reconciliation, events } = internal;
   return {
     lifecycle,
-    state: lifecycle.state as LifecycleState,
+    state: lifecycle.state,
     generation: lifecycle.generation,
     abortController: lifecycle.abortController,
     tasks: lifecycle.tasks,
@@ -167,7 +136,7 @@ export function inspectWatcher(watcher: FSWatcher): WatcherInternals {
     pendingWrites: events.pendingWrites,
     pendingUnlinks: events.pendingUnlinks,
     pendingChangeEmissions: events.pendingChanges,
-    throttled: events.throttled as Map<ThrottleType, Map<string, Throttler>>,
+    throttled: events.throttled,
     handler: internal.handler,
     scheduler: internal.scheduler,
     streams: internal.streams,
@@ -183,7 +152,6 @@ export function inspectWatcher(watcher: FSWatcher): WatcherInternals {
     emitEvent: (event: EventName, path: Path, stats?: Stats): Promise<void> =>
       internal.emitEvent(event, path, stats),
     logicalKey: logicalPathKey,
-    capturePathGeneration: (): number => internal.capturePathGeneration(),
     isIgnored: (path: Path, stats?: Stats): boolean => internal.isIgnored(path, stats),
     awaitWriteFinish: (
       path: Path,
@@ -201,7 +169,7 @@ export function inspectWatcher(watcher: FSWatcher): WatcherInternals {
       options?: Partial<ReaddirpOptions>
     ): ReaddirpStream | undefined => internal.createScanStream(root, options),
     walkMissingRoot: async (path: string): Promise<number> => {
-      const host = internal.handler as unknown as AddPathAttemptHost;
+      const host = internal.handler;
       const original = host.addPathOnce;
       let calls = 0;
       host.addPathOnce = async () => {

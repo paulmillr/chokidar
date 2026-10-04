@@ -36,7 +36,7 @@ type EventPolicyContext = {
   isPathGenerationActive: (path: Path, generation: number) => boolean;
   isReady: () => boolean;
   remove: (directory: string, item: string) => void;
-  handleError: (error: Error) => void;
+  handleError: (error: unknown) => void;
   publish: (event: EventName, args: EmitArgs | EmitErrorArgs) => void;
 };
 
@@ -98,7 +98,7 @@ export class EventPolicy {
       if (event === EVENTS.UNLINK) {
         const existing = this.pendingUnlinks.get(logicalKey);
         if (existing) scheduler.clearTimeout(existing.timer);
-        const entry: EmitArgsWithName = [event, ...(args as EmitArgs)];
+        const entry: EmitArgsWithName = [event, ...args];
         const timer = this.setTimeout(
           () => {
             const pending = this.pendingUnlinks.get(logicalKey);
@@ -106,7 +106,7 @@ export class EventPolicy {
             this.pendingUnlinks.delete(logicalKey);
             if (this.context.isClosed()) return;
             const [pendingEvent, ...pendingArgs] = pending.event;
-            this.context.publish(pendingEvent, pendingArgs as EmitArgs);
+            this.context.publish(pendingEvent, pendingArgs);
           },
           typeof options.atomic === 'number' ? options.atomic : 100
         );
@@ -172,7 +172,7 @@ export class EventPolicy {
       try {
         stats = await stat(fullPath);
       } catch (error) {
-        this.context.handleError(error as Error);
+        this.context.handleError(error);
       }
       if (
         !stats ||
