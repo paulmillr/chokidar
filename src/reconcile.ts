@@ -105,7 +105,7 @@ export class ObservationEngine {
   reportError: (error: unknown) => void;
   constructor(fsW: WatcherContext) {
     this.fsw = fsW;
-    this.reportError = (error) => fsW.handleError(error as Error);
+    this.reportError = (error) => fsW.handleError(error);
   }
 
   /**
@@ -1423,7 +1423,7 @@ export class ObservationEngine {
     }
   }
 
-  private async addPathOnce(
+  public async addPathOnce(
     path: string,
     initialAdd: boolean,
     priorWh: WatchHelper | undefined,
