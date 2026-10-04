@@ -352,10 +352,33 @@ export class TreeState {
     }
   }
 
+  /** True when a tracked directory path now names a different directory inode. */
+  replacedSinceObserved(path: Path, stats: Stats): boolean {
+    const previous = this.observed.get(logicalPathKey(path));
+    return (
+      previous?.kind === 'directory' &&
+      stats.isDirectory() &&
+      previous.ino !== 0 &&
+      stats.ino !== 0 &&
+      previous.ino !== stats.ino
+    );
+  }
+
+  /** True when `stats` no longer matches a recorded fact of the same kind. */
+  changedSinceObserved(path: Path, stats: Stats): boolean {
+    const previous = this.observed.get(logicalPathKey(path));
+    return (
+      previous !== undefined && previous.kind === statKind(stats) && !sameStatFact(previous, stats)
+    );
+  }
+
   isDuplicateObservation(path: Path, stats: Stats, trigger: NativeTrigger): boolean {
     const previous = this.observed.get(logicalPathKey(path));
     const sameFact = sameStatFact(previous, stats);
+    // Burst windows only collapse callbacks that confirm the fact already
+    // published. A different fact is a write that landed after that stat.
     const duplicateCreate =
+      sameFact &&
       previous?.transition === 'add' &&
       previous?.relativePath === trigger.relativePath &&
       previous.rawEvent === 'rename' &&
@@ -367,6 +390,7 @@ export class TreeState {
       !previous?.initialRecursive &&
       (previous?.transition === 'add' || trigger.relativePath === null);
     const duplicateWrite =
+      sameFact &&
       previous?.transition === 'change' &&
       previous.relativePath === trigger.relativePath &&
       withinWindow(previous, trigger, RECURSIVE_WRITE_BURST_WINDOW) &&
@@ -407,6 +431,7 @@ export interface WatcherContext {
   readonly emitRaw: WatchHandlers['rawEmitter'];
 
   addPathCloser(path: Path, closer: PathCloser): void;
+  capturePathGeneration(): number;
   closePath(path: Path, recursive?: boolean): void;
   emitEvent(event: EventName, path: Path, stats?: Stats): Promise<void>;
   createHelper(path: Path): WatchHelper;
@@ -416,4 +441,5 @@ export interface WatcherContext {
   isUnwatched(path: Path): boolean;
   createScanStream(root: Path, options?: Partial<ReaddirpOptions>): ReaddirpStream | undefined;
   removePath(directory: string, item: string, isDirectory?: boolean): void;
+  rewatchMissingPath(path: Path): void;
 }

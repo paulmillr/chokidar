@@ -11,24 +11,43 @@ import {
 } from './backend.js';
 import type { WatchHelper } from './runtime.js';
 import {
+  type BackendResourceKey,
   type BackendSubscription,
   type BackendTrigger,
   EVENTS,
   type FSWInstanceOptions,
   isMacos,
   isMissingError,
+  isStrictlyInside,
   isWindows,
   logicalPathKey,
   type NativeTrigger,
   type Path,
   type SchedulerTimer,
 } from './runtime.js';
-import { resolveRecursiveCandidate, type WatcherContext } from './tree.js';
+import { type DirEntry, resolveRecursiveCandidate, type WatcherContext } from './tree.js';
 
 const EV = EVENTS;
 const RECURSIVE_TRIGGER_BUFFER_LIMIT = 1024;
+const MAX_NATIVE_RESUBSCRIBES = 3;
+const FALLBACK_SUBSCRIBE_CONCURRENCY = 16;
 type AddPathOutcome = 'complete' | 'watch-parent';
 type MappedFileSnapshot = Stats | false;
+/** Reconcile exactly one candidate path; its siblings are never scanned. */
+type ExactCandidate = { onRootMissing?: () => void };
+const EXACT_CANDIDATE: ExactCandidate = Object.freeze({});
+
+/** An invalidation with no name: reconcile the whole subscribed path. */
+function recoveryTrigger(resource: string): NativeTrigger {
+  return {
+    kind: 'native',
+    resource: resource as BackendResourceKey,
+    rawEvent: EV.CHANGE,
+    relativePath: null,
+    sequence: Number.MAX_SAFE_INTEGER,
+    observedAt: backendNow(),
+  };
+}
 
 function sameMappedFileSnapshot(left: MappedFileSnapshot, right: MappedFileSnapshot): boolean {
   if (left === false || right === false) return left === right;
@@ -62,6 +81,8 @@ class ReplayBuffer<T> {
 }
 
 type ScanOutcome = { complete: boolean; error?: unknown; failures: unknown[] };
+/** Collects what a recursive rescan saw so absent tracked entries can be removed. */
+type RecursiveRescan = { seen: Set<string>; directories: string[]; complete: boolean };
 function consumeDirectoryStream(
   stream: ReaddirpStream,
   onEntry: (entry: EntryInfo) => void | Promise<void>
@@ -161,6 +182,27 @@ export class ObservationEngine {
     };
 
     let subscription: BackendSubscription | undefined;
+    let resubscribes = 0;
+    const subscribeNative = (): BackendSubscription | undefined =>
+      setFsWatchListener(
+        path,
+        absolutePath,
+        options,
+        {
+          publish: (trigger) => {
+            resubscribes = 0;
+            publish(trigger);
+          },
+          errHandler: this.reportError,
+          rawEmitter: (...args) => this.fsw.emitRaw(...args),
+          failure: () => {
+            if (!active || !this.fsw.lifecycle.isActive(generation)) return;
+            subscription = resubscribes++ < MAX_NATIVE_RESUBSCRIBES ? subscribeNative() : undefined;
+            publish(recoveryTrigger(absolutePath));
+          },
+        },
+        this.fsw.lifecycle.abortController.signal
+      );
     if (opts.backendCapabilities.polling) {
       const enableBin = opts.pollingInterval !== opts.pollingBinaryInterval;
       const pollingInterval =
@@ -179,23 +221,13 @@ export class ObservationEngine {
         this.fsw.lifecycle.abortController.signal
       );
     } else {
-      subscription = setFsWatchListener(
-        path,
-        absolutePath,
-        options,
-        {
-          publish,
-          errHandler: this.reportError,
-          rawEmitter: (...args) => this.fsw.emitRaw(...args),
-        },
-        this.fsw.lifecycle.abortController.signal
-      );
+      subscription = subscribeNative();
     }
     if (!subscription) return;
     return () => {
       if (!active) return;
       active = false;
-      return subscription.close();
+      return subscription?.close();
     };
   }
 
@@ -258,7 +290,14 @@ export class ObservationEngine {
             const current = await this.mappedFileSnapshot(targetPath);
             if (current !== undefined && sameMappedFileSnapshot(fallbackSnapshot, current)) return;
           }
-          await this.reconcileNativeTrigger(logicalParent, helper, trigger, logicalPath, depth - 1);
+          await this.reconcileNativeTrigger(
+            logicalParent,
+            helper,
+            trigger,
+            logicalPath,
+            depth - 1,
+            EXACT_CANDIDATE
+          );
           if (source === 'exact') fallbackSnapshot = await this.mappedFileSnapshot(targetPath);
         },
         isActive,
@@ -266,46 +305,51 @@ export class ObservationEngine {
         logicalPath
       );
     };
+    let resubscribes = 0;
     const handlers = (source: 'directory' | 'exact') => ({
-      publish: (trigger: BackendTrigger): void => publish(source, trigger),
-      errHandler: (error: unknown): void => {
-        if (source === 'directory') directorySubscription = undefined;
-        else {
-          exactSubscription = undefined;
-          exactActive = false;
-        }
-        this.reportError(error);
+      publish: (trigger: BackendTrigger): void => {
+        if (source === 'directory') resubscribes = 0;
+        publish(source, trigger);
       },
+      errHandler: this.reportError,
       rawEmitter: (event: 'rename' | 'change', relativePath: string | null): void => {
         if ((source === 'directory' || exactActive) && matchesTarget(relativePath) && isActive()) {
           this.fsw.emitRaw(event, relativePath, { watchedPath: logicalPath });
         }
       },
+      failure: (): void => {
+        if (source === 'exact') {
+          exactSubscription = undefined;
+          exactActive = false;
+          return;
+        }
+        directorySubscription = undefined;
+        if (!isActive()) return;
+        // Re-establish the retired handle and reconcile anything it missed.
+        if (resubscribes++ < MAX_NATIVE_RESUBSCRIBES) directorySubscription = subscribe(source);
+        publish(source, recoveryTrigger(sp.resolve(targetDirectory)));
+      },
     });
-    directorySubscription = setFsWatchListener(
-      targetDirectory,
-      sp.resolve(targetDirectory),
-      { persistent: this.fsw.options.persistent },
-      handlers('directory'),
-      this.fsw.lifecycle.abortController.signal
-    );
-    exactSubscription = useExactFallback
-      ? setFsWatchListener(
-          targetPath,
-          sp.resolve(targetPath),
-          { persistent: this.fsw.options.persistent },
-          handlers('exact'),
-          this.fsw.lifecycle.abortController.signal
-        )
-      : undefined;
+    const subscribe = (source: 'directory' | 'exact'): BackendSubscription | undefined => {
+      const path = source === 'directory' ? targetDirectory : targetPath;
+      return setFsWatchListener(
+        path,
+        sp.resolve(path),
+        { persistent: this.fsw.options.persistent },
+        handlers(source),
+        this.fsw.lifecycle.abortController.signal
+      );
+    };
+    directorySubscription = subscribe('directory');
+    exactSubscription = useExactFallback ? subscribe('exact') : undefined;
     if (!exactSubscription) exactActive = false;
-    const subscriptions = [directorySubscription, exactSubscription].filter(
-      (subscription): subscription is BackendSubscription => subscription !== undefined
-    );
-    if (subscriptions.length === 0) return;
+    if (!directorySubscription && !exactSubscription) return;
     return async () => {
       if (!active) return;
       active = false;
+      const subscriptions = [directorySubscription, exactSubscription].filter(
+        (subscription): subscription is BackendSubscription => subscription !== undefined
+      );
       await Promise.allSettled(subscriptions.map((subscription) => subscription.close()));
     };
   }
@@ -425,6 +469,8 @@ export class ObservationEngine {
 
     // if the file is already being watched, do nothing
     if (parent.has(basename)) return;
+    const pathGeneration = this.fsw.capturePathGeneration();
+    const isActive = () => this.fsw.isPathGenerationActive(file, pathGeneration);
 
     const listener = async (_path: Path, newStats?: Stats) => {
       if (!newStats || newStats.mtimeMs === 0) {
@@ -433,7 +479,8 @@ export class ObservationEngine {
             prevStats.isSymbolicLink() && !this.fsw.options.followSymlinks
               ? await lstat(file)
               : await stat(file);
-          if (this.fsw.closed) return;
+          // unwatch() may have retired this file while the stat was in flight.
+          if (!isActive()) return;
           // Check that change event was not fired because of changed only accessTime.
           const at = newStats.atimeMs;
           const mt = newStats.mtimeMs;
@@ -443,6 +490,7 @@ export class ObservationEngine {
           this.fsw.tree.recordObserved(file, newStats, 'change');
           prevStats = newStats;
         } catch (error) {
+          if (!isActive()) return;
           if (isMissingError(error)) {
             this.fsw.removePath(dirname, basename);
           } else {
@@ -642,17 +690,33 @@ export class ObservationEngine {
         return;
       }
 
-      // Files that absent in current directory snapshot
-      // but present in previous emit `remove` event
-      // and are removed from @watched[directory].
-      previous
-        .getChildren()
-        .filter((item) => !current.has(item))
-        .forEach((item) => {
-          const missingPath = sp.join(directory, item);
-          if (this.isHelperActive(wh, missingPath)) this.fsw.removePath(directory, item);
-        });
+      // Entries tracked but absent from this listing are removed only once
+      // lstat confirms they are gone: another queue may have added them after
+      // the listing, and readdirp reports unreadable entries as warnings.
+      await Promise.all(
+        previous
+          .getChildren()
+          .filter((item) => !current.has(item))
+          .map((item) => this.removeIfMissing(wh, directory, item, previous))
+      );
     });
+  }
+
+  private async removeIfMissing(
+    wh: WatchHelper,
+    directory: string,
+    item: string,
+    entry: DirEntry
+  ): Promise<void> {
+    const path = sp.join(directory, item);
+    if (!this.isHelperActive(wh, path)) return;
+    try {
+      await lstat(path);
+      return;
+    } catch (error) {
+      if (!isMissingError(error)) return;
+    }
+    if (this.isHelperActive(wh, path) && entry.has(item)) this.fsw.removePath(directory, item);
   }
 
   /**
@@ -664,7 +728,8 @@ export class ObservationEngine {
     dir: string,
     initialAdd: boolean,
     wh: WatchHelper,
-    baseDepth: number
+    baseDepth: number,
+    rescan?: RecursiveRescan
   ): Promise<void> | undefined {
     if (!this.isHelperActive(wh, dir)) return;
     const fsw = this.fsw;
@@ -685,6 +750,10 @@ export class ObservationEngine {
       if (!this.isHelperActive(wh, path)) return;
       const directory = sp.dirname(path);
       const item = sp.basename(path);
+      if (rescan) {
+        rescan.seen.add(logicalPathKey(path));
+        if (stats.isDirectory()) rescan.directories.push(path);
+      }
 
       if (stats.isSymbolicLink()) {
         return (async () => {
@@ -696,7 +765,15 @@ export class ObservationEngine {
       }
 
       const parent = fsw.tree.getDirectory(directory);
-      if (parent.has(item)) return;
+      if (parent.has(item)) {
+        // A rescan stands in for invalidations the backend dropped, so it also
+        // reports writes to files whose recorded stat fact no longer matches.
+        if (rescan && stats.isFile() && fsw.tree.changedSinceObserved(path, stats)) {
+          fsw.tree.recordObserved(path, stats, 'change', undefined, false, true);
+          fsw.emitEvent(EV.CHANGE, path, stats);
+        }
+        return;
+      }
       parent.add(item);
       const isDirectory = stats.isDirectory();
       if (isDirectory) fsw.tree.getDirectory(path);
@@ -707,7 +784,36 @@ export class ObservationEngine {
     }).then((outcome) => {
       if (outcome.error) this.reportError(outcome.error);
       outcome.failures.forEach(this.reportError);
+      if (rescan) rescan.complete = outcome.complete;
     });
+  }
+
+  /**
+   * Reconcile a whole recursive root after an invalidation that names no path
+   * (a backend buffer overflow) or a replay buffer overflow. A shallow root
+   * listing would miss every change below the first level.
+   */
+  async rescanRecursiveTree(dir: string, wh: WatchHelper, baseDepth: number): Promise<void> {
+    const rescan: RecursiveRescan = { seen: new Set(), directories: [dir], complete: false };
+    await this.scanRecursiveTree(dir, false, wh, baseDepth, rescan);
+    if (!rescan.complete || !this.isHelperActive(wh, dir)) return;
+    // Only fully listed real directories can prove that a child is gone;
+    // symlinked and ignored subtrees are not descended into.
+    const missing: string[] = [];
+    for (const directory of rescan.directories) {
+      for (const item of this.fsw.tree.peekDirectory(directory)?.getChildren() ?? []) {
+        const path = sp.join(directory, item);
+        if (!rescan.seen.has(logicalPathKey(path))) missing.push(path);
+      }
+    }
+    missing.sort((left, right) => left.length - right.length);
+    for (const path of missing) {
+      const entry = this.fsw.tree.peekDirectory(sp.dirname(path));
+      // An ancestor removed earlier in this pass already took its subtree.
+      if (entry?.has(sp.basename(path))) {
+        await this.removeIfMissing(wh, sp.dirname(path), sp.basename(path), entry);
+      }
+    }
   }
 
   isHelperActive(wh: WatchHelper, path: string = wh.watchPath): boolean {
@@ -759,8 +865,11 @@ export class ObservationEngine {
     rootHelper: WatchHelper,
     trigger: NativeTrigger,
     candidateOverride?: string,
-    baseDepth = 0
+    baseDepth = 0,
+    exact?: ExactCandidate
   ): Promise<void> {
+    // An exact subscription observes one path inside `root`; an untracked or
+    // unreadable candidate never justifies scanning its siblings.
     const fsw = this.fsw;
     if (!this.isHelperActive(rootHelper, root)) return;
     let localHelper: WatchHelper | undefined;
@@ -788,6 +897,7 @@ export class ObservationEngine {
     } catch (error) {
       if (!isMissingError(error)) {
         this.reportError(error);
+        if (exact) return;
         const ancestor = candidate === root ? root : sp.dirname(candidate);
         const ancestorDepth = Math.max(0, baseDepth + this.candidateDepth(root, ancestor));
         await this.readDirectory(
@@ -806,13 +916,14 @@ export class ObservationEngine {
       if (fsw.closed) return;
       if (missingPath === root) {
         fsw.removePath(sp.dirname(root), sp.basename(root), true);
+        exact?.onRootMissing?.();
         return;
       }
       const parentPath = sp.dirname(missingPath);
       const item = sp.basename(missingPath);
       if (fsw.tree.getDirectory(parentPath).has(item)) {
         fsw.removePath(parentPath, item);
-      } else {
+      } else if (!exact) {
         await this.readDirectory(
           parentPath,
           false,
@@ -846,7 +957,11 @@ export class ObservationEngine {
     }
 
     if (candidate === root) {
-      if (stats.isDirectory()) {
+      if (!stats.isDirectory()) return;
+      // A nameless invalidation of a recursive root can stand for any change in the tree.
+      if (rootHelper.recursiveRoot === root) {
+        await this.rescanRecursiveTree(root, helper(), baseDepth);
+      } else {
         await this.readDirectory(root, false, helper(), undefined, root, baseDepth);
       }
       return;
@@ -938,6 +1053,11 @@ export class ObservationEngine {
         return;
       }
       if (!tracked) {
+        await this.addPathOnce(candidate, false, directoryHelper, depth);
+      } else if (fsw.tree.replacedSinceObserved(candidate, stats)) {
+        // Deleted and recreated before this callback ran: an inode-bound
+        // handle still watches the old directory, so replace the whole entry.
+        fsw.removePath(parentPath, item, true);
         await this.addPathOnce(candidate, false, directoryHelper, depth);
       } else if (maxDepth === undefined || depth <= maxDepth) {
         await this.readDirectory(candidate, false, directoryHelper, undefined, candidate, depth);
@@ -1068,6 +1188,7 @@ export class ObservationEngine {
         return;
       }
       if (closer) fallbackClosers.push(closer);
+      await this.subscribeTrackedDirectories(dir, wh, depth);
       this.reportError(error);
     };
 
@@ -1129,13 +1250,34 @@ export class ObservationEngine {
 
     try {
       await this.scanRecursiveTree(dir, initialAdd, wh, depth);
-      if (hasPendingFailure) {
-        buffered.clear();
-        await establishFallback(pendingFailure);
-      } else {
+      if (!hasPendingFailure) {
         phase = 'replaying';
         let index = 0;
-        while (acceptsTrigger() && !buffered.overflowed && index < buffered.entries.length) {
+        while (acceptsTrigger()) {
+          if (buffered.overflowed) {
+            // Collapse to one tree rescan; triggers arriving during it are
+            // buffered again and replayed instead of being discarded.
+            buffered.clear();
+            index = 0;
+            const overflowTrigger: NativeTrigger = {
+              kind: 'native',
+              resource: subscription.resource,
+              rawEvent: EV.CHANGE,
+              relativePath: null,
+              sequence: Number.MAX_SAFE_INTEGER,
+              observedAt: backendNow(),
+            };
+            await this.reconcileBackendTrigger(
+              dir,
+              true,
+              overflowTrigger,
+              () => this.reconcileNativeTrigger(dir, wh, overflowTrigger),
+              () => acceptsTrigger(),
+              false
+            );
+            continue;
+          }
+          if (index >= buffered.entries.length) break;
           const trigger = buffered.entries[index++];
           if (trigger.rawEvent === 'rename' && trigger.relativePath !== null) {
             const candidate = resolveRecursiveCandidate(dir, trigger.relativePath);
@@ -1156,25 +1298,13 @@ export class ObservationEngine {
             false
           );
         }
-        if (buffered.overflowed && acceptsTrigger()) {
-          const overflowTrigger: NativeTrigger = {
-            kind: 'native',
-            resource: subscription.resource,
-            rawEvent: EV.CHANGE,
-            relativePath: null,
-            sequence: Number.MAX_SAFE_INTEGER,
-            observedAt: backendNow(),
-          };
-          await this.reconcileBackendTrigger(
-            dir,
-            true,
-            overflowTrigger,
-            () => this.reconcileNativeTrigger(dir, wh, overflowTrigger),
-            () => acceptsTrigger(),
-            false
-          );
-        }
         if ((phase as string) !== 'recovering') phase = 'live';
+      }
+      if (hasPendingFailure) {
+        // A failure while scanning or replaying enqueued no recovery; there is
+        // no live handle to recover into, so fall back now.
+        buffered.clear();
+        await establishFallback(pendingFailure);
       }
       buffered.clear();
       fsw.tree.clearInitialCreates(dir);
@@ -1187,6 +1317,50 @@ export class ObservationEngine {
       return;
     }
     return close;
+  }
+
+  /**
+   * A recursive root that falls back to per-directory handles already tracks
+   * every subdirectory, so the fallback scan sees none of them as new. Give
+   * each its own subscription; existing entries emit nothing.
+   */
+  private async subscribeTrackedDirectories(
+    root: string,
+    wh: WatchHelper,
+    baseDepth: number
+  ): Promise<void> {
+    const fsw = this.fsw;
+    const absoluteRoot = sp.resolve(root);
+    const needsSubscription = (path: string): boolean => {
+      const key = logicalPathKey(path);
+      return (
+        this.isHelperActive(wh, path) &&
+        !fsw.lifecycle.closers.has(key) &&
+        !fsw.tree.symlinkPaths.has(key) &&
+        (fsw.tree.peekDirectory(sp.dirname(path))?.has(sp.basename(path)) ?? false)
+      );
+    };
+    const directories = [...fsw.tree.watched.values()]
+      .filter((entry) => isStrictlyInside(absoluteRoot, entry.path))
+      // Keep the root's spelling so events stay relative when the root was.
+      .map((entry) => sp.join(root, sp.relative(absoluteRoot, entry.path)))
+      .filter(needsSubscription)
+      .sort((left, right) => left.length - right.length);
+    let next = 0;
+    const subscribeNext = async (): Promise<void> => {
+      while (next < directories.length) {
+        const directory = directories[next++];
+        if (!needsSubscription(directory)) continue;
+        await this.addPathOnce(
+          directory,
+          false,
+          wh,
+          baseDepth + this.candidateDepth(root, directory)
+        );
+      }
+    };
+    const workers = Math.min(FALLBACK_SUBSCRIBE_CONCURRENCY, directories.length);
+    await Promise.all(Array.from({ length: workers }, subscribeNext));
   }
 
   /**
@@ -1220,12 +1394,15 @@ export class ObservationEngine {
       // ensure dir is tracked (harmless if redundant)
       parentDir.add(sp.basename(dir));
       this.fsw.tree.getDirectory(dir);
+      // Always retain the directory's identity so a delete-and-recreate that
+      // outpaces its callbacks can be told apart from a content change.
       this.fsw.tree.recordObserved(
         dir,
         stats,
         tracked ? undefined : 'add',
         wh.observationTrigger,
-        initialAdd && Boolean(wh.recursiveRoot)
+        initialAdd && Boolean(wh.recursiveRoot),
+        true
       );
     }
     let closer;
@@ -1254,9 +1431,17 @@ export class ObservationEngine {
       const replayCreates = new Set<string>();
       let initializing = !target;
       let active = true;
+      const targetPath = target ? sp.join(dir, target) : undefined;
+      // The directory holding the target is gone: wait from the nearest existing ancestor.
+      const rewatchTarget = (): void => {
+        if (targetPath && active && this.isHelperActive(wh, targetPath)) {
+          this.fsw.rewatchMissingPath(targetPath);
+        }
+      };
       const removeObserved = (dirPath: string): void => {
         if (target) {
           if (this.fsw.tree.getDirectory(dirPath).has(target)) this.fsw.removePath(dirPath, target);
+          rewatchTarget();
           return;
         }
         this.fsw.removePath(sp.dirname(dirPath), sp.basename(dirPath), true);
@@ -1318,7 +1503,9 @@ export class ObservationEngine {
               ? sp.basename(candidate).toLowerCase() === target.toLowerCase()
               : sp.basename(candidate) === target);
           if (matchesTarget) {
-            return this.reconcileNativeTrigger(dir, wh, trigger, sp.join(dir, target), depth);
+            return this.reconcileNativeTrigger(dir, wh, trigger, targetPath, depth, {
+              onRootMissing: rewatchTarget,
+            });
           }
         }
         return observeDirectory(dir, currentStats, trigger);
@@ -1332,10 +1519,34 @@ export class ObservationEngine {
         target ? sp.join(dir, target) : dir
       );
 
+      if (target && targetPath && closer) {
+        // The target may have appeared after the caller's failed lstat and
+        // before this subscription existed; nothing would report it.
+        const check = recoveryTrigger(sp.resolve(dir));
+        await this.fsw.reconciliation.enqueue(
+          targetPath,
+          async () => {
+            if (this.fsw.tree.getDirectory(dir).has(target)) return;
+            await reconcile(targetPath, undefined, check);
+          },
+          targetPath
+        );
+      }
+
       if (!target) {
         await this.readDirectory(dir, initialAdd, wh, target, dir, depth);
         let index = 0;
-        while (!buffered.overflowed && index < buffered.entries.length && !this.fsw.closed) {
+        while (!this.fsw.closed) {
+          if (buffered.overflow) {
+            // Triggers arriving during the bulk rescan are buffered again and
+            // replayed after it instead of being discarded with this overflow.
+            const overflow = buffered.overflow;
+            buffered.clear();
+            index = 0;
+            await observeDirectory(dir, overflow.stats, overflow.trigger);
+            continue;
+          }
+          if (index >= buffered.entries.length) break;
           const event = buffered.entries[index++];
           if (
             event.trigger.kind === 'native' &&
@@ -1359,9 +1570,6 @@ export class ObservationEngine {
             () => active && this.isHelperActive(wh, event.path),
             false
           );
-        }
-        if (buffered.overflow && !this.fsw.closed) {
-          await observeDirectory(dir, buffered.overflow.stats, buffered.overflow.trigger);
         }
         buffered.clear();
         replayCreates.forEach((path) => this.fsw.tree.clearInitialCreate(path));
@@ -1492,6 +1700,8 @@ export class ObservationEngine {
           if (closer) await closer();
           return 'complete';
         }
+        // The directory vanished before it could be subscribed: keep climbing.
+        if (target && !closer) return 'watch-parent';
         // preserve this symlink's target path
         if (isSymbolicLink) {
           this.fsw.tree.symlinkPaths.set(absPath, targetPath);
@@ -1592,7 +1802,9 @@ export class ObservationEngine {
         if (closer) await closer();
         return 'complete';
       }
-      if (closer) this.fsw.addPathCloser(path, closer);
+      // A wait for a missing child belongs to that child: unwatching or
+      // re-adding the parent must not be confused with it.
+      if (closer) this.fsw.addPathCloser(target ? sp.join(path, target) : path, closer);
       return 'complete';
     } catch (error) {
       if (!this.isHelperActive(wh)) {

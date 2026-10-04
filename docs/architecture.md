@@ -40,7 +40,8 @@ test seam and is not packaged.
 5. Every timer belongs to `EventPolicy`, a subscription closer, or a shared backend resource.
 6. A directory subscription is established before its scan; callbacks arriving during the scan
    are buffered (at most 1024) and replayed without coalescing before the subscription goes
-   live; overflow degrades to one bulk rescan.
+   live; overflow degrades to one bulk rescan (of the whole tree for a recursive root), and
+   callbacks arriving during that rescan are buffered and replayed in turn.
 7. Backend resources may be shared across watchers; trees, ignores, symlink state, and event
    timing never are.
 8. `ready` means initial tracked-task quiescence: it fires at most once and never after close.
@@ -79,12 +80,19 @@ never on replay.
 **Native per-directory.** One `fs.watch` per exact directory key. Files never own handles: a file
 inside a watched directory is a filtered child of that directory's subscription, an explicitly
 watched file subscribes to its parent and filters its basename, and a followed file symlink
-subscribes to the target's parent and projects the candidate back to the logical link.
+subscribes to the target's parent and projects the candidate back to the logical link. A runtime
+handle error retires the shared handle and notifies every subscriber, including any that attached
+while the error was being classified; each re-subscribes (at most 3 times without an intervening
+event) and reconciles its path with a nameless invalidation.
 
 **Native recursive.** `fs.watch(root, {recursive: true})` is a subscription topology, not a second
 transition engine. Only `ERR_FEATURE_UNAVAILABLE_ON_PLATFORM` latches "unsupported" process-wide,
 after which roots silently use per-directory subscriptions; any other setup or runtime error is
-reported, and a runtime failure moves that root to per-directory fallback.
+reported, and a runtime failure moves that root to per-directory fallback, which also subscribes
+every subdirectory the recursive scan already tracked. A failure during the initial scan or replay
+falls back once that phase ends. A nameless recursive invalidation (for example a Windows
+`ReadDirectoryChangesW` buffer overflow) rescans the whole tree: additions, confirmed removals, and
+files whose recorded stat fact changed.
 
 **Owned polling.** Polling never uses `fs.watchFile`: each watched path is a Chokidar-owned `stat`
 loop, shared per `(resource key, Scheduler)` at the fastest subscriber interval. A changed
@@ -117,12 +125,24 @@ deliver callbacks from ignored subtrees.
 
 Missing paths: a missing descendant climbs to the outermost missing ancestor so intermediate
 `unlinkDir` events are retained; a missing root climbs to its nearest existing parent and watches
-that parent for the basename to reappear (also used when the last watched file disappears).
+that parent for the basename to reappear. The same wait re-arms whenever a requested root
+disappears and climbs again if the watched parent itself disappears; its closer is keyed by the
+awaited path, not the parent. A new wait checks once for a target that appeared before it was
+subscribed. Exact subscriptions (an awaited basename, an explicitly watched file) reconcile only
+their own candidate and never rescan siblings.
 
-`TreeState.observed` records native stat facts only to suppress backend-shaped echoes: a
+A rescan removes a tracked entry missing from its listing only after `lstat` confirms it is gone:
+another queue may have added it after the listing, and readdirp reports unreadable entries as
+warnings rather than errors. A tracked directory that reappears with a different inode was deleted
+and recreated before its callbacks ran (inotify handles stay bound to the old inode), so it is
+removed and re-added.
+
+`TreeState.observed` records native stat facts to suppress backend-shaped echoes: a
 create-then-change echo within 25 ms, a same-kind write echo within 10 ms, and an unchanged
-initial/null-name file invalidation. The 50 ms `change` window in `EventPolicy` remains the only
-user-visible burst window.
+initial/null-name file invalidation. The echo windows only collapse a callback whose stat fact
+matches the one already published; a different fact is a write that landed after that stat. Facts
+also retain each subscribed directory's identity. The 50 ms `change` window in `EventPolicy`
+remains the only user-visible burst window.
 
 ## Event policy
 
@@ -134,11 +154,13 @@ closed/path-generation check -> Windows/cwd presentation -> pending write bump
   -> alwaysStat -> publish (+ all)
 ```
 
-- Await-write-finish starts only after `ready`.
+- Await-write-finish starts only after `ready`. Each wait owns its entry: a stat in flight for a
+  cancelled wait never adopts a newer one, and a file found missing always ends its wait.
 - The change window replays the newest differing stats once when it closes.
-- `removePath` has a 100 ms `remove` gate so concurrent removal paths cannot double-emit.
+- `removePath` is idempotent: it emits only for a tracked item, so concurrent removal paths cannot
+  double-emit, while a path recreated in between is truthfully removed again.
 - `alwaysStat` fills missing stats; a stat failure suppresses that event and reports the error.
-- The `readdir`/`watch`/`add` throttle types are legacy: queue coalescing replaced them.
+- The `readdir`/`watch`/`add`/`remove` throttle types are legacy: queue coalescing replaced them.
 
 ## Ignores, depth, and symlinks
 

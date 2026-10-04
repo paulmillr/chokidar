@@ -649,8 +649,9 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       (async () => {
         try {
           await readdir(path);
-        } catch {
-          if (this.lifecycle.isActive(generation)) {
+        } catch (error) {
+          // Only a missing directory is gone; an unreadable one still exists.
+          if (isMissingError(error) && this.lifecycle.isActive(generation)) {
             this.removePath(sp.dirname(path), sp.basename(path));
           }
         }
@@ -677,16 +678,8 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     const logicalKey = logicalPathKey(path);
     isDirectory = isDirectory != null ? isDirectory : this.tree.watched.has(logicalKey);
 
-    // prevent duplicate handling in case of arriving here nearly simultaneously
-    // via multiple paths (such as handleFile and handleDirectory)
-    if (!this.events.throttle('remove', path, 100)) return;
-
-    // if the only watched file is removed, watch for its return
-    if (!isDirectory && this.tree.watched.size === 1) {
-      this.lifecycle.track(
-        this.handler.addRoot(directory, false, this.capturePathGeneration(), item)
-      );
-    }
+    // Removal is idempotent: a second caller finds nothing tracked and emits
+    // nothing, while a path re-added in between is truthfully removed again.
 
     // Recursively remove children directories / files.
     const nestedDirectoryChildren = this.tree.peekDirectory(path)?.getChildren() ?? [];
@@ -694,6 +687,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     // Check if item was on the watched list and remove it
     const wasTracked = this.tree.peekDirectory(directory)?.has(item) ?? false;
+    const hadClosers = this.lifecycle.closers.has(logicalKey);
     this.removeTreeItem(directory, item);
 
     // Fixes issue #1042 -> Relative paths were detected and added as symlinks
@@ -721,6 +715,20 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
     // Avoid conflicts if we later create another file with the same name
     this.closePath(path);
+
+    // A requested root that disappears is awaited from its nearest existing ancestor.
+    if ((wasTracked || hadClosers) && this.#roots.has(logicalKey)) this.rewatchMissingPath(path);
+  }
+
+  /**
+   * Replaces every watch keyed at `path` with a wait from its nearest existing
+   * ancestor, so the path is reported again when it reappears.
+   * @internal
+   */
+  public rewatchMissingPath(path: Path): void {
+    if (this.closed || this.isUnwatched(path)) return;
+    this.closePath(path);
+    this.lifecycle.track(this.handler.addRoot(path, false, this.capturePathGeneration()));
   }
 
   /**

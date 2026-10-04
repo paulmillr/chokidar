@@ -236,7 +236,19 @@ export class EventPolicy {
       fullPath = sp.join(this.context.options.cwd, path);
     }
     const writeKey = logicalKey ?? logicalPathKey(fullPath);
+    if (this.pendingWrites.has(writeKey)) return;
     const generation = this.context.lifecycle.generation;
+    const pending: PendingWrite = {
+      lastChange: this.context.scheduler.now(),
+      cancelWait: () => {
+        if (this.pendingWrites.get(writeKey) === pending) this.pendingWrites.delete(writeKey);
+        this.context.scheduler.clearTimeout(timeoutHandler);
+        return event;
+      },
+    };
+    // A stat in flight when this wait is cancelled must not adopt a newer wait for the path.
+    const isCurrent = () =>
+      this.context.lifecycle.isActive(generation) && this.pendingWrites.get(writeKey) === pending;
 
     const inspect = (previous?: Stats): void => {
       const task = (async () => {
@@ -244,11 +256,11 @@ export class EventPolicy {
         try {
           current = await stat(fullPath);
         } catch (error) {
-          if (!this.context.lifecycle.isActive(generation) || !this.pendingWrites.has(writeKey)) {
-            return;
-          }
+          if (!isCurrent()) return;
           if (isMissingError(error)) {
             this.context.remove(sp.dirname(fullPath), sp.basename(fullPath));
+            // Never leave the path suppressed if the removal did not cancel this wait.
+            if (this.pendingWrites.get(writeKey) === pending) pending.cancelWait();
           } else {
             this.pendingWrites.delete(writeKey);
             awfEmit(error as Error);
@@ -256,12 +268,8 @@ export class EventPolicy {
           return;
         }
 
-        if (!this.context.lifecycle.isActive(generation) || !this.pendingWrites.has(writeKey)) {
-          return;
-        }
+        if (!isCurrent()) return;
         const now = this.context.scheduler.now();
-        const pending = this.pendingWrites.get(writeKey);
-        if (!pending) return;
         if (previous && current.size !== previous.size) pending.lastChange = now;
         if (now - pending.lastChange >= threshold) {
           this.pendingWrites.delete(writeKey);
@@ -273,17 +281,8 @@ export class EventPolicy {
       this.context.lifecycle.track(task);
     };
 
-    if (!this.pendingWrites.has(writeKey)) {
-      this.pendingWrites.set(writeKey, {
-        lastChange: this.context.scheduler.now(),
-        cancelWait: () => {
-          this.pendingWrites.delete(writeKey);
-          this.context.scheduler.clearTimeout(timeoutHandler);
-          return event;
-        },
-      });
-      timeoutHandler = this.setTimeout(inspect, pollInterval);
-    }
+    this.pendingWrites.set(writeKey, pending);
+    timeoutHandler = this.setTimeout(inspect, pollInterval);
   }
 
   cancelPath(path: Path): void {
