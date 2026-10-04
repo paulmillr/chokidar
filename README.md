@@ -21,7 +21,7 @@ Chokidar watches everything under the paths you give it, so scope them (and use 
 
 Made for [Brunch](https://brunch.io/) in 2012, it is now used in
 [30+ million projects](https://www.npmjs.com/browse/depended/chokidar) and has proven itself
-in production environments. The current major is [v6 (Aug 2026)](#changelog).
+in production environments. The current major is [v6 (Oct 2026)](#changelog).
 
 ## Getting started
 
@@ -212,7 +212,7 @@ chokidar.watch('dir-or-file', {
 
 ## Changelog
 
-- **v6 (Aug 2026):** complete rewrite; new fs.watch(recursive) backend on macos + windows; requires Node.js 22+
+- **v6 (Oct 2026):** complete rewrite; new fs.watch(recursive) backend on macos + windows; requires Node.js 22+
 - **v5 (Nov 2025):** ESM-only; requires Node.js 20+
 - **v4 (Sep 2024):** remove glob support & fsevents dependency, decrease dep count from 13
   to 1; requires Node.js 14+
