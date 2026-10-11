@@ -60,7 +60,7 @@ watcher
 
 watcher.add(['lib', 'index.js']); // add more paths later
 watcher.unwatch('lib'); // synchronous
-console.log(watcher.getWatched()); // { '/abs': ['src'], '/abs/src': ['a.js', 'sub'], ... }
+console.log(watcher.getWatched()); // Map { '/abs': ['src'], '/abs/src': ['a.js', 'sub'], ... }
 await watcher.close(); // async and terminal: create a new watcher to resume
 ```
 
@@ -183,7 +183,7 @@ chokidar.watch('dir-or-file', {
 - `.close()`: **async and terminal.** Removes all listeners and stops all owned work. Repeated
   calls return the same Promise; once closing has started, `.add()` throws and a new `FSWatcher`
   is required.
-- `.getWatched()`: an object whose keys are the watched directories (absolute unless `cwd` is
+- `.getWatched()`: a map whose keys are the watched directories (absolute unless `cwd` is
   set) and whose values are arrays of the entry names inside each.
 - `.on(event, listener)`: `FSWatcher` is an `EventEmitter`; see events below.
 

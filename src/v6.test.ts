@@ -2320,7 +2320,7 @@ export function registerV6Tests(context: TestHarness): void {
           equal(watcher.options.backend, 'native-recursive');
           equal(factoryCalls, 1);
           equal(internals(watcher).recursiveRoots.size, 1);
-          ok(Object.keys(watcher.getWatched()).length >= directoryCount + 1);
+          ok(watcher.getWatched().size >= directoryCount + 1);
         } finally {
           await watcher.close();
           equal(closeSpy.callCount, 1);

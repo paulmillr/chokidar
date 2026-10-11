@@ -480,15 +480,15 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
 
   /**
    * Expose list of watched paths
-   * @returns for chaining
+   * @returns the list of watched paths
    */
-  getWatched(): Record<string, string[]> {
-    const watchList: Record<string, string[]> = {};
+  getWatched(): Map<string, string[]> {
+    const watchList = new Map<string, string[]>();
     this.tree.watched.forEach((entry) => {
       const dir = entry.path;
       const key = this.options.cwd ? sp.relative(this.options.cwd, dir) : dir;
       const index = key || '.';
-      watchList[index] = entry.getChildren().sort();
+      watchList.set(index, entry.getChildren().sort());
     });
     return watchList;
   }

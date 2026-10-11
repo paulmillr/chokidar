@@ -1210,7 +1210,7 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
       await symlink(currentDir, dpath('subdir/circular'), isWindows ? 'dir' : undefined);
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
-      ok(Object.keys(watcher.getWatched()).length < 10);
+      ok(watcher.getWatched().size < 10);
     });
     it('should recognize changes following symlinked dirs', async () => {
       const linkedFilePath = sp.join(linkedDir, 'change.txt');
@@ -2019,20 +2019,21 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
   });
   describe('getWatched', () => {
     it('should return the watched paths', async () => {
-      const expected: Record<string, string[]> = {};
-      expected[sp.dirname(currentDir)] = [testId.toString()];
-      expected[currentDir] = ['change.txt', 'unlink.txt'];
+      const expected = new Map<string, string[]>([
+        [sp.dirname(currentDir), [testId.toString()]],
+        [currentDir, ['change.txt', 'unlink.txt']],
+      ]);
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
       deepEqual(watcher.getWatched(), expected);
     });
     it('should set keys relative to cwd & include added paths', async () => {
       options.cwd = currentDir;
-      const expected = {
-        '.': ['change.txt', 'subdir', 'unlink.txt'],
-        '..': [testId.toString()],
-        subdir: [],
-      };
+      const expected = new Map<string, string[]>([
+        ['.', ['change.txt', 'subdir', 'unlink.txt']],
+        ['..', [testId.toString()]],
+        ['subdir', []],
+      ]);
       await mkdir(dpath('subdir'));
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
