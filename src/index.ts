@@ -488,7 +488,12 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
       const dir = entry.path;
       const key = this.options.cwd ? sp.relative(this.options.cwd, dir) : dir;
       const index = key || '.';
-      watchList[index] = entry.getChildren().sort();
+      Object.defineProperty(watchList, index, {
+        value: entry.getChildren().sort(),
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
     });
     return watchList;
   }

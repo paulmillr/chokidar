@@ -2018,6 +2018,40 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
     });
   });
   describe('getWatched', () => {
+    for (const children of [[], ['z.txt', 'example.txt', 'a.txt']]) {
+      for (const relative of [true, false]) {
+        it(`should include ${children.length ? 'nonempty' : 'empty'} __proto__ directories with ${relative ? 'cwd' : 'absolute paths'}`, async () => {
+          await mkdir(dpath('__proto__'));
+          await mkdir(dpath('sibling'));
+          for (const child of children) await write(dpath(`__proto__/${child}`), 'test');
+          await write(dpath('sibling/file.txt'), 'test');
+          if (relative) options.cwd = currentDir;
+          const watcher = cwatch(currentDir, options);
+          await waitForWatcher(watcher);
+
+          const watched = watcher.getWatched();
+          const key = relative ? '__proto__' : dpath('__proto__');
+          const sorted = [...children].sort();
+          ok(Object.hasOwn(watched, key));
+          ok(Object.keys(watched).includes(key));
+          equal(Object.getPrototypeOf(watched), Object.prototype);
+          deepEqual(watched[key], sorted);
+          deepEqual(JSON.parse(JSON.stringify(watched))[key], sorted);
+          deepEqual(watched[relative ? 'sibling' : dpath('sibling')], ['file.txt']);
+          deepEqual(watched[relative ? '.' : currentDir], [
+            '__proto__',
+            'change.txt',
+            'sibling',
+            'unlink.txt',
+          ]);
+
+          await watcher.close();
+          deepEqual(watcher.getWatched(), {});
+          equal(Object.getPrototypeOf(watcher.getWatched()), Object.prototype);
+          deepEqual(watched[key], sorted);
+        });
+      }
+    }
     it('should return the watched paths', async () => {
       const expected: Record<string, string[]> = {};
       expected[sp.dirname(currentDir)] = [testId.toString()];
