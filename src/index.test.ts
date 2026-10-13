@@ -2023,6 +2023,8 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
         it(`should include ${children.length ? 'nonempty' : 'empty'} __proto__ directories with ${relative ? 'cwd' : 'absolute paths'}`, async () => {
           await mkdir(dpath('__proto__'));
           await mkdir(dpath('sibling'));
+          const specialNames = ['constructor', 'toString', 'hasOwnProperty'];
+          for (const name of specialNames) await mkdir(dpath(name));
           for (const child of children) await write(dpath(`__proto__/${child}`), 'test');
           await write(dpath('sibling/file.txt'), 'test');
           if (relative) options.cwd = currentDir;
@@ -2034,39 +2036,59 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
           const sorted = [...children].sort();
           ok(Object.hasOwn(watched, key));
           ok(Object.keys(watched).includes(key));
-          equal(Object.getPrototypeOf(watched), Object.prototype);
+          equal(Object.getPrototypeOf(watched), null);
           deepEqual(watched[key], sorted);
+          deepEqual(Object.getOwnPropertyDescriptor(watched, key), {
+            value: sorted,
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          });
+          for (const name of specialNames) {
+            const specialKey = relative ? name : dpath(name);
+            ok(Object.hasOwn(watched, specialKey));
+            deepEqual(watched[specialKey], []);
+            deepEqual(JSON.parse(JSON.stringify(watched))[specialKey], []);
+          }
           deepEqual(JSON.parse(JSON.stringify(watched))[key], sorted);
           deepEqual(watched[relative ? 'sibling' : dpath('sibling')], ['file.txt']);
           deepEqual(watched[relative ? '.' : currentDir], [
             '__proto__',
             'change.txt',
+            'constructor',
+            'hasOwnProperty',
             'sibling',
+            'toString',
             'unlink.txt',
           ]);
 
           await watcher.close();
-          deepEqual(watcher.getWatched(), {});
-          equal(Object.getPrototypeOf(watcher.getWatched()), Object.prototype);
+          deepEqual(Object.keys(watcher.getWatched()), []);
+          equal(JSON.stringify(watcher.getWatched()), '{}');
+          equal(Object.getPrototypeOf(watcher.getWatched()), null);
           deepEqual(watched[key], sorted);
         });
       }
     }
     it('should return the watched paths', async () => {
-      const expected: Record<string, string[]> = {};
+      const expected: Record<string, string[]> = Object.create(null);
       expected[sp.dirname(currentDir)] = [testId.toString()];
       expected[currentDir] = ['change.txt', 'unlink.txt'];
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
-      deepEqual(watcher.getWatched(), expected);
+      const watched = watcher.getWatched();
+      deepEqual(watched, expected);
+      equal(watched instanceof Object, false);
+      equal(watched.hasOwnProperty, undefined);
+      equal(watched.toString, undefined);
     });
     it('should set keys relative to cwd & include added paths', async () => {
       options.cwd = currentDir;
-      const expected = {
+      const expected = Object.assign(Object.create(null), {
         '.': ['change.txt', 'subdir', 'unlink.txt'],
         '..': [testId.toString()],
         subdir: [],
-      };
+      });
       await mkdir(dpath('subdir'));
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);

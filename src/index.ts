@@ -483,17 +483,12 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * @returns for chaining
    */
   getWatched(): Record<string, string[]> {
-    const watchList: Record<string, string[]> = {};
+    const watchList: Record<string, string[]> = Object.create(null);
     this.tree.watched.forEach((entry) => {
       const dir = entry.path;
       const key = this.options.cwd ? sp.relative(this.options.cwd, dir) : dir;
       const index = key || '.';
-      Object.defineProperty(watchList, index, {
-        value: entry.getChildren().sort(),
-        enumerable: true,
-        configurable: true,
-        writable: true,
-      });
+      watchList[index] = entry.getChildren().sort();
     });
     return watchList;
   }
