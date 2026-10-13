@@ -183,10 +183,8 @@ chokidar.watch('dir-or-file', {
 - `.close()`: **async and terminal.** Removes all listeners and stops all owned work. Repeated
   calls return the same Promise; once closing has started, `.add()` throws and a new `FSWatcher`
   is required.
-- `.getWatched()`: an object with a null prototype whose keys are the watched directories
-  (absolute unless `cwd` is set) and whose values are sorted arrays of the entry names inside each.
-  It has no inherited object methods; use `Object.hasOwn(result, key)` to check an entry.
-  Bracket access, `Object.keys()` and JSON serialization work as usual.
+- `.getWatched()`: an object whose keys are the watched directories (absolute unless `cwd` is
+  set) and whose values are arrays of the entry names inside each.
 - `.on(event, listener)`: `FSWatcher` is an `EventEmitter`; see events below.
 
 ### Events
