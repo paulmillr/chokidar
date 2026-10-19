@@ -1,6 +1,6 @@
 # Changelog for chokidar
 
-## 6.0.0 (unreleased)
+## 6.0.0 (2026-10-19)
 
 ### High-level changes
 

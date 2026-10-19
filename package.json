@@ -26,11 +26,11 @@
     }
   },
   "dependencies": {
-    "readdirp": "^5.0.0"
+    "readdirp": "^5.1.1"
   },
   "devDependencies": {
-    "@paulmillr/jsbt": "0.7.0",
-    "@types/node": "26.0.0",
+    "@paulmillr/jsbt": "0.7.2",
+    "@types/node": "26.5.0",
     "prettier": "3.8.3",
     "typescript": "6.0.3"
   },
