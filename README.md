@@ -21,7 +21,7 @@ Chokidar watches everything under the paths you give it, so scope them (and use 
 
 Made for [Brunch](https://brunch.io/) in 2012, it is now used in
 [30+ million projects](https://www.npmjs.com/browse/depended/chokidar) and has proven itself
-in production environments. The current major is [v6 (Oct 2026)](#changelog).
+in production environments. The current major is [v6 (Oct 2026)](#changelog) - with lots of major improvements.
 
 ## Getting started
 
