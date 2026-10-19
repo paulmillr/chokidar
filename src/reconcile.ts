@@ -1431,6 +1431,9 @@ export class ObservationEngine {
       const replayCreates = new Set<string>();
       let initializing = !target;
       let active = true;
+      // FSEvents can drop the first callbacks after a stream starts while later
+      // ones arrive, so the first live callback also rescans the directory.
+      let rescanOnFirstCallback = isMacos && !target;
       const targetPath = target ? sp.join(dir, target) : undefined;
       // The directory holding the target is gone: wait from the nearest existing ancestor.
       const rewatchTarget = (): void => {
@@ -1494,6 +1497,13 @@ export class ObservationEngine {
           return;
         }
         if (trigger.kind === 'native' && !target) {
+          if (rescanOnFirstCallback) {
+            rescanOnFirstCallback = false;
+            return (async () => {
+              await this.reconcileNativeTrigger(dir, wh, trigger, candidate, depth);
+              await observeDirectory(dir, undefined, trigger);
+            })();
+          }
           return this.reconcileNativeTrigger(dir, wh, trigger, candidate, depth);
         }
         if (trigger.kind === 'native' && target) {

@@ -3037,6 +3037,44 @@ export function registerV6Tests(context: TestHarness): void {
       equal(state.directoryEntry(dir).has('late.txt'), true);
     });
 
+    it('should find files FSEvents dropped before the first directory callback', async () => {
+      if (!isMacos) return;
+      await mkdir(context.currentDir, { recursive: true });
+      const dir = sp.resolve(context.currentDir);
+      const nativeKey = (path: string) => realpathSync.native(path);
+      const listeners = new Map<string, WatchListener<string>>();
+      backendTesting.setNativeWatchFactory((path, _options, listener) => {
+        listeners.set(nativeKey(path), listener);
+        return createFakeNativeWatcher();
+      });
+      const watcher = new chokidar.FSWatcher({
+        backend: 'native',
+        ignoreInitial: true,
+        atomic: false,
+      });
+      WATCHERS.push(watcher);
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+
+      try {
+        watcher.add(context.currentDir);
+        await waitForWatcher(watcher);
+        // The stream dropped this creation; the next one is delivered.
+        const dropped = dpath('dropped.txt');
+        await write(dropped, 'dropped');
+        const delivered = dpath('delivered.txt');
+        await write(delivered, 'delivered');
+        listeners.get(nativeKey(dir))!('rename', 'delivered.txt');
+        await waitFor([
+          [addSpy, 1, [delivered]],
+          [addSpy, 1, [dropped]],
+        ]);
+      } finally {
+        await watcher.close();
+        backendTesting.setNativeWatchFactory();
+      }
+    });
+
     it('should replay invalidations that arrive during an overflow rescan', async () => {
       await mkdir(context.currentDir, { recursive: true });
       const dir = sp.resolve(context.currentDir);
