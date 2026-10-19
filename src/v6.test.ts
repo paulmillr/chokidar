@@ -2724,6 +2724,49 @@ export function registerV6Tests(context: TestHarness): void {
       );
     });
 
+    it('should announce a file created empty with the data written right after', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const scheduler = new VirtualScheduler();
+      const watcher = new chokidar.FSWatcher({ backend: 'native', atomic: false }, scheduler);
+      WATCHERS.push(watcher);
+      watcher.readyEmitted = true;
+      const root = sp.resolve(context.currentDir);
+      const helper = internals(watcher).createHelper(root);
+      const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+      watcher.on(EV.ALL, allSpy);
+      const events = () => allSpy.calls.map(([event, path, stats]) => [event, path, stats?.size]);
+      const reconcile = (file: string, rawEvent: 'rename' | 'change', observedAt: number) =>
+        internals(watcher).handler.reconcileNativeTrigger(
+          root,
+          helper,
+          nativeTrigger(root, rawEvent, sp.basename(file), observedAt)
+        );
+
+      // writeFile on a new file: created empty, its data lands within the hold.
+      const quick = dpath('written-at-once.txt');
+      await write(quick, '');
+      await reconcile(quick, 'rename', 1000);
+      deepEqual(events(), []);
+      await write(quick, 'data');
+      await reconcile(quick, 'change', 1002);
+      deepEqual(events(), [[EV.ADD, quick, 4]]);
+      scheduler.advanceBy(60);
+      deepEqual(events(), [[EV.ADD, quick, 4]]);
+
+      // Data that lands after the hold is a later write of an empty file.
+      const late = dpath('written-later.txt');
+      await write(late, '');
+      await reconcile(late, 'rename', 2000);
+      scheduler.advanceBy(10);
+      deepEqual(events().slice(1), [[EV.ADD, late, 0]]);
+      await write(late, 'later');
+      await reconcile(late, 'change', 2050);
+      deepEqual(events().slice(1), [
+        [EV.ADD, late, 0],
+        [EV.CHANGE, late, 5],
+      ]);
+    });
+
     it('should report every removal of a path recreated within 100 ms', async () => {
       await mkdir(context.currentDir, { recursive: true });
       for (const atomic of [false, true]) {

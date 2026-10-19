@@ -30,13 +30,16 @@ export type PendingChangeEmission = {
   held?: { timer: SchedulerTimer; release: () => void };
 };
 
+/** A file `add` held while its stats showed an empty file. */
+type HeldAdd = { path: Path; stats?: Stats; timer?: SchedulerTimer; release: () => void };
+
 /**
- * `writeFile` truncates before it writes, and a callback can stat the file in
- * between (always on Windows with Node 22/24). A leading change that sees an
- * empty file is held until the data arrives, at most this long: one event,
- * with the written stats.
+ * `writeFile` creates or truncates before it writes, and a callback can stat the
+ * file in between (always on Windows with Node 22/24). An `add` or leading
+ * `change` that sees an empty file is held until the data arrives, at most this
+ * long: one event, with the written stats.
  */
-const EMPTY_FILE_CHANGE_HOLD = 10;
+const EMPTY_FILE_HOLD = 10;
 
 type EventPolicyContext = {
   options: FSWInstanceOptions;
@@ -68,6 +71,7 @@ export class EventPolicy {
   readonly pendingUnlinks: Map<string, { event: EmitArgsWithName; timer: SchedulerTimer }> =
     new Map();
   readonly pendingChanges: Map<string, PendingChangeEmission> = new Map();
+  readonly heldAdds: Map<string, HeldAdd> = new Map();
   readonly throttled: Map<ThrottleType, Map<string, Throttler>> = new Map();
   private readonly context: EventPolicyContext;
 
@@ -78,6 +82,12 @@ export class EventPolicy {
   private presentPath(path: Path): Path {
     if (isWindows) path = sp.normalize(path);
     return this.context.options.cwd ? sp.relative(this.context.options.cwd, path) : path;
+  }
+
+  private dropHeldAdd(logicalKey: string): void {
+    const held = this.heldAdds.get(logicalKey);
+    if (held) this.context.scheduler.clearTimeout(held.timer);
+    this.heldAdds.delete(logicalKey);
   }
 
   private dropPendingChange(logicalKey: string): void {
@@ -103,6 +113,19 @@ export class EventPolicy {
     path = this.presentPath(path);
     const args: EmitArgs | EmitErrorArgs = [path];
     if (stats != null) args.push(stats);
+
+    const heldAdd = this.heldAdds.get(logicalKey);
+    if (heldAdd) {
+      if (event === EVENTS.CHANGE) {
+        // The data of a held create landed: announce the file with it.
+        heldAdd.path = sourcePath;
+        if (stats) heldAdd.stats = stats;
+        if (!isEmptyFile(stats)) heldAdd.release();
+        return;
+      }
+      // Any other event for the path follows the add it held back.
+      heldAdd.release();
+    }
 
     if (event === EVENTS.UNLINK || event === EVENTS.UNLINK_DIR) {
       this.dropPendingChange(logicalKey);
@@ -160,6 +183,31 @@ export class EventPolicy {
       return;
     }
 
+    if (event === EVENTS.ADD && isEmptyFile(stats) && this.context.isReady()) {
+      const held: HeldAdd = {
+        path: sourcePath,
+        stats,
+        release: () => {
+          this.context.scheduler.clearTimeout(held.timer);
+          if (this.heldAdds.get(logicalKey) !== held) return;
+          this.heldAdds.delete(logicalKey);
+          if (
+            this.context.isClosed() ||
+            !this.context.lifecycle.isActive(generation) ||
+            !this.context.isPathGenerationActive(logicalKey, pathGeneration)
+          ) {
+            return;
+          }
+          const heldArgs: EmitArgs = [this.presentPath(held.path)];
+          if (held.stats) heldArgs.push(held.stats);
+          this.context.publish(EVENTS.ADD, heldArgs);
+        },
+      };
+      held.timer = this.setTimeout(held.release, EMPTY_FILE_HOLD);
+      this.heldAdds.set(logicalKey, held);
+      return;
+    }
+
     if (event === EVENTS.CHANGE) {
       const throttler = this.throttle(EVENTS.CHANGE, sourcePath, 50, (suppressedCount) => {
         const pending = this.pendingChanges.get(logicalKey);
@@ -204,7 +252,7 @@ export class EventPolicy {
           if (pending.stats) heldArgs.push(pending.stats);
           this.context.publish(EVENTS.CHANGE, heldArgs);
         };
-        pending.held = { timer: this.setTimeout(release, EMPTY_FILE_CHANGE_HOLD), release };
+        pending.held = { timer: this.setTimeout(release, EMPTY_FILE_HOLD), release };
         return;
       }
     }
@@ -340,6 +388,7 @@ export class EventPolicy {
     }
     this.pendingWrites.get(logicalKey)?.cancelWait();
     this.dropPendingChange(logicalKey);
+    this.dropHeldAdd(logicalKey);
     (['watch', 'add', 'remove', 'change'] as const).forEach((actionType) => {
       this.throttled.get(actionType)?.get(logicalKey)?.clear(false);
     });
@@ -355,6 +404,7 @@ export class EventPolicy {
       ...this.pendingUnlinks.keys(),
       ...this.pendingWrites.keys(),
       ...this.pendingChanges.keys(),
+      ...this.heldAdds.keys(),
     ]);
     [...paths].filter(contains).forEach((path) => this.cancelPath(path));
     this.throttled.forEach((entries, actionType) => {
@@ -370,6 +420,8 @@ export class EventPolicy {
     this.pendingUnlinks.clear();
     this.pendingChanges.forEach(({ held }) => this.context.scheduler.clearTimeout(held?.timer));
     this.pendingChanges.clear();
+    this.heldAdds.forEach(({ timer }) => this.context.scheduler.clearTimeout(timer));
+    this.heldAdds.clear();
     this.throttled.forEach((entries) => {
       entries.forEach((throttler) => throttler.clear(false));
     });
