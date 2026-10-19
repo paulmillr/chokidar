@@ -20,6 +20,7 @@
 - Made `close()` terminal: `add()` now throws once closing has started. Construct a new watcher instead.
 - Validated options in the constructor: invalid `backend`, `atomic`, `depth`, `awaitWriteFinish`, and polling intervals throw `TypeError`.
 - Emitted errors from `add()` as `error` events instead of unhandled rejections ([#1378](https://github.com/paulmillr/chokidar/issues/1378)).
+- Made `getWatched()` return a null-prototype object, so a watched directory named `__proto__` is listed ([#1493](https://github.com/paulmillr/chokidar/issues/1493)). Use `Object.hasOwn()` instead of `hasOwnProperty()` on the result.
 - Stopped applying `ignored` to directories above a path passed to `watch()` or `add()`, so a missing path is still watched through its parent ([#1374](https://github.com/paulmillr/chokidar/issues/1374)). Other entries in those directories are still filtered.
 
 ### Fixes
@@ -34,6 +35,7 @@
 - Fixed duplicate `add` events for unchanged files under directory activity ([#1465](https://github.com/paulmillr/chokidar/issues/1465)).
 - Fixed replacing a watched directory with a file of the same name hanging the process ([#1464](https://github.com/paulmillr/chokidar/issues/1464)).
 - Fixed persistent watching stopping after a watched directory was removed ([#1463](https://github.com/paulmillr/chokidar/issues/1463)).
+- Fixed a deleted watched path not being reported when recreated: previously only a deleted file that was the sole watched path was watched for its return. Any path passed to `watch()` or `add()` is now awaited from its nearest existing parent.
 - Fixed event throttling discarding updates; the newest differing change is now replayed when the window closes ([#1455](https://github.com/paulmillr/chokidar/issues/1455)).
 - Fixed relative `ignored` paths; relative strings now resolve against `cwd` or the process working directory ([#1436](https://github.com/paulmillr/chokidar/issues/1436)).
 - Fixed files not being detected when their directory did not exist before watching ([#1422](https://github.com/paulmillr/chokidar/issues/1422)).

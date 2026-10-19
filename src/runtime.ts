@@ -1,4 +1,4 @@
-import type { Stats, WatchEventType } from 'node:fs';
+import type { BigIntStats, Stats, WatchEventType } from 'node:fs';
 import { type as osType } from 'node:os';
 import * as sp from 'node:path';
 import type { EntryInfo } from 'readdirp';
@@ -151,6 +151,20 @@ export function normalizePath(path: Path): Path {
   let normalized = sp.normalize(unix).replace(BACK_SLASH_RE, '/').replace(DOUBLE_SLASH_RE, '/');
   if (unc && !normalized.startsWith('//')) normalized = `/${normalized}`;
   return normalized;
+}
+export type StatIdentity = { size: number; mtimeMs: number; ino: number };
+/**
+ * Plain-number size, mtime, and inode. readdirp returns BigIntStats on Windows,
+ * which never compare equal to the number Stats of `lstat`.
+ */
+export function statIdentity(stats: Stats): StatIdentity {
+  if (typeof stats.mtimeMs !== 'bigint') return stats;
+  const big = stats as unknown as BigIntStats;
+  const sec = big.mtimeNs / 1_000_000_000n;
+  const nsec = big.mtimeNs % 1_000_000_000n;
+  // Node's own number formula, so both kinds of Stats agree exactly.
+  const mtimeMs = Number(sec) * 1e3 + Number(nsec) / 1e6;
+  return { size: Number(big.size), mtimeMs, ino: Number(big.ino) };
 }
 export function logicalPathKey(path: Path): LogicalPathKey {
   const resolved = sp.resolve(path);

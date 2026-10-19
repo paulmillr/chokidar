@@ -1,7 +1,17 @@
 import { describe, it } from '@paulmillr/jsbt/test.js';
 import { deepEqual, equal, ok, throws } from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { watch as nativeWatch, unwatchFile, watchFile, type WatchListener } from 'node:fs';
+import {
+  mkdirSync,
+  watch as nativeWatch,
+  realpathSync,
+  rmSync,
+  unlinkSync,
+  unwatchFile,
+  watchFile,
+  type WatchListener,
+  writeFileSync,
+} from 'node:fs';
 import {
   lstat,
   realpath,
@@ -1515,7 +1525,7 @@ export function registerV6Tests(context: TestHarness): void {
   });
 
   describe('recursive native reconciliation', () => {
-    it('should collapse one native write burst and retain a later write', async () => {
+    it('should collapse a native write echo but report a differing write in its window', async () => {
       await mkdir(context.currentDir, { recursive: true });
       const file = dpath('recursive-write-burst.txt');
       await write(file, 'initial');
@@ -1542,15 +1552,79 @@ export function registerV6Tests(context: TestHarness): void {
         observedAt: scheduler.now(),
       });
 
+      const lastSize = () => spy.calls.at(-1)?.[1]?.size;
+
       await write(file, 'one phase');
       await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(1));
+      equal(spy.callCount, 1);
+      // The second phase lands after the first stat, inside the echo window:
+      // it is a real write and must reach the change window, not be dropped.
       await write(file, 'one write, final phase');
       await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(2));
+      // A callback confirming the same stat fact is a pure echo.
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(3));
+      equal(spy.callCount, 1);
       scheduler.advanceBy(50);
+      equal(spy.callCount, 2);
+      equal(lastSize(), Buffer.byteLength('one write, final phase'));
+
+      // A different length keeps the fact distinct under coarse mtime granularity.
+      await write(file, 'a distinct and longer later write');
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(4));
+      scheduler.advanceBy(50);
+      equal(spy.callCount, 3);
+      equal(lastSize(), Buffer.byteLength('a distinct and longer later write'));
+    });
+
+    it('should report a truncate-then-write as one change with the written stats', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const file = dpath('truncated-write.txt');
+      await write(file, 'initial');
+      const scheduler = new VirtualScheduler();
+      const watcher = new chokidar.FSWatcher(
+        { backend: 'native-recursive', atomic: false },
+        scheduler
+      );
+      WATCHERS.push(watcher);
+      const root = sp.resolve(context.currentDir);
+      const helper = internals(watcher).createHelper(root);
+      helper.recursiveRoot = root;
+      internals(watcher).directoryEntry(root).add(sp.basename(file));
+      internals(watcher).recordObserved(file, await lstat(file), 'add', undefined, true);
+      internals(watcher).tree.clearInitialCreates(root);
+      const spy = createSpy<EmitArgs, void>();
+      watcher.on(EV.CHANGE, spy);
+      const trigger = (sequence: number) => ({
+        kind: 'native' as const,
+        resource: root as BackendResourceKey,
+        rawEvent: 'change' as const,
+        relativePath: sp.basename(file),
+        sequence,
+        observedAt: scheduler.now(),
+      });
+      const lastSize = () => spy.calls.at(-1)?.[1]?.size;
+
+      // As Windows on Node 22/24 reports writeFile: the truncation is stat'ed
+      // before the data lands, then the data write arrives.
+      await write(file, '');
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(1));
+      equal(spy.callCount, 0);
+      await write(file, 'written data');
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(2));
+      // The data callback publishes at once, without waiting out the hold.
+      equal(spy.callCount, 1);
+      equal(lastSize(), Buffer.byteLength('written data'));
+      scheduler.advanceBy(60);
       equal(spy.callCount, 1);
 
-      await write(file, 'a distinct later write');
+      // A file that really is emptied is still reported once the hold ends.
+      await write(file, '');
       await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(3));
+      equal(spy.callCount, 1);
+      scheduler.advanceBy(10);
+      equal(spy.callCount, 2);
+      equal(lastSize(), 0);
+      scheduler.advanceBy(50);
       equal(spy.callCount, 2);
     });
 
@@ -2598,6 +2672,616 @@ export function registerV6Tests(context: TestHarness): void {
           internals(watcher).closers.has(internals(watcher).logicalKey(context.currentDir)),
           false
         );
+      });
+    }
+  });
+
+  describe('race regressions', () => {
+    const nativeTrigger = (
+      root: string,
+      rawEvent: 'rename' | 'change',
+      relativePath: string | null,
+      observedAt: number
+    ) => ({
+      kind: 'native' as const,
+      resource: root as BackendResourceKey,
+      rawEvent,
+      relativePath,
+      sequence: observedAt,
+      observedAt,
+    });
+
+    it('should report a write that lands after the stat of a create', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const file = dpath('created-then-written.txt');
+      const watcher = new chokidar.FSWatcher({ backend: 'native', atomic: false });
+      WATCHERS.push(watcher);
+      const root = sp.resolve(context.currentDir);
+      const helper = internals(watcher).createHelper(root);
+      const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+      watcher.on(EV.ALL, allSpy);
+      const reconcile = (rawEvent: 'rename' | 'change', observedAt: number) =>
+        internals(watcher).handler.reconcileNativeTrigger(
+          root,
+          helper,
+          nativeTrigger(root, rawEvent, sp.basename(file), observedAt)
+        );
+
+      // Like `cmd > file`: the shell creates the file, the command writes later.
+      await write(file, '');
+      await reconcile('rename', 1000);
+      await write(file, 'output arrives later');
+      await reconcile('change', 1005);
+      // A further callback that confirms the same stat fact is still an echo.
+      await reconcile('change', 1006);
+
+      deepEqual(
+        allSpy.calls.map(([event, path, stats]) => [event, path, stats?.size]),
+        [
+          [EV.ADD, file, 0],
+          [EV.CHANGE, file, Buffer.byteLength('output arrives later')],
+        ]
+      );
+    });
+
+    it('should announce a file created empty with the data written right after', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const scheduler = new VirtualScheduler();
+      const watcher = new chokidar.FSWatcher({ backend: 'native', atomic: false }, scheduler);
+      WATCHERS.push(watcher);
+      watcher.readyEmitted = true;
+      const root = sp.resolve(context.currentDir);
+      const helper = internals(watcher).createHelper(root);
+      const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+      watcher.on(EV.ALL, allSpy);
+      const events = () => allSpy.calls.map(([event, path, stats]) => [event, path, stats?.size]);
+      const reconcile = (file: string, rawEvent: 'rename' | 'change', observedAt: number) =>
+        internals(watcher).handler.reconcileNativeTrigger(
+          root,
+          helper,
+          nativeTrigger(root, rawEvent, sp.basename(file), observedAt)
+        );
+
+      // writeFile on a new file: created empty, its data lands within the hold.
+      const quick = dpath('written-at-once.txt');
+      await write(quick, '');
+      await reconcile(quick, 'rename', 1000);
+      deepEqual(events(), []);
+      await write(quick, 'data');
+      await reconcile(quick, 'change', 1002);
+      deepEqual(events(), [[EV.ADD, quick, 4]]);
+      scheduler.advanceBy(60);
+      deepEqual(events(), [[EV.ADD, quick, 4]]);
+
+      // Data that lands after the hold is a later write of an empty file.
+      const late = dpath('written-later.txt');
+      await write(late, '');
+      await reconcile(late, 'rename', 2000);
+      scheduler.advanceBy(10);
+      deepEqual(events().slice(1), [[EV.ADD, late, 0]]);
+      await write(late, 'later');
+      await reconcile(late, 'change', 2050);
+      deepEqual(events().slice(1), [
+        [EV.ADD, late, 0],
+        [EV.CHANGE, late, 5],
+      ]);
+    });
+
+    it('should report every removal of a path recreated within 100 ms', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      for (const atomic of [false, true]) {
+        const scheduler = new VirtualScheduler();
+        const watcher = new chokidar.FSWatcher({ atomic }, scheduler);
+        WATCHERS.push(watcher);
+        const file = dpath(`removed-twice-${atomic}.txt`);
+        const name = sp.basename(file);
+        const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+        watcher.on(EV.ALL, allSpy);
+        await write(file, 'first');
+        internals(watcher).directoryEntry(context.currentDir).add(name);
+
+        await unlink(file);
+        internals(watcher).removePath(context.currentDir, name);
+        await write(file, 'second');
+        internals(watcher).handler.handleFile(file, await lstat(file), false, false);
+        await unlink(file);
+        internals(watcher).removePath(context.currentDir, name);
+        scheduler.advanceBy(100);
+
+        equal(internals(watcher).directoryEntry(context.currentDir).has(name), false);
+        deepEqual(
+          allSpy.calls.map(([event]) => event),
+          atomic ? [EV.CHANGE, EV.UNLINK] : [EV.UNLINK, EV.ADD, EV.UNLINK]
+        );
+      }
+    });
+
+    it('should never leave a path suppressed by an orphaned awaitWriteFinish wait', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const file = dpath('orphaned-awf.txt');
+      await write(file, 'pending');
+      const scheduler = new VirtualScheduler();
+      const watcher = new chokidar.FSWatcher(
+        { atomic: false, awaitWriteFinish: { pollInterval: 10, stabilityThreshold: 30 } },
+        scheduler
+      );
+      WATCHERS.push(watcher);
+      internals(watcher).readyEmitted = true;
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+      // A removal that does not cancel the wait (as the old 100 ms remove gate did).
+      watcher.removePath = () => {};
+
+      await internals(watcher).emitEvent(EV.ADD, file);
+      await unlink(file);
+      scheduler.advanceBy(10);
+      await internals(watcher).drainTasks();
+      equal(internals(watcher).pendingWrites.size, 0);
+
+      await write(file, 'recreated');
+      await internals(watcher).emitEvent(EV.ADD, file);
+      for (let elapsed = 0; elapsed < 50; elapsed += 10) {
+        scheduler.advanceBy(10);
+        await internals(watcher).drainTasks();
+      }
+      equal(getCallsWith(addSpy, [file]).length, 1);
+    });
+
+    it('should not let an in-flight awaitWriteFinish stat adopt a newer wait', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const file = dpath('awf-generations.txt');
+      await write(file, 'value');
+      const scheduler = new VirtualScheduler();
+      const watcher = new chokidar.FSWatcher(
+        { atomic: false, awaitWriteFinish: { pollInterval: 10, stabilityThreshold: 30 } },
+        scheduler
+      );
+      WATCHERS.push(watcher);
+      const first = createSpy();
+      const second = createSpy();
+
+      internals(watcher).awaitWriteFinish(file, 30, EV.ADD, first);
+      scheduler.advanceBy(10); // the first wait's stat is now in flight
+      internals(watcher).events.cancelPath(file);
+      internals(watcher).awaitWriteFinish(file, 30, EV.CHANGE, second);
+      await internals(watcher).drainTasks();
+      equal(scheduler.activeCount, 1);
+
+      for (let elapsed = 0; elapsed < 40; elapsed += 10) {
+        scheduler.advanceBy(10);
+        await internals(watcher).drainTasks();
+      }
+      equal(first.callCount, 0);
+      equal(second.callCount, 1);
+      equal(internals(watcher).pendingWrites.size, 0);
+      equal(scheduler.activeCount, 0);
+    });
+
+    it('should watch a deleted root file for its return while other directories are tracked', async () => {
+      await mkdir(dpath('first'), { recursive: true });
+      await mkdir(dpath('second'), { recursive: true });
+      for (const options of [
+        { backend: 'native' as const },
+        { backend: 'polling' as const, pollingInterval: 10 },
+      ]) {
+        const returning = dpath(`first/returning-${options.backend}.txt`);
+        const other = dpath(`second/other-${options.backend}.txt`);
+        await write(returning, 'one');
+        await write(other, 'two');
+        const watcher = cwatch([returning, other], {
+          ...options,
+          ignoreInitial: true,
+          atomic: false,
+        });
+        await waitForWatcher(watcher);
+        const unlinkSpy = createSpy<EmitArgs, void>();
+        const addSpy = createSpy<EmitArgs, void>();
+        watcher.on(EV.UNLINK, unlinkSpy).on(EV.ADD, addSpy);
+
+        await unlink(returning);
+        await waitFor([[unlinkSpy, 1, [returning]]]);
+        await write(returning, 'back');
+        await waitFor([[addSpy, 1, [returning]]]);
+        await watcher.close();
+      }
+    });
+
+    it('should watch a deleted root directory for its return', async () => {
+      const root = dpath('returning-root');
+      await mkdir(root, { recursive: true });
+      const watcher = cwatch(root, { ignoreInitial: true, atomic: false });
+      await waitForWatcher(watcher);
+      const unlinkDirSpy = createSpy<EmitArgs, void>();
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.UNLINK_DIR, unlinkDirSpy).on(EV.ADD, addSpy);
+
+      await rmr(root);
+      await waitFor([[unlinkDirSpy, 1, [root]]]);
+      await mkdir(root);
+      const after = sp.join(root, 'after.txt');
+      await write(after, 'after');
+      await waitFor([[addSpy, 1, [after]]]);
+    });
+
+    it('should keep waiting for a missing root after its parent is replaced', async () => {
+      await mkdir(dpath('holder'), { recursive: true });
+      const missing = dpath('holder/eventually.txt');
+      const watcher = cwatch(missing, { backend: 'native', ignoreInitial: true, atomic: false });
+      await waitForWatcher(watcher);
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+
+      await rmr(dpath('holder'));
+      await delay(200);
+      await mkdir(dpath('holder'));
+      await write(missing, 'finally');
+      await waitFor([[addSpy, 1, [missing]]]);
+    });
+
+    it('should not adopt siblings when a watched missing file flickers', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      await write(dpath('sibling-a.txt'), 'a');
+      await write(dpath('sibling-b.txt'), 'b');
+      const missing = dpath('flicker.txt');
+      const watcher = cwatch(missing, { backend: 'native', ignoreInitial: true, atomic: false });
+      await waitForWatcher(watcher);
+      const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+      watcher.on(EV.ALL, allSpy);
+
+      writeFileSync(missing, 'x');
+      unlinkSync(missing);
+      await delay(300);
+
+      deepEqual(
+        allSpy.calls.filter(([, path]) => path !== missing),
+        []
+      );
+    });
+
+    it('should watch a parent added after a missing child', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const watcher = cwatch(dpath('not-yet.txt'), {
+        backend: 'native',
+        ignoreInitial: true,
+        atomic: false,
+      });
+      await waitForWatcher(watcher);
+      watcher.add(context.currentDir);
+      await internals(watcher).drainTasks();
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+
+      const other = dpath('other.txt');
+      await write(other, 'other');
+      await waitFor([[addSpy, 1, [other]]]);
+    });
+
+    it('should replace a subdirectory deleted and recreated before its callbacks run', async () => {
+      await mkdir(dpath('replaced'), { recursive: true });
+      await write(dpath('replaced/old.txt'), 'old');
+      const watcher = cwatch(context.currentDir, {
+        backend: 'native',
+        ignoreInitial: true,
+        atomic: false,
+      });
+      await waitForWatcher(watcher);
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+
+      // Synchronously, so the replacement outpaces the deletion callbacks.
+      rmSync(dpath('replaced'), { recursive: true });
+      mkdirSync(dpath('replaced'));
+      await delay(200);
+      const added = dpath('replaced/new.txt');
+      await write(added, 'new');
+      await waitFor([[addSpy, 1, [added]]]);
+    });
+
+    it('should re-establish a native directory handle retired after a runtime error', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const watcher = cwatch(context.currentDir, {
+        backend: 'native',
+        ignoreInitial: true,
+        atomic: false,
+      });
+      await waitForWatcher(watcher);
+      const errorSpy = createSpy();
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ERROR, errorSpy).on(EV.ADD, addSpy);
+
+      const failure = Object.assign(new Error('simulated native failure'), { code: 'EIO' });
+      equal(await backendTesting.failNativeWatch(context.currentDir, failure), true);
+      equal(errorSpy.callCount, 1);
+      ok(backendTesting.nativeResourceCount() >= 1);
+
+      const file = dpath('after-native-failure.txt');
+      await write(file, 'after');
+      await waitFor([[addSpy, 1, [file]]]);
+    });
+
+    it('should not unlink an entry added after a rescan listed its directory', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      await write(dpath('listed.txt'), 'listed');
+      const watcher = new chokidar.FSWatcher({ backend: 'native', atomic: false });
+      WATCHERS.push(watcher);
+      const dir = context.currentDir;
+      const state = internals(watcher);
+      state.directoryEntry(dir).add('listed.txt');
+      const createScanStream = watcher.createScanStream.bind(watcher);
+      let paused: ReturnType<typeof createScanStream>;
+      watcher.createScanStream = (root, options) => {
+        paused = createScanStream(root, options);
+        paused?.pause();
+        return paused;
+      };
+      const unlinkSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.UNLINK, unlinkSpy);
+
+      const scanning = state.handler.readDirectory(
+        dir,
+        false,
+        state.createHelper(dir),
+        undefined,
+        dir,
+        0
+      );
+      await delay(50); // the listing has been taken
+      const late = dpath('late.txt');
+      await write(late, 'late');
+      // As the directory's own reconciliation queue would, concurrently.
+      state.handler.handleFile(late, await lstat(late), false, false);
+      paused!.resume();
+      await scanning;
+
+      equal(unlinkSpy.callCount, 0);
+      equal(state.directoryEntry(dir).has('late.txt'), true);
+    });
+
+    it('should find files FSEvents dropped before the first directory callback', async () => {
+      if (!isMacos) return;
+      await mkdir(context.currentDir, { recursive: true });
+      const dir = sp.resolve(context.currentDir);
+      const nativeKey = (path: string) => realpathSync.native(path);
+      const listeners = new Map<string, WatchListener<string>>();
+      backendTesting.setNativeWatchFactory((path, _options, listener) => {
+        listeners.set(nativeKey(path), listener);
+        return createFakeNativeWatcher();
+      });
+      const watcher = new chokidar.FSWatcher({
+        backend: 'native',
+        ignoreInitial: true,
+        atomic: false,
+      });
+      WATCHERS.push(watcher);
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+
+      try {
+        watcher.add(context.currentDir);
+        await waitForWatcher(watcher);
+        // The stream dropped this creation; the next one is delivered.
+        const dropped = dpath('dropped.txt');
+        await write(dropped, 'dropped');
+        const delivered = dpath('delivered.txt');
+        await write(delivered, 'delivered');
+        listeners.get(nativeKey(dir))!('rename', 'delivered.txt');
+        await waitFor([
+          [addSpy, 1, [delivered]],
+          [addSpy, 1, [dropped]],
+        ]);
+      } finally {
+        await watcher.close();
+        backendTesting.setNativeWatchFactory();
+      }
+    });
+
+    it('should replay invalidations that arrive during an overflow rescan', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const dir = sp.resolve(context.currentDir);
+      const listeners = new Map<string, WatchListener<string>>();
+      // Windows hands the factory the native (realpath) spelling, which may differ from `dir`.
+      const nativeKey = (path: string) => realpathSync.native(path);
+      backendTesting.setNativeWatchFactory((path, _options, listener) => {
+        listeners.set(nativeKey(path), listener);
+        return createFakeNativeWatcher();
+      });
+      const watcher = new chokidar.FSWatcher({
+        backend: 'native',
+        ignoreInitial: true,
+        atomic: false,
+      });
+      WATCHERS.push(watcher);
+      const createScanStream = watcher.createScanStream.bind(watcher);
+      const scans: NonNullable<ReturnType<typeof createScanStream>>[] = [];
+      let scanned = () => {};
+      const nextScan = () =>
+        new Promise<void>((resolve) => {
+          scanned = resolve;
+        });
+      watcher.createScanStream = (root, options) => {
+        const stream = createScanStream(root, options);
+        if (stream && sp.resolve(root) === dir) {
+          stream.pause();
+          scans.push(stream);
+          scanned();
+        }
+        return stream;
+      };
+      const addSpy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, addSpy);
+
+      try {
+        const ready = waitForWatcher(watcher);
+        let scan = nextScan();
+        watcher.add(context.currentDir);
+        await scan;
+        const listener = listeners.get(nativeKey(dir))!;
+        for (let index = 0; index <= 1024; index++) listener('rename', `ghost-${index}.txt`);
+        scan = nextScan();
+        scans[0].resume();
+        await scan; // the overflow rescan has taken its listing
+        await delay(50);
+        const late = dpath('late.txt');
+        await write(late, 'late');
+        listener('rename', 'late.txt');
+        scans[1].resume();
+        await ready;
+
+        ok(calledWith(addSpy, [late]));
+      } finally {
+        await watcher.close();
+        backendTesting.setNativeWatchFactory();
+      }
+    });
+
+    if (canUseRecursiveWatch) {
+      it('should subscribe nested directories after a recursive handle falls back', async () => {
+        await mkdir(dpath('nested/deeper'), { recursive: true });
+        const watcher = cwatch(context.currentDir, {
+          backend: 'native-recursive',
+          ignoreInitial: true,
+          atomic: false,
+        });
+        await waitForWatcher(watcher);
+        if (internals(watcher).recursiveRoots.size === 0) return;
+        const errorSpy = createSpy();
+        const addSpy = createSpy<EmitArgs, void>();
+        watcher.on(EV.ERROR, errorSpy).on(EV.ADD, addSpy);
+
+        const failure = Object.assign(new Error('simulated recursive failure'), { code: 'EIO' });
+        equal(backendTesting.failRecursiveWatch(context.currentDir, failure), true);
+        await waitFor([errorSpy]);
+        const nested = dpath('nested/inside.txt');
+        const deep = dpath('nested/deeper/inside.txt');
+        await write(nested, 'nested');
+        await write(deep, 'deep');
+        await waitFor([
+          [addSpy, 1, [nested]],
+          [addSpy, 1, [deep]],
+        ]);
+      });
+
+      it('should fall back when a recursive handle fails while replaying its initial buffer', async () => {
+        await mkdir(dpath('replay/nested'), { recursive: true });
+        const watcher = new chokidar.FSWatcher({
+          backend: 'native-recursive',
+          ignoreInitial: true,
+          atomic: false,
+        });
+        WATCHERS.push(watcher);
+        const handler = internals(watcher).handler;
+        let publish!: (event: 'rename' | 'change', filename: string | null) => void;
+        backendTesting.setRecursiveWatchFactory((_path, _options, listener) => {
+          publish = listener;
+          return createFakeNativeWatcher();
+        });
+        const originalRead = handler.scanRecursiveTree.bind(handler);
+        const originalReconcile = handler.reconcileNativeTrigger.bind(handler);
+        let releaseRead = () => {};
+        let releaseReplay = () => {};
+        let readStarted!: () => void;
+        let replayStarted!: () => void;
+        const readBarrier = new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        });
+        const replayBarrier = new Promise<void>((resolve) => {
+          releaseReplay = resolve;
+        });
+        const reading = new Promise<void>((resolve) => {
+          readStarted = resolve;
+        });
+        const replaying = new Promise<void>((resolve) => {
+          replayStarted = resolve;
+        });
+        let blockedRead = false;
+        let blockedReplay = false;
+        handler.scanRecursiveTree = async (...args) => {
+          if (!blockedRead) {
+            blockedRead = true;
+            readStarted();
+            await readBarrier;
+          }
+          return originalRead(...args);
+        };
+        handler.reconcileNativeTrigger = async (...args) => {
+          if (!blockedReplay) {
+            blockedReplay = true;
+            replayStarted();
+            await replayBarrier;
+          }
+          return originalReconcile(...args);
+        };
+        const errorSpy = createSpy();
+        const addSpy = createSpy<EmitArgs, void>();
+        watcher.on(EV.ERROR, errorSpy).on(EV.ADD, addSpy);
+        const ready = new Promise<void>((resolve) => watcher.once(EV.READY, () => resolve()));
+
+        try {
+          watcher.add(context.currentDir);
+          await reading;
+          publish('rename', 'replay');
+          releaseRead();
+          await replaying;
+          const failure = Object.assign(new Error('failed during replay'), { code: 'EIO' });
+          equal(backendTesting.failRecursiveWatch(context.currentDir, failure), true);
+          releaseReplay();
+          await ready;
+
+          equal(internals(watcher).recursiveRoots.size, 0);
+          ok(errorSpy.called);
+          const added = dpath('replay/nested/after.txt');
+          await write(added, 'after');
+          await waitFor([[addSpy, 1, [added]]]);
+        } finally {
+          releaseRead();
+          releaseReplay();
+          await watcher.close();
+          backendTesting.setRecursiveWatchFactory();
+        }
+      });
+
+      it('should reconcile the whole tree after a nameless recursive invalidation', async () => {
+        const root = dpath('tree');
+        await mkdir(dpath('tree/sub'), { recursive: true });
+        await write(dpath('tree/sub/gone.txt'), 'gone');
+        await write(dpath('tree/sub/edited.txt'), 'before');
+        const watcher = new chokidar.FSWatcher({
+          backend: 'native-recursive',
+          ignoreInitial: true,
+          atomic: false,
+        });
+        WATCHERS.push(watcher);
+        let publish!: (event: 'rename' | 'change', filename: string | null) => void;
+        backendTesting.setRecursiveWatchFactory((_path, _options, listener) => {
+          publish = listener;
+          return createFakeNativeWatcher();
+        });
+        const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+
+        try {
+          const ready = waitForWatcher(watcher);
+          watcher.add(root);
+          await ready;
+          watcher.on(EV.ALL, allSpy);
+          await write(dpath('tree/sub/deep.txt'), 'deep');
+          await unlink(dpath('tree/sub/gone.txt'));
+          await write(dpath('tree/sub/edited.txt'), 'after, and longer');
+          // e.g. a ReadDirectoryChangesW buffer overflow reports no filename
+          publish('change', null);
+          await internals(watcher).drainTasks();
+
+          deepEqual(
+            allSpy.calls.map(([event, path]) => `${event}:${sp.relative(root, path)}`).sort(),
+            [
+              `${EV.ADD}:${sp.join('sub', 'deep.txt')}`,
+              `${EV.CHANGE}:${sp.join('sub', 'edited.txt')}`,
+              `${EV.UNLINK}:${sp.join('sub', 'gone.txt')}`,
+            ].sort()
+          );
+        } finally {
+          await watcher.close();
+          backendTesting.setRecursiveWatchFactory();
+        }
       });
     }
   });

@@ -2018,8 +2018,33 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
     });
   });
   describe('getWatched', () => {
+    for (const relative of [true, false]) {
+      it(`should list a __proto__ directory with ${relative ? 'cwd' : 'absolute'} keys`, async () => {
+        const names = ['__proto__', 'constructor', 'hasOwnProperty', 'toString'];
+        for (const name of names) await mkdir(dpath(name));
+        await write(dpath('__proto__/b.txt'), 'b');
+        await write(dpath('__proto__/a.txt'), 'a');
+        if (relative) options.cwd = currentDir;
+        const watcher = cwatch(currentDir, options);
+        await waitForWatcher(watcher);
+
+        const watched = watcher.getWatched();
+        const key = (name: string) => (relative ? name : dpath(name));
+        equal(Object.getPrototypeOf(watched), null);
+        ok(Object.hasOwn(watched, key('__proto__')));
+        deepEqual(watched[key('__proto__')], ['a.txt', 'b.txt']);
+        for (const name of names.slice(1)) deepEqual(watched[key(name)], []);
+        const json = JSON.parse(JSON.stringify(watched));
+        ok(Object.hasOwn(json, key('__proto__')));
+        deepEqual(json[key('__proto__')], ['a.txt', 'b.txt']);
+        deepEqual(
+          watched[relative ? '.' : currentDir],
+          [...names, 'change.txt', 'unlink.txt'].sort()
+        );
+      });
+    }
     it('should return the watched paths', async () => {
-      const expected: Record<string, string[]> = {};
+      const expected: Record<string, string[]> = Object.create(null);
       expected[sp.dirname(currentDir)] = [testId.toString()];
       expected[currentDir] = ['change.txt', 'unlink.txt'];
       const watcher = cwatch(currentDir, options);
@@ -2028,11 +2053,11 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
     });
     it('should set keys relative to cwd & include added paths', async () => {
       options.cwd = currentDir;
-      const expected = {
+      const expected = Object.assign(Object.create(null), {
         '.': ['change.txt', 'subdir', 'unlink.txt'],
         '..': [testId.toString()],
         subdir: [],
-      };
+      });
       await mkdir(dpath('subdir'));
       const watcher = cwatch(currentDir, options);
       await waitForWatcher(watcher);
@@ -2369,11 +2394,14 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
     await waitForWatcher(watcher);
 
     const closers = internals(watcher).closers;
-    const dirHasCloser = () =>
-      [...closers.keys()].some((key) => sp.resolve(key) === sp.resolve(watchedDir));
+    const dirClosers = () =>
+      [...closers.entries()]
+        .filter(([key]) => sp.resolve(key) === sp.resolve(watchedDir))
+        .flatMap(([, entries]) => entries);
+    const original = dirClosers();
 
     // Sanity check: the watched directory has a registered fs.watch closer.
-    ok(dirHasCloser(), 'expected a closer to be registered for the watched directory');
+    ok(original.length > 0, 'expected a closer to be registered for the watched directory');
 
     const unlinkDirSpy = createSpy<EmitArgs, void>(function unlinkDirSpy() {});
     watcher.on(EV.UNLINK_DIR, unlinkDirSpy);
@@ -2383,7 +2411,11 @@ function runTests(baseopts: chokidar.ChokidarOptions) {
 
     // The closer must have been invoked and removed; otherwise the underlying
     // fs.watch handle is leaked and keeps firing events on the deleted path.
-    ok(!dirHasCloser(), 'fs.watch handle of the deleted watched directory was leaked');
+    // (The root may be re-armed with a new wait from its parent.)
+    ok(
+      !dirClosers().some((closer) => original.includes(closer)),
+      'fs.watch handle of the deleted watched directory was leaked'
+    );
   });
 
   describe('close', () => {
