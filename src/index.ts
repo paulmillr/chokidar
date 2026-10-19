@@ -479,11 +479,11 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   }
 
   /**
-   * Expose list of watched paths
-   * @returns for chaining
+   * Expose list of watched paths. The result has a null prototype, so a
+   * directory named `__proto__` is an ordinary own key.
    */
   getWatched(): Record<string, string[]> {
-    const watchList: Record<string, string[]> = {};
+    const watchList: Record<string, string[]> = Object.create(null);
     this.tree.watched.forEach((entry) => {
       const dir = entry.path;
       const key = this.options.cwd ? sp.relative(this.options.cwd, dir) : dir;

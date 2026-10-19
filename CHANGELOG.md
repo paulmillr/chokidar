@@ -20,6 +20,7 @@
 - Made `close()` terminal: `add()` now throws once closing has started. Construct a new watcher instead.
 - Validated options in the constructor: invalid `backend`, `atomic`, `depth`, `awaitWriteFinish`, and polling intervals throw `TypeError`.
 - Emitted errors from `add()` as `error` events instead of unhandled rejections ([#1378](https://github.com/paulmillr/chokidar/issues/1378)).
+- Made `getWatched()` return a null-prototype object, so a watched directory named `__proto__` is listed ([#1493](https://github.com/paulmillr/chokidar/issues/1493)). Use `Object.hasOwn()` instead of `hasOwnProperty()` on the result.
 - Stopped applying `ignored` to directories above a path passed to `watch()` or `add()`, so a missing path is still watched through its parent ([#1374](https://github.com/paulmillr/chokidar/issues/1374)). Other entries in those directories are still filtered.
 
 ### Fixes
