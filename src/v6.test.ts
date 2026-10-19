@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events';
 import {
   mkdirSync,
   watch as nativeWatch,
+  realpathSync,
   rmSync,
   unlinkSync,
   unwatchFile,
@@ -2945,8 +2946,10 @@ export function registerV6Tests(context: TestHarness): void {
       await mkdir(context.currentDir, { recursive: true });
       const dir = sp.resolve(context.currentDir);
       const listeners = new Map<string, WatchListener<string>>();
+      // Windows hands the factory the native (realpath) spelling, which may differ from `dir`.
+      const nativeKey = (path: string) => realpathSync.native(path);
       backendTesting.setNativeWatchFactory((path, _options, listener) => {
-        listeners.set(sp.resolve(path), listener);
+        listeners.set(nativeKey(path), listener);
         return createFakeNativeWatcher();
       });
       const watcher = new chokidar.FSWatcher({
@@ -2979,7 +2982,7 @@ export function registerV6Tests(context: TestHarness): void {
         let scan = nextScan();
         watcher.add(context.currentDir);
         await scan;
-        const listener = listeners.get(dir)!;
+        const listener = listeners.get(nativeKey(dir))!;
         for (let index = 0; index <= 1024; index++) listener('rename', `ghost-${index}.txt`);
         scan = nextScan();
         scans[0].resume();

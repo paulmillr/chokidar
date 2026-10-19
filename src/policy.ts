@@ -6,6 +6,7 @@ import {
   isMissingError,
   isWindows,
   logicalPathKey,
+  statIdentity,
   type EmitArgs,
   type EmitArgsWithName,
   type EmitErrorArgs,
@@ -41,13 +42,10 @@ type EventPolicyContext = {
 };
 
 function sameChangeStats(left: Stats | undefined, right: Stats | undefined): boolean {
-  return (
-    left !== undefined &&
-    right !== undefined &&
-    left.size === right.size &&
-    left.mtimeMs === right.mtimeMs &&
-    left.ino === right.ino
-  );
+  if (left === undefined || right === undefined) return false;
+  const a = statIdentity(left);
+  const b = statIdentity(right);
+  return a.size === b.size && a.mtimeMs === b.mtimeMs && a.ino === b.ino;
 }
 
 /** Converts truthful tree transitions into the public, timing-aware event API. */

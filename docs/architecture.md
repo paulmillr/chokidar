@@ -135,7 +135,9 @@ A rescan removes a tracked entry missing from its listing only after `lstat` con
 another queue may have added it after the listing, and readdirp reports unreadable entries as
 warnings rather than errors. A tracked directory that reappears with a different inode was deleted
 and recreated before its callbacks ran (inotify handles stay bound to the old inode), so it is
-removed and re-added.
+removed and re-added. Since ext4 reuses inode numbers immediately, Linux also retires a
+per-directory handle that reports its own deletion (a `rename` of its basename with no such child)
+while the directory exists again; subscribers re-subscribe and reconcile it.
 
 `TreeState.observed` records native stat facts to suppress backend-shaped echoes: a
 create-then-change echo within 25 ms, a same-kind write echo within 10 ms, and an unchanged

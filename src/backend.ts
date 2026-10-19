@@ -1,6 +1,6 @@
 import type { FSWatcher as NativeFsWatcher, Stats, WatchEventType, WatchListener } from 'node:fs';
 import { watch as fsWatch, realpathSync } from 'node:fs';
-import { open, stat } from 'node:fs/promises';
+import { lstat, open, stat } from 'node:fs/promises';
 import * as sp from 'node:path';
 import {
   type BackendResourceKey,
@@ -10,6 +10,7 @@ import {
   type ChokidarOptions,
   EVENTS,
   type FSWInstanceOptions,
+  isLinux,
   isMacos,
   isMissingError,
   isRecursiveWatchUnsupported,
@@ -432,6 +433,30 @@ async function handleNativeError(
   closeFailedNativeResource(cont, error);
 }
 
+/**
+ * inotify reports a watched directory's own deletion (IN_DELETE_SELF, IN_IGNORED)
+ * as `rename` of its basename, after which the handle is dead. When the directory
+ * was recreated before this callback ran, nothing else reveals that: ext4 even
+ * reuses the inode number. Retire the handle so subscribers re-subscribe the new
+ * directory and reconcile it. A same-named child that still exists is no sign.
+ */
+async function retireIfSelfRemoved(cont: FsWatchContainer, nativePath: string): Promise<void> {
+  try {
+    await lstat(sp.join(nativePath, sp.basename(nativePath)));
+    return;
+  } catch (error) {
+    if (!isMissingError(error)) return;
+  }
+  try {
+    if (!(await stat(nativePath)).isDirectory()) return;
+  } catch {
+    // Deleted and not recreated: subscribers reconcile the removal themselves.
+    return;
+  }
+  if (cont.closed || FsWatchInstances.get(cont.resource) !== cont) return;
+  closeFailedNativeResource(cont, new Error(`Watched directory was replaced: ${nativePath}`));
+}
+
 function createNativeContainer(
   path: string,
   nativePath: string,
@@ -446,6 +471,9 @@ function createNativeContainer(
     (rawEvent, relativePath) => {
       const projectedPath = projectNativeRelativePath(nativePath, relativePath);
       publishNativeTrigger(cont, rawEvent, projectedPath, true, relativePath);
+      if (isLinux && rawEvent === 'rename' && relativePath === sp.basename(nativePath)) {
+        void retireIfSelfRemoved(cont, nativePath);
+      }
     },
     subscriber.errHandler
   );

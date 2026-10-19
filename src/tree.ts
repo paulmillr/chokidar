@@ -7,6 +7,7 @@ import {
   EVENTS,
   isSameOrInside,
   logicalPathKey,
+  statIdentity,
   type EventName,
   type FSWInstanceOptions,
   type NativeTrigger,
@@ -212,10 +213,11 @@ function statKind(stats: Stats): ObservedPathFact['kind'] {
 }
 
 function sameStatFact(fact: ObservedPathFact | undefined, stats: Stats): boolean {
+  const current = statIdentity(stats);
   return (
-    fact?.size === stats.size &&
-    fact.mtimeMs === stats.mtimeMs &&
-    fact.ino === stats.ino &&
+    fact?.size === current.size &&
+    fact.mtimeMs === current.mtimeMs &&
+    fact.ino === current.ino &&
     fact.kind === statKind(stats)
   );
 }
@@ -307,10 +309,11 @@ export class TreeState {
   ): void {
     if (!this.observesNative()) return;
     if (!trigger && !initialRecursive && !retainWithoutTrigger) return;
+    const { size, mtimeMs, ino } = statIdentity(stats);
     this.observed.set(logicalPathKey(path), {
-      size: stats.size,
-      mtimeMs: stats.mtimeMs,
-      ino: stats.ino,
+      size,
+      mtimeMs,
+      ino,
       kind: statKind(stats),
       transition,
       rawEvent: trigger?.rawEvent,
@@ -355,12 +358,13 @@ export class TreeState {
   /** True when a tracked directory path now names a different directory inode. */
   replacedSinceObserved(path: Path, stats: Stats): boolean {
     const previous = this.observed.get(logicalPathKey(path));
+    const { ino } = statIdentity(stats);
     return (
       previous?.kind === 'directory' &&
       stats.isDirectory() &&
       previous.ino !== 0 &&
-      stats.ino !== 0 &&
-      previous.ino !== stats.ino
+      ino !== 0 &&
+      previous.ino !== ino
     );
   }
 
