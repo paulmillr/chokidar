@@ -167,6 +167,8 @@ type BackendHandlers = {
   publish: (trigger: BackendTrigger) => void;
   errHandler: WatchHandlers['errHandler'];
   rawEmitter: WatchHandlers['rawEmitter'];
+  /** Native only: the shared handle was retired after a runtime error. */
+  failure?: (error: unknown) => void;
 };
 
 const EV = EVENTS;
@@ -285,14 +287,17 @@ export function subscribeRecursiveNative(
   let resource = RecursiveWatchInstances.get(resourceKey);
   if (!resource) {
     let watcher: NativeFsWatcher;
+    let created: RecursiveNativeResource | undefined;
     const nativePath = toNativeWatchPath(path);
     try {
       watcher = recursiveWatchFactory(
         nativePath,
         { persistent, recursive: true },
         (rawEvent, relativePath) => {
-          const active = RecursiveWatchInstances.get(resourceKey);
+          const active = created;
           if (!active || active.closed) return;
+          // A late callback from a retired handle must not reach a replacement generation.
+          if (RecursiveWatchInstances.get(resourceKey) !== active) return;
           const trigger: NativeTrigger = {
             kind: 'native',
             resource: resourceKey,
@@ -314,7 +319,7 @@ export function subscribeRecursiveNative(
       }
       return { kind: 'failed', error };
     }
-    resource = {
+    created = resource = {
       resource: resourceKey,
       generation: allocateSharedResourceGeneration(),
       subscribers: new Set(),
@@ -392,8 +397,14 @@ function broadcastNativeError(cont: FsWatchContainer, error: unknown): void {
   cont.subscribers.forEach((subscriber) => subscriber.errHandler(error));
 }
 
-function closeFailedNativeResource(cont: FsWatchContainer): void {
-  invalidateWatcherResource(cont, FsWatchInstances);
+function closeFailedNativeResource(cont: FsWatchContainer, error: unknown): void {
+  // Subscribers that attached while the error was being classified are retired
+  // too, so every one of them learns that its subscription is gone.
+  const subscribers = invalidateWatcherResource<NativeSubscriber, FsWatchContainer>(
+    cont,
+    FsWatchInstances
+  );
+  subscribers?.forEach((subscriber) => subscriber.failure?.(error));
 }
 
 async function handleNativeError(
@@ -418,7 +429,7 @@ async function handleNativeError(
   } else {
     broadcastNativeError(cont, error);
   }
-  closeFailedNativeResource(cont);
+  closeFailedNativeResource(cont, error);
 }
 
 function createNativeContainer(

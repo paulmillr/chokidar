@@ -34,6 +34,7 @@
 - Fixed duplicate `add` events for unchanged files under directory activity ([#1465](https://github.com/paulmillr/chokidar/issues/1465)).
 - Fixed replacing a watched directory with a file of the same name hanging the process ([#1464](https://github.com/paulmillr/chokidar/issues/1464)).
 - Fixed persistent watching stopping after a watched directory was removed ([#1463](https://github.com/paulmillr/chokidar/issues/1463)).
+- Fixed a deleted watched path not being reported when recreated: previously only a deleted file that was the sole watched path was watched for its return. Any path passed to `watch()` or `add()` is now awaited from its nearest existing parent.
 - Fixed event throttling discarding updates; the newest differing change is now replayed when the window closes ([#1455](https://github.com/paulmillr/chokidar/issues/1455)).
 - Fixed relative `ignored` paths; relative strings now resolve against `cwd` or the process working directory ([#1436](https://github.com/paulmillr/chokidar/issues/1436)).
 - Fixed files not being detected when their directory did not exist before watching ([#1422](https://github.com/paulmillr/chokidar/issues/1422)).
