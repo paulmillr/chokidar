@@ -26,14 +26,15 @@ export type PendingChangeEmission = {
   path: Path;
   stats?: Stats;
   replay: boolean;
-  /** Pending publication of a leading change that reported an empty file. */
-  held?: SchedulerTimer;
+  /** A held leading change that reported an empty file; `release` publishes it. */
+  held?: { timer: SchedulerTimer; release: () => void };
 };
 
 /**
- * Windows on Node 22/24 reports a `writeFile` truncation before its data, so the
- * leading change of a write sees an empty file. Holding such a change briefly
- * lets the data callback supersede it: one event, with the written stats.
+ * `writeFile` truncates before it writes, and a callback can stat the file in
+ * between (always on Windows with Node 22/24). A leading change that sees an
+ * empty file is held until the data arrives, at most this long: one event,
+ * with the written stats.
  */
 const EMPTY_FILE_CHANGE_HOLD = 10;
 
@@ -49,6 +50,10 @@ type EventPolicyContext = {
   handleError: (error: unknown) => void;
   publish: (event: EventName, args: EmitArgs | EmitErrorArgs) => void;
 };
+
+function isEmptyFile(stats: Stats | undefined): boolean {
+  return stats !== undefined && stats.isFile() && statIdentity(stats).size === 0;
+}
 
 function sameChangeStats(left: Stats | undefined, right: Stats | undefined): boolean {
   if (left === undefined || right === undefined) return false;
@@ -77,7 +82,7 @@ export class EventPolicy {
 
   private dropPendingChange(logicalKey: string): void {
     const pending = this.pendingChanges.get(logicalKey);
-    if (pending?.held) this.context.scheduler.clearTimeout(pending.held);
+    if (pending?.held) this.context.scheduler.clearTimeout(pending.held.timer);
     this.pendingChanges.delete(logicalKey);
   }
 
@@ -174,14 +179,17 @@ export class EventPolicy {
           pending.path = sourcePath;
           pending.stats = stats;
           pending.replay = true;
+          // The data of a held truncate-then-write landed: publish it now.
+          if (pending.held && !isEmptyFile(stats)) pending.held.release();
         }
         return;
       }
       const pending: PendingChangeEmission = { path: sourcePath, stats, replay: false };
       this.pendingChanges.set(logicalKey, pending);
-      if (stats?.isFile() && stats.size === 0) {
-        // Publish the newest stats seen by then; later writes replay as usual.
-        pending.held = this.setTimeout(() => {
+      if (isEmptyFile(stats)) {
+        // Publish the newest stats seen; later writes replay as usual.
+        const release = (): void => {
+          if (pending.held) this.context.scheduler.clearTimeout(pending.held.timer);
           pending.held = undefined;
           if (
             this.pendingChanges.get(logicalKey) !== pending ||
@@ -195,7 +203,8 @@ export class EventPolicy {
           const heldArgs: EmitArgs = [this.presentPath(pending.path)];
           if (pending.stats) heldArgs.push(pending.stats);
           this.context.publish(EVENTS.CHANGE, heldArgs);
-        }, EMPTY_FILE_CHANGE_HOLD);
+        };
+        pending.held = { timer: this.setTimeout(release, EMPTY_FILE_CHANGE_HOLD), release };
         return;
       }
     }
@@ -359,7 +368,7 @@ export class EventPolicy {
     this.pendingWrites.forEach((pending) => pending.cancelWait());
     this.pendingUnlinks.forEach(({ timer }) => this.context.scheduler.clearTimeout(timer));
     this.pendingUnlinks.clear();
-    this.pendingChanges.forEach(({ held }) => this.context.scheduler.clearTimeout(held));
+    this.pendingChanges.forEach(({ held }) => this.context.scheduler.clearTimeout(held?.timer));
     this.pendingChanges.clear();
     this.throttled.forEach((entries) => {
       entries.forEach((throttler) => throttler.clear(false));

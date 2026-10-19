@@ -1611,11 +1611,10 @@ export function registerV6Tests(context: TestHarness): void {
       equal(spy.callCount, 0);
       await write(file, 'written data');
       await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(2));
-      equal(spy.callCount, 0);
-      scheduler.advanceBy(10);
+      // The data callback publishes at once, without waiting out the hold.
       equal(spy.callCount, 1);
       equal(lastSize(), Buffer.byteLength('written data'));
-      scheduler.advanceBy(50);
+      scheduler.advanceBy(60);
       equal(spy.callCount, 1);
 
       // A file that really is emptied is still reported once the hold ends.

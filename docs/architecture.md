@@ -159,8 +159,9 @@ closed/path-generation check -> Windows/cwd presentation -> pending write bump
 - Await-write-finish starts only after `ready`. Each wait owns its entry: a stat in flight for a
   cancelled wait never adopts a newer one, and a file found missing always ends its wait.
 - The change window replays the newest differing stats once when it closes.
-- A leading `change` whose stats show an empty file is held for 10 ms and then publishes the newest
-  stats seen: Windows on Node 22/24 reports a `writeFile` truncation before its data.
+- A leading `change` whose stats show an empty file is held until a non-empty callback for the path
+  arrives (at most 10 ms), then publishes the newest stats: `writeFile` truncates before it writes,
+  and a callback can stat in between (always on Windows with Node 22/24).
 - `removePath` is idempotent: it emits only for a tracked item, so concurrent removal paths cannot
   double-emit, while a path recreated in between is truthfully removed again.
 - `alwaysStat` fills missing stats; a stat failure suppresses that event and reports the error.
