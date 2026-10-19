@@ -26,7 +26,16 @@ export type PendingChangeEmission = {
   path: Path;
   stats?: Stats;
   replay: boolean;
+  /** Pending publication of a leading change that reported an empty file. */
+  held?: SchedulerTimer;
 };
+
+/**
+ * Windows on Node 22/24 reports a `writeFile` truncation before its data, so the
+ * leading change of a write sees an empty file. Holding such a change briefly
+ * lets the data callback supersede it: one event, with the written stats.
+ */
+const EMPTY_FILE_CHANGE_HOLD = 10;
 
 type EventPolicyContext = {
   options: FSWInstanceOptions;
@@ -61,6 +70,17 @@ export class EventPolicy {
     this.context = context;
   }
 
+  private presentPath(path: Path): Path {
+    if (isWindows) path = sp.normalize(path);
+    return this.context.options.cwd ? sp.relative(this.context.options.cwd, path) : path;
+  }
+
+  private dropPendingChange(logicalKey: string): void {
+    const pending = this.pendingChanges.get(logicalKey);
+    if (pending?.held) this.context.scheduler.clearTimeout(pending.held);
+    this.pendingChanges.delete(logicalKey);
+  }
+
   private setTimeout(callback: () => void, delay: number): SchedulerTimer {
     const timer = this.context.scheduler.setTimeout(callback, delay);
     if (!this.context.options.persistent) timer.unref();
@@ -75,13 +95,12 @@ export class EventPolicy {
     const logicalKey = logicalPathKey(path);
     const generation = this.context.lifecycle.generation;
     const pathGeneration = this.context.capturePathGeneration();
-    if (isWindows) path = sp.normalize(path);
-    if (options.cwd) path = sp.relative(options.cwd, path);
+    path = this.presentPath(path);
     const args: EmitArgs | EmitErrorArgs = [path];
     if (stats != null) args.push(stats);
 
     if (event === EVENTS.UNLINK || event === EVENTS.UNLINK_DIR) {
-      this.pendingChanges.delete(logicalKey);
+      this.dropPendingChange(logicalKey);
       this.throttled.get(EVENTS.CHANGE)?.get(logicalKey)?.clear(false);
     }
 
@@ -139,7 +158,7 @@ export class EventPolicy {
     if (event === EVENTS.CHANGE) {
       const throttler = this.throttle(EVENTS.CHANGE, sourcePath, 50, (suppressedCount) => {
         const pending = this.pendingChanges.get(logicalKey);
-        this.pendingChanges.delete(logicalKey);
+        this.dropPendingChange(logicalKey);
         if (
           suppressedCount > 0 &&
           pending?.replay &&
@@ -158,7 +177,27 @@ export class EventPolicy {
         }
         return;
       }
-      this.pendingChanges.set(logicalKey, { path: sourcePath, stats, replay: false });
+      const pending: PendingChangeEmission = { path: sourcePath, stats, replay: false };
+      this.pendingChanges.set(logicalKey, pending);
+      if (stats?.isFile() && stats.size === 0) {
+        // Publish the newest stats seen by then; later writes replay as usual.
+        pending.held = this.setTimeout(() => {
+          pending.held = undefined;
+          if (
+            this.pendingChanges.get(logicalKey) !== pending ||
+            this.context.isClosed() ||
+            !this.context.lifecycle.isActive(generation) ||
+            !this.context.isPathGenerationActive(logicalKey, pathGeneration)
+          ) {
+            return;
+          }
+          pending.replay = false;
+          const heldArgs: EmitArgs = [this.presentPath(pending.path)];
+          if (pending.stats) heldArgs.push(pending.stats);
+          this.context.publish(EVENTS.CHANGE, heldArgs);
+        }, EMPTY_FILE_CHANGE_HOLD);
+        return;
+      }
     }
 
     if (
@@ -291,7 +330,7 @@ export class EventPolicy {
       this.pendingUnlinks.delete(logicalKey);
     }
     this.pendingWrites.get(logicalKey)?.cancelWait();
-    this.pendingChanges.delete(logicalKey);
+    this.dropPendingChange(logicalKey);
     (['watch', 'add', 'remove', 'change'] as const).forEach((actionType) => {
       this.throttled.get(actionType)?.get(logicalKey)?.clear(false);
     });
@@ -320,6 +359,7 @@ export class EventPolicy {
     this.pendingWrites.forEach((pending) => pending.cancelWait());
     this.pendingUnlinks.forEach(({ timer }) => this.context.scheduler.clearTimeout(timer));
     this.pendingUnlinks.clear();
+    this.pendingChanges.forEach(({ held }) => this.context.scheduler.clearTimeout(held));
     this.pendingChanges.clear();
     this.throttled.forEach((entries) => {
       entries.forEach((throttler) => throttler.clear(false));

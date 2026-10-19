@@ -1576,6 +1576,59 @@ export function registerV6Tests(context: TestHarness): void {
       equal(lastSize(), Buffer.byteLength('a distinct and longer later write'));
     });
 
+    it('should report a truncate-then-write as one change with the written stats', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const file = dpath('truncated-write.txt');
+      await write(file, 'initial');
+      const scheduler = new VirtualScheduler();
+      const watcher = new chokidar.FSWatcher(
+        { backend: 'native-recursive', atomic: false },
+        scheduler
+      );
+      WATCHERS.push(watcher);
+      const root = sp.resolve(context.currentDir);
+      const helper = internals(watcher).createHelper(root);
+      helper.recursiveRoot = root;
+      internals(watcher).directoryEntry(root).add(sp.basename(file));
+      internals(watcher).recordObserved(file, await lstat(file), 'add', undefined, true);
+      internals(watcher).tree.clearInitialCreates(root);
+      const spy = createSpy<EmitArgs, void>();
+      watcher.on(EV.CHANGE, spy);
+      const trigger = (sequence: number) => ({
+        kind: 'native' as const,
+        resource: root as BackendResourceKey,
+        rawEvent: 'change' as const,
+        relativePath: sp.basename(file),
+        sequence,
+        observedAt: scheduler.now(),
+      });
+      const lastSize = () => spy.calls.at(-1)?.[1]?.size;
+
+      // As Windows on Node 22/24 reports writeFile: the truncation is stat'ed
+      // before the data lands, then the data write arrives.
+      await write(file, '');
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(1));
+      equal(spy.callCount, 0);
+      await write(file, 'written data');
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(2));
+      equal(spy.callCount, 0);
+      scheduler.advanceBy(10);
+      equal(spy.callCount, 1);
+      equal(lastSize(), Buffer.byteLength('written data'));
+      scheduler.advanceBy(50);
+      equal(spy.callCount, 1);
+
+      // A file that really is emptied is still reported once the hold ends.
+      await write(file, '');
+      await internals(watcher).handler.reconcileNativeTrigger(root, helper, trigger(3));
+      equal(spy.callCount, 1);
+      scheduler.advanceBy(10);
+      equal(spy.callCount, 2);
+      equal(lastSize(), 0);
+      scheduler.advanceBy(50);
+      equal(spy.callCount, 2);
+    });
+
     it('should ignore a recursive invalidation whose stat fact is unchanged', async () => {
       await mkdir(context.currentDir, { recursive: true });
       const file = dpath('recursive-unchanged.txt');
