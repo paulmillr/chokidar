@@ -1,6 +1,7 @@
 import type { BigIntStats, Stats, WatchEventType } from 'node:fs';
 import { type as osType } from 'node:os';
 import * as sp from 'node:path';
+import { clearTimeout as nodeClearTimeout, setTimeout as nodeSetTimeout } from 'node:timers';
 import type { EntryInfo } from 'readdirp';
 
 const platform = process.platform;
@@ -46,11 +47,13 @@ export interface Scheduler {
   clearTimeout(timer: SchedulerTimer | undefined): void;
 }
 
+// Node's own timers, not the globals: in DOM hosts such as an Electron renderer
+// the global `setTimeout` returns a number, which has no `ref()` / `unref()`.
 export const systemScheduler: Scheduler = Object.freeze({
   now: () => Date.now(),
-  setTimeout: (callback: () => void, delay: number) => setTimeout(callback, delay),
+  setTimeout: (callback: () => void, delay: number) => nodeSetTimeout(callback, delay),
   clearTimeout: (timer: SchedulerTimer | undefined) => {
-    if (timer) clearTimeout(timer as NodeJS.Timeout);
+    if (timer) nodeClearTimeout(timer as NodeJS.Timeout);
   },
 });
 

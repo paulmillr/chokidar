@@ -568,6 +568,29 @@ export function registerV6Tests(context: TestHarness): void {
       equal(scheduler.referencedCount, 0);
     });
 
+    it('should arm default policy timers when the global setTimeout returns a number (#1496)', async () => {
+      const globalSetTimeout = globalThis.setTimeout;
+      const globalClearTimeout = globalThis.clearTimeout;
+      const spy = createSpy<EmitArgs, void>();
+      // A DOM host, such as an Electron renderer, hands out numeric handles.
+      globalThis.setTimeout = ((callback: () => void, ms?: number) =>
+        Number(globalSetTimeout(callback, ms))) as unknown as typeof setTimeout;
+      globalThis.clearTimeout = ((handle?: number) =>
+        globalClearTimeout(handle)) as unknown as typeof clearTimeout;
+      try {
+        const watcher = new chokidar.FSWatcher({ atomic: 100, persistent: false });
+        WATCHERS.push(watcher);
+        watcher.on(EV.UNLINK, spy);
+        await internals(watcher).emitEvent(EV.UNLINK, 'dom-host.txt');
+      } finally {
+        globalThis.setTimeout = globalSetTimeout;
+        globalThis.clearTimeout = globalClearTimeout;
+      }
+
+      await waitFor([spy]);
+      ok(calledWith(spy, ['dom-host.txt']));
+    });
+
     it('should cancel pending policy timers on close', async () => {
       await mkdir(context.currentDir, { recursive: true });
       const filePath = dpath('pending.txt');
