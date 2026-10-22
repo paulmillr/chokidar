@@ -6,6 +6,7 @@ import {
   watch as nativeWatch,
   realpathSync,
   rmSync,
+  Stats,
   unlinkSync,
   unwatchFile,
   watchFile,
@@ -429,6 +430,55 @@ export function registerV6Tests(context: TestHarness): void {
 
       await rename(source, destination);
       equal((await lstat(renamedChild)).isFile(), true);
+    });
+
+    it('should hand listeners number Stats for scanned entries (#1498)', async () => {
+      const root = dpath('number-stats');
+      await mkdir(sp.join(root, 'subdir'), { recursive: true });
+      await write(sp.join(root, 'file.txt'), 'scanned');
+      await write(sp.join(root, 'subdir', 'nested.txt'), 'scanned');
+
+      for (const backend of ['native', 'polling'] as const) {
+        const watcher = cwatch(root, { alwaysStat: true, backend });
+        const spy = createSpy<FSWatcherEventMap['all'], void>();
+        watcher.on(EV.ALL, spy);
+        await waitForWatcher(watcher);
+        await watcher.close();
+
+        const scanned = spy.calls.filter(([event]) => event === EV.ADD || event === EV.ADD_DIR);
+        equal(scanned.length, 4, backend);
+        for (const [event, path, stats] of scanned) {
+          ok(stats instanceof Stats, `${backend} ${event} ${path}`);
+          equal(typeof stats.ino, 'number', `${backend} ${event} ${path}`);
+          equal(typeof stats.size, 'number', `${backend} ${event} ${path}`);
+        }
+      }
+    });
+
+    it('should convert BigIntStats to number Stats before emitting (#1498)', async () => {
+      await mkdir(context.currentDir, { recursive: true });
+      const filePath = dpath('bigint-stats.txt');
+      await write(filePath, 'bigint');
+      const expected = await lstat(filePath);
+      const bigStats = await lstat(filePath, { bigint: true });
+      const watcher = new chokidar.FSWatcher({ atomic: false });
+      WATCHERS.push(watcher);
+      const spy = createSpy<EmitArgs, void>();
+      watcher.on(EV.ADD, spy);
+
+      await internals(watcher).emitEvent(EV.ADD, filePath, bigStats as unknown as Stats);
+
+      equal(spy.callCount, 1);
+      const stats = spy.calls[0][1]!;
+      ok(stats instanceof Stats);
+      ok(stats.isFile());
+      equal(stats.ino, expected.ino);
+      equal(stats.size, expected.size);
+      equal(stats.mode, expected.mode);
+      for (const field of ['atime', 'mtime', 'ctime', 'birthtime'] as const) {
+        equal(stats[`${field}Ms`], expected[`${field}Ms`], field);
+        equal(stats[field].getTime(), expected[field].getTime(), field);
+      }
     });
 
     it('should retain exact target fallbacks for explicitly watched macOS files', async () => {
