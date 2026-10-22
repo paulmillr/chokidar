@@ -1,4 +1,4 @@
-import type { BigIntStats, Stats, WatchEventType } from 'node:fs';
+import { type BigIntStats, Stats, type WatchEventType } from 'node:fs';
 import { type as osType } from 'node:os';
 import * as sp from 'node:path';
 import type { EntryInfo } from 'readdirp';
@@ -160,11 +160,48 @@ export type StatIdentity = { size: number; mtimeMs: number; ino: number };
 export function statIdentity(stats: Stats): StatIdentity {
   if (typeof stats.mtimeMs !== 'bigint') return stats;
   const big = stats as unknown as BigIntStats;
-  const sec = big.mtimeNs / 1_000_000_000n;
-  const nsec = big.mtimeNs % 1_000_000_000n;
+  return { size: Number(big.size), mtimeMs: nsToMs(big.mtimeNs), ino: Number(big.ino) };
+}
+function nsToMs(ns: bigint): number {
+  const sec = ns / 1_000_000_000n;
+  const nsec = ns % 1_000_000_000n;
   // Node's own number formula, so both kinds of Stats agree exactly.
-  const mtimeMs = Number(sec) * 1e3 + Number(nsec) / 1e6;
-  return { size: Number(big.size), mtimeMs, ino: Number(big.ino) };
+  return Number(sec) * 1e3 + Number(nsec) / 1e6;
+}
+const STATS_NUMBER_FIELDS = [
+  'dev',
+  'mode',
+  'nlink',
+  'uid',
+  'gid',
+  'rdev',
+  'blksize',
+  'ino',
+  'size',
+  'blocks',
+] as const;
+const STATS_TIME_FIELDS = ['atime', 'mtime', 'ctime', 'birthtime'] as const;
+/**
+ * The number `fs.Stats` that listeners are typed and documented to receive.
+ * readdirp returns BigIntStats on Windows; everything else is passed through.
+ */
+export function numberStats(stats: Stats): Stats {
+  if (typeof stats.mtimeMs !== 'bigint') return stats;
+  const big = stats as unknown as BigIntStats;
+  const result = Object.create(Stats.prototype) as Record<string, unknown>;
+  for (const field of STATS_NUMBER_FIELDS) result[field] = Number(big[field]);
+  for (const field of STATS_TIME_FIELDS) {
+    const ms = nsToMs(big[`${field}Ns`]);
+    result[`${field}Ms`] = ms;
+    // Node rounds the milliseconds when it builds its own Date fields.
+    Object.defineProperty(result, field, {
+      value: new Date(Math.round(ms)),
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
+  }
+  return result as unknown as Stats;
 }
 export function logicalPathKey(path: Path): LogicalPathKey {
   const resolved = sp.resolve(path);
