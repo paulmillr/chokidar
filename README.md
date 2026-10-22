@@ -142,9 +142,10 @@ chokidar.watch('dir-or-file', {
   - `polling` uses Chokidar's stat-based polling scheduler. Useful for network and other
     non-standard filesystems; uses more CPU.
 - `pollingInterval` (default: `100`) and `pollingBinaryInterval` (default: `300`, for recognized
-  binary file extensions): polling periods in milliseconds, polling backend only. Polling compares
-  size, modification time, existence, and (except on Windows) inode between polls; an in-place
-  write that changes none of these is not detected.
+  binary file extensions): polling periods in milliseconds, polling backend only. The polling
+  backend requires them to be greater than zero; other backends replace an unusable value with the
+  default. Polling compares size, modification time, existence, and (except on Windows) inode
+  between polls; an in-place write that changes none of these is not detected.
 - Environment overrides: `CHOKIDAR_USEPOLLING` forces polling when truthy and disables it when
   falsy, even if `backend: 'polling'` is set in code; `CHOKIDAR_INTERVAL` overrides
   `pollingInterval`.
