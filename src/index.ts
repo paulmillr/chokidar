@@ -85,8 +85,12 @@ function getAbsolutePath(path: Path, cwd: Path) {
   return sp.join(cwd, path);
 }
 
+function isPositiveFinite(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
 function validatePositiveFinite(name: string, value: number): void {
-  if (!Number.isFinite(value) || value <= 0) {
+  if (!isPositiveFinite(value)) {
     throw new TypeError(`${name} must be a finite number greater than zero`);
   }
 }
@@ -242,12 +246,19 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
     }
     const envInterval = process.env.CHOKIDAR_INTERVAL;
     if (envInterval !== undefined) opts.pollingInterval = Number(envInterval);
-    // Preserve resolved values for callers that still read the deprecated fields.
-    opts.interval = opts.pollingInterval;
-    opts.binaryInterval = opts.pollingBinaryInterval;
     opts.usePolling = opts.backend === 'polling';
     opts.backendCapabilities = selectBackend(opts);
     opts.backendStrategy = opts.backendCapabilities.kind;
+    // The intervals are the polling backend's period. Elsewhere only the macOS
+    // symlink-deletion check reads one, so an unusable value (such as 0 for
+    // "off") falls back to the default instead of rejecting the watcher.
+    if (!opts.backendCapabilities.polling) {
+      if (!isPositiveFinite(opts.pollingInterval)) opts.pollingInterval = 100;
+      if (!isPositiveFinite(opts.pollingBinaryInterval)) opts.pollingBinaryInterval = 300;
+    }
+    // Preserve resolved values for callers that still read the deprecated fields.
+    opts.interval = opts.pollingInterval;
+    opts.binaryInterval = opts.pollingBinaryInterval;
     // Editor atomic write normalization is enabled by default only with fs.watch.
     // Inspect the raw option so the merged default cannot hide an implicit choice.
     if (_opts.atomic === undefined) opts.atomic = !opts.usePolling;
