@@ -33,6 +33,7 @@ import {
   isIBMi,
   isMacos,
   isWindows,
+  systemScheduler,
 } from './runtime.js';
 import { backendTesting, inspectWatcher as internals } from './testing.js';
 
@@ -568,27 +569,23 @@ export function registerV6Tests(context: TestHarness): void {
       equal(scheduler.referencedCount, 0);
     });
 
-    it('should arm default policy timers when the global setTimeout returns a number (#1496)', async () => {
-      const globalSetTimeout = globalThis.setTimeout;
-      const globalClearTimeout = globalThis.clearTimeout;
-      const spy = createSpy<EmitArgs, void>();
-      // A DOM host, such as an Electron renderer, hands out numeric handles.
-      globalThis.setTimeout = ((callback: () => void, ms?: number) =>
-        Number(globalSetTimeout(callback, ms))) as unknown as typeof setTimeout;
-      globalThis.clearTimeout = ((handle?: number) =>
-        globalClearTimeout(handle)) as unknown as typeof clearTimeout;
-      try {
-        const watcher = new chokidar.FSWatcher({ atomic: 100, persistent: false });
-        WATCHERS.push(watcher);
-        watcher.on(EV.UNLINK, spy);
-        await internals(watcher).emitEvent(EV.UNLINK, 'dom-host.txt');
-      } finally {
-        globalThis.setTimeout = globalSetTimeout;
-        globalThis.clearTimeout = globalClearTimeout;
-      }
+    it('should unref system timers for a non-persistent watcher', async () => {
+      const timers: NodeJS.Timeout[] = [];
+      const scheduler: Scheduler = {
+        ...systemScheduler,
+        setTimeout: (cb, delay) => {
+          const timer = systemScheduler.setTimeout(cb, delay) as NodeJS.Timeout;
+          timers.push(timer);
+          return timer;
+        },
+      };
+      const watcher = new chokidar.FSWatcher({ atomic: 100, persistent: false }, scheduler);
+      WATCHERS.push(watcher);
 
-      await waitFor([spy]);
-      ok(calledWith(spy, ['dom-host.txt']));
+      await internals(watcher).emitEvent(EV.UNLINK, 'non-persistent.txt');
+
+      equal(timers.length, 1);
+      equal(timers[0].hasRef(), false);
     });
 
     it('should cancel pending policy timers on close', async () => {
