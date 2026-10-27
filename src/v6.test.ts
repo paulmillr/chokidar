@@ -33,6 +33,7 @@ import {
   isIBMi,
   isMacos,
   isWindows,
+  systemScheduler,
 } from './runtime.js';
 import { backendTesting, inspectWatcher as internals } from './testing.js';
 
@@ -566,6 +567,25 @@ export function registerV6Tests(context: TestHarness): void {
 
       equal(scheduler.activeCount, 1);
       equal(scheduler.referencedCount, 0);
+    });
+
+    it('should unref system timers for a non-persistent watcher', async () => {
+      const timers: NodeJS.Timeout[] = [];
+      const scheduler: Scheduler = {
+        ...systemScheduler,
+        setTimeout: (cb, delay) => {
+          const timer = systemScheduler.setTimeout(cb, delay) as NodeJS.Timeout;
+          timers.push(timer);
+          return timer;
+        },
+      };
+      const watcher = new chokidar.FSWatcher({ atomic: 100, persistent: false }, scheduler);
+      WATCHERS.push(watcher);
+
+      await internals(watcher).emitEvent(EV.UNLINK, 'non-persistent.txt');
+
+      equal(timers.length, 1);
+      equal(timers[0].hasRef(), false);
     });
 
     it('should cancel pending policy timers on close', async () => {
