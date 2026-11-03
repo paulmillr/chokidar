@@ -1,5 +1,5 @@
 import type { Stats } from 'node:fs';
-import { realpath as fsrealpath, lstat, readlink, stat } from 'node:fs/promises';
+import { realpath as fsrealpath, lstat, readdir, readlink, stat } from 'node:fs/promises';
 import * as sp from 'node:path';
 import type { EntryInfo, ReaddirpStream } from 'readdirp';
 import {
@@ -36,6 +36,12 @@ type MappedFileSnapshot = Stats | false;
 /** Reconcile exactly one candidate path; its siblings are never scanned. */
 type ExactCandidate = { onRootMissing?: () => void };
 const EXACT_CANDIDATE: ExactCandidate = Object.freeze({});
+
+function sameNameOnInsensitiveVolume(left: string, right: string): boolean {
+  return (
+    left !== right && left.normalize('NFC').toLowerCase() === right.normalize('NFC').toLowerCase()
+  );
+}
 
 /** An invalidation with no name: reconcile the whole subscribed path. */
 function recoveryTrigger(resource: string): NativeTrigger {
@@ -473,6 +479,18 @@ export class ObservationEngine {
     const isActive = () => this.fsw.isPathGenerationActive(file, pathGeneration);
 
     const listener = async (_path: Path, newStats?: Stats) => {
+      if (this.fsw.options.backendCapabilities.polling) {
+        const names = await readdir(dirname);
+        if (!names.includes(basename)) {
+          this.fsw.removePath(dirname, basename);
+          for (const name of names) {
+            if (sameNameOnInsensitiveVolume(name, basename) && !parent.has(name)) {
+              await this.addPathOnce(sp.join(dirname, name), false, undefined, 0);
+            }
+          }
+          return;
+        }
+      }
       if (!newStats || newStats.mtimeMs === 0) {
         try {
           const newStats =
@@ -622,16 +640,26 @@ export class ObservationEngine {
       if (target === undefined && !stats.isSymbolicLink() && !stats.isDirectory()) {
         if (!shouldAdd) return;
         path = sp.join(dir, sp.relative(dir, path));
-        const closer = this.handleFile(
-          path,
-          stats,
-          initialAdd,
-          !wh.recursiveRoot,
-          wh.observationTrigger,
-          initialAdd && Boolean(wh.recursiveRoot)
-        );
-        if (closer) this.fsw.addPathCloser(path, closer);
-        return;
+        return (async () => {
+          for (const previousName of previous.getChildren()) {
+            if (
+              sameNameOnInsensitiveVolume(previousName, item) &&
+              (await this.hasExactEntry(directory, previousName)) === false
+            ) {
+              const previousPath = sp.join(directory, previousName);
+              this.fsw.removePath(directory, previousName, this.fsw.tree.watched.has(previousPath));
+            }
+          }
+          const closer = this.handleFile(
+            path,
+            stats,
+            initialAdd,
+            !wh.recursiveRoot,
+            wh.observationTrigger,
+            initialAdd && Boolean(wh.recursiveRoot)
+          );
+          if (closer) this.fsw.addPathCloser(path, closer);
+        })();
       }
 
       return (async () => {
@@ -712,11 +740,19 @@ export class ObservationEngine {
     if (!this.isHelperActive(wh, path)) return;
     try {
       await lstat(path);
-      return;
+      if ((await this.hasExactEntry(directory, item)) !== false) return;
     } catch (error) {
       if (!isMissingError(error)) return;
     }
     if (this.isHelperActive(wh, path) && entry.has(item)) this.fsw.removePath(directory, item);
+  }
+
+  private async hasExactEntry(directory: string, item: string): Promise<boolean | undefined> {
+    try {
+      return (await readdir(directory)).includes(item);
+    } catch (error) {
+      if (!isMissingError(error)) this.reportError(error);
+    }
   }
 
   /**
@@ -774,13 +810,24 @@ export class ObservationEngine {
         }
         return;
       }
-      parent.add(item);
-      const isDirectory = stats.isDirectory();
-      if (isDirectory) fsw.tree.getDirectory(path);
-      fsw.tree.recordObserved(path, stats, 'add', wh.observationTrigger, initialAdd);
-      if (!(initialAdd && fsw.options.ignoreInitial)) {
-        fsw.emitEvent(isDirectory ? EV.ADD_DIR : EV.ADD, path, stats);
-      }
+      return (async () => {
+        for (const previousName of parent.getChildren()) {
+          if (
+            sameNameOnInsensitiveVolume(previousName, item) &&
+            (await this.hasExactEntry(directory, previousName)) === false
+          ) {
+            const previousPath = sp.join(directory, previousName);
+            fsw.removePath(directory, previousName, fsw.tree.watched.has(previousPath));
+          }
+        }
+        parent.add(item);
+        const isDirectory = stats.isDirectory();
+        if (isDirectory) fsw.tree.getDirectory(path);
+        fsw.tree.recordObserved(path, stats, 'add', wh.observationTrigger, initialAdd);
+        if (!(initialAdd && fsw.options.ignoreInitial)) {
+          fsw.emitEvent(isDirectory ? EV.ADD_DIR : EV.ADD, path, stats);
+        }
+      })();
     }).then((outcome) => {
       if (outcome.error) this.reportError(outcome.error);
       outcome.failures.forEach(this.reportError);
@@ -971,6 +1018,33 @@ export class ObservationEngine {
     const item = sp.basename(candidate);
     const parent = fsw.tree.getDirectory(parentPath);
     const tracked = parent.has(item);
+
+    for (const previousName of parent.getChildren()) {
+      if (
+        sameNameOnInsensitiveVolume(previousName, item) &&
+        (await this.hasExactEntry(parentPath, previousName)) === false
+      ) {
+        const previousPath = sp.join(parentPath, previousName);
+        fsw.removePath(parentPath, previousName, fsw.tree.watched.has(previousPath));
+      }
+    }
+
+    if (
+      tracked &&
+      trigger.rawEvent === 'rename' &&
+      (await this.hasExactEntry(parentPath, item)) === false
+    ) {
+      fsw.removePath(parentPath, item, fsw.tree.watched.has(candidate));
+      await this.readDirectory(
+        parentPath,
+        false,
+        helper().fork(parentPath),
+        undefined,
+        parentPath,
+        Math.max(0, baseDepth + this.candidateDepth(root, parentPath))
+      );
+      return;
+    }
 
     if (stats.isSymbolicLink()) {
       if (!fsw.options.followSymlinks) {
