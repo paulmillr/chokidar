@@ -2329,6 +2329,47 @@ export function registerV6Tests(context: TestHarness): void {
         }
       });
 
+      it('should watch a directory that replaces a tracked file', async () => {
+        await mkdir(context.currentDir, { recursive: true });
+        const path = dpath('file-to-directory');
+        const child = sp.join(path, 'child.txt');
+        await write(path, 'original');
+        const watcher = new chokidar.FSWatcher({
+          backend: 'native-recursive',
+          ignoreInitial: true,
+          atomic: false,
+        });
+        WATCHERS.push(watcher);
+        internals(watcher).directoryEntry(context.currentDir).add(sp.basename(path));
+        internals(watcher).recordObserved(path, await lstat(path), 'add', undefined, true);
+        internals(watcher).tree.clearInitialCreates(context.currentDir);
+        const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+        watcher.on(EV.ALL, allSpy);
+
+        try {
+          await unlink(path);
+          await mkdir(path);
+          await write(child, 'child');
+          const helper = internals(watcher).createHelper(context.currentDir);
+          helper.recursiveRoot = context.currentDir;
+          await internals(watcher).handler.reconcileNativeTrigger(context.currentDir, helper, {
+            kind: 'native',
+            resource: sp.resolve(context.currentDir) as BackendResourceKey,
+            rawEvent: 'rename',
+            relativePath: sp.basename(path),
+            sequence: 1,
+            observedAt: Date.now(),
+          });
+          await internals(watcher).drainTasks();
+
+          equal(getCallsWith(allSpy, [EV.ADD_DIR, path]).length, 1);
+          equal(getCallsWith(allSpy, [EV.ADD, child]).length, 1);
+          equal(internals(watcher).directoryEntry(path).has('child.txt'), true);
+        } finally {
+          await watcher.close();
+        }
+      });
+
       it('should keep recursive create-delete-recreate state truthful', async () => {
         await mkdir(context.currentDir, { recursive: true });
         const watcher = new chokidar.FSWatcher({
