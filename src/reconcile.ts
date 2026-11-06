@@ -1054,9 +1054,12 @@ export class ObservationEngine {
       }
       if (!tracked) {
         await this.addPathOnce(candidate, false, directoryHelper, depth);
-      } else if (fsw.tree.replacedSinceObserved(candidate, stats)) {
-        // Deleted and recreated before this callback ran: an inode-bound
-        // handle still watches the old directory, so replace the whole entry.
+      } else if (
+        fsw.tree.observed.get(logicalPathKey(candidate))?.kind === 'file' ||
+        fsw.tree.replacedSinceObserved(candidate, stats)
+      ) {
+        // A tracked file became a directory, or an inode-bound handle still
+        // watches an older directory at this path. Replace the whole entry.
         fsw.removePath(parentPath, item, true);
         await this.addPathOnce(candidate, false, directoryHelper, depth);
       } else if (maxDepth === undefined || depth <= maxDepth) {
