@@ -2284,6 +2284,51 @@ export function registerV6Tests(context: TestHarness): void {
         }
       });
 
+      it('should watch a directory symlink that replaces a tracked file', async () => {
+        await mkdir(context.currentDir, { recursive: true });
+        const target = sp.join(FIXTURES_PATH, `file-link-target-${context.testId}`);
+        const link = dpath('file-to-link');
+        const child = sp.join(link, 'child.txt');
+        await mkdir(target, { recursive: true });
+        await write(sp.join(target, 'child.txt'), 'child');
+        await write(link, 'original');
+        const watcher = new chokidar.FSWatcher({
+          backend: 'native-recursive',
+          followSymlinks: true,
+          ignoreInitial: true,
+          atomic: false,
+        });
+        WATCHERS.push(watcher);
+        internals(watcher).directoryEntry(context.currentDir).add(sp.basename(link));
+        internals(watcher).recordObserved(link, await lstat(link), 'add', undefined, true);
+        internals(watcher).tree.clearInitialCreates(context.currentDir);
+        const allSpy = createSpy<FSWatcherEventMap['all'], void>();
+        watcher.on(EV.ALL, allSpy);
+
+        try {
+          await unlink(link);
+          await symlink(target, link, isWindows ? 'junction' : undefined);
+          const helper = internals(watcher).createHelper(context.currentDir);
+          helper.recursiveRoot = context.currentDir;
+          await internals(watcher).handler.reconcileNativeTrigger(context.currentDir, helper, {
+            kind: 'native',
+            resource: sp.resolve(context.currentDir) as BackendResourceKey,
+            rawEvent: 'rename',
+            relativePath: sp.basename(link),
+            sequence: 1,
+            observedAt: Date.now(),
+          });
+          await internals(watcher).drainTasks();
+
+          equal(getCallsWith(allSpy, [EV.ADD_DIR, link]).length, 1);
+          equal(getCallsWith(allSpy, [EV.ADD, child]).length, 1);
+          equal(internals(watcher).directoryEntry(link).has('child.txt'), true);
+        } finally {
+          await watcher.close();
+          await rmr(target);
+        }
+      });
+
       it('should keep recursive create-delete-recreate state truthful', async () => {
         await mkdir(context.currentDir, { recursive: true });
         const watcher = new chokidar.FSWatcher({
