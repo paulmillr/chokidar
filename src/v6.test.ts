@@ -408,6 +408,34 @@ export function registerV6Tests(context: TestHarness): void {
   });
 
   describe('platform regressions', () => {
+    it('should replace a tracked name after a case-only rename', async () => {
+      if (!isWindows && !isMacos) return true;
+
+      for (const backend of ['auto', 'polling'] as const) {
+        const directory = dpath(`case-only-${backend}`);
+        await mkdir(directory, { recursive: true });
+        const oldPath = sp.join(directory, 'a.md');
+        const newPath = sp.join(directory, 'A.md');
+        await write(oldPath, 'first');
+
+        const watcher = cwatch(directory, {
+          backend,
+          ignoreInitial: true,
+          atomic: false,
+          pollingInterval: 25,
+        });
+        await waitForWatcher(watcher);
+        await rename(oldPath, newPath);
+
+        for (let attempt = 0; attempt < 40; attempt++) {
+          if (watcher.getWatched()[directory]?.join() === 'A.md') break;
+          await delay(50);
+        }
+
+        deepEqual(watcher.getWatched()[directory], ['A.md']);
+      }
+    });
+
     it('should allow renaming a watched directory containing a subdirectory (#1380)', async () => {
       const source = dpath('nested-rename');
       const child = sp.join(source, 'subfolder', 'file.txt');
