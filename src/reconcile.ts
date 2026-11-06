@@ -1000,8 +1000,8 @@ export class ObservationEngine {
       }
       const targetChanged =
         tracked &&
-        typeof previousTarget === 'string' &&
-        (currentTarget === undefined ||
+        (typeof previousTarget !== 'string' ||
+          currentTarget === undefined ||
           logicalPathKey(previousTarget) !== logicalPathKey(currentTarget));
       if (targetChanged) {
         const previousKind = fsw.tree.observed.get(logicalKey)?.kind;
