@@ -27,6 +27,7 @@ import {
   type MatchFunction,
   normalizeMatcher,
   normalizePath,
+  numberStats,
   type Path,
   type Scheduler,
   systemScheduler,
@@ -516,7 +517,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    */
   public async emitEvent(event: EventName, path: Path, stats?: Stats): Promise<void> {
     if (this.closed) return;
-    await this.events.emit(event, path, stats);
+    await this.events.emit(event, path, stats && numberStats(stats));
   }
 
   /**
