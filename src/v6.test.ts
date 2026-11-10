@@ -323,10 +323,10 @@ export function registerV6Tests(context: TestHarness): void {
     it('should validate timing and depth options', () => {
       const invalid: chokidar.ChokidarOptions[] = [
         { backend: 'invalid' as never },
-        { pollingInterval: 0 },
-        { pollingBinaryInterval: Number.POSITIVE_INFINITY },
-        { interval: 0 },
-        { binaryInterval: Number.POSITIVE_INFINITY },
+        { backend: 'polling', pollingInterval: 0 },
+        { backend: 'polling', pollingBinaryInterval: Number.POSITIVE_INFINITY },
+        { backend: 'polling', interval: 0 },
+        { backend: 'polling', binaryInterval: Number.POSITIVE_INFINITY },
         { atomic: -1 },
         { atomic: Number.NaN },
         { atomic: 'invalid' as never },
@@ -345,11 +345,36 @@ export function registerV6Tests(context: TestHarness): void {
       equal(watcher.options.depth, 0);
     });
 
+    it('should default unusable polling intervals off the polling backend (#1497)', () => {
+      if (isIBMi) return true;
+      const previous = process.env.CHOKIDAR_USEPOLLING;
+      delete process.env.CHOKIDAR_USEPOLLING;
+      try {
+        const native = new chokidar.FSWatcher({
+          backend: 'native',
+          pollingInterval: 0,
+          pollingBinaryInterval: Number.NaN,
+        });
+        const auto = new chokidar.FSWatcher({ interval: 0, binaryInterval: -1 });
+        WATCHERS.push(native, auto);
+
+        for (const watcher of [native, auto]) {
+          equal(watcher.options.pollingInterval, 100);
+          equal(watcher.options.pollingBinaryInterval, 300);
+          equal(watcher.options.interval, 100);
+          equal(watcher.options.binaryInterval, 300);
+        }
+      } finally {
+        if (previous === undefined) delete process.env.CHOKIDAR_USEPOLLING;
+        else process.env.CHOKIDAR_USEPOLLING = previous;
+      }
+    });
+
     it('should reject an invalid CHOKIDAR_INTERVAL override', () => {
       const previous = process.env.CHOKIDAR_INTERVAL;
       process.env.CHOKIDAR_INTERVAL = 'not-a-number';
       try {
-        throws(() => new chokidar.FSWatcher(), /pollingInterval must be/);
+        throws(() => new chokidar.FSWatcher({ backend: 'polling' }), /pollingInterval must be/);
       } finally {
         if (previous === undefined) delete process.env.CHOKIDAR_INTERVAL;
         else process.env.CHOKIDAR_INTERVAL = previous;
