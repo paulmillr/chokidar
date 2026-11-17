@@ -185,6 +185,14 @@ export function registerV6Tests(context: TestHarness): void {
   } = context;
 
   describe('configuration normalization', () => {
+    it('accepts readonly path lists without mutating them', async () => {
+      const paths = Object.freeze([] as string[]);
+      const watcher = chokidar.watch(paths);
+      watcher.add(paths).unwatch(paths);
+      await watcher.close();
+      deepEqual(paths, []);
+    });
+
     it('should stop walking up when a missing path is its own parent', async () => {
       const watcher = new chokidar.FSWatcher();
       WATCHERS.push(watcher);

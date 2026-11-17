@@ -66,11 +66,11 @@ function* ancestorKeys(path: Path): Generator<string> {
   }
 }
 
-function arrify<T>(item: T | T[]): T[] {
-  return Array.isArray(item) ? item : [item];
+function arrify<T>(item: T | readonly T[]): T[] {
+  return Array.isArray(item) ? (item as T[]) : [item as T];
 }
 
-function unifyPaths(paths_: Path | Path[]) {
+function unifyPaths(paths_: Path | readonly Path[]) {
   const paths = arrify(paths_).flat();
   if (!paths.every((p) => typeof p === 'string')) {
     throw new TypeError(`Non-string provided as watch path: ${paths}`);
@@ -367,7 +367,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
    * Adds paths to be watched on an existing FSWatcher instance.
    * @param paths_ file or file list
    */
-  add(paths_: Path | Path[]): FSWatcher {
+  add(paths_: Path | readonly Path[]): FSWatcher {
     if (this.closed) {
       throw new Error('Cannot add paths after FSWatcher.close() has been called');
     }
@@ -411,7 +411,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
   /**
    * Close watchers or start ignoring events from specified paths.
    */
-  unwatch(paths_: Path | Path[]): FSWatcher {
+  unwatch(paths_: Path | readonly Path[]): FSWatcher {
     if (this.closed) return this;
     let paths = unifyPaths(paths_);
     const { cwd } = this.options;
@@ -834,7 +834,7 @@ export class FSWatcher extends EventEmitter<FSWatcherEventMap> {
  * const watcher = watch('.').on('all', (event, path) => { console.log(event, path); });
  * watch('.', { atomic: true, awaitWriteFinish: true, ignored: (f, stats) => stats?.isFile() && !f.endsWith('.js') })
  */
-export function watch(paths: string | string[], options: ChokidarOptions = {}): FSWatcher {
+export function watch(paths: string | readonly string[], options: ChokidarOptions = {}): FSWatcher {
   const watcher = new FSWatcher(options);
   watcher.add(paths);
   return watcher;
