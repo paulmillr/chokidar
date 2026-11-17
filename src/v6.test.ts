@@ -186,11 +186,14 @@ export function registerV6Tests(context: TestHarness): void {
 
   describe('configuration normalization', () => {
     it('accepts readonly path lists without mutating them', async () => {
-      const paths = Object.freeze([] as string[]);
-      const watcher = chokidar.watch(paths);
-      watcher.add(paths).unwatch(paths);
+      await mkdir(context.currentDir, { recursive: true });
+      const paths = Object.freeze([context.currentDir]);
+      const watcher = chokidar.watch(paths, { backend: 'polling', ignoreInitial: true });
+      watcher.add(paths);
+      await new Promise<void>((resolve) => watcher.once(EV.READY, resolve));
+      watcher.unwatch(paths);
       await watcher.close();
-      deepEqual(paths, []);
+      deepEqual(paths, [context.currentDir]);
     });
 
     it('should stop walking up when a missing path is its own parent', async () => {
