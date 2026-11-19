@@ -1235,6 +1235,76 @@ export function registerV6Tests(context: TestHarness): void {
       ok(calledWith(spy, [filePath]));
     });
 
+    for (const transition of ['size', 'inode', 'access-only'] as const) {
+      if (transition === 'inode' && isWindows) continue;
+      it(`should preserve polling ${transition} semantics with unchanged mtime and later atime`, async () => {
+        await mkdir(context.currentDir, { recursive: true });
+        const filePath = dpath(`preserved-${transition}.txt`);
+        const replacementPath = dpath('replacement.txt');
+        const timestamp = new Date('2020-01-01T00:00:00Z');
+        const accessed = new Date('2021-01-01T00:00:00Z');
+        await write(filePath, 'original');
+        await write(replacementPath, 'replaced');
+        await utimes(filePath, accessed, timestamp);
+        await utimes(replacementPath, accessed, timestamp);
+        const watcher = cwatch(filePath, {
+          backend: 'polling',
+          pollingInterval: 10,
+          ignoreInitial: true,
+        });
+        await waitForWatcher(watcher);
+        const spy = createSpy<EmitArgs, void>();
+        watcher.on(EV.CHANGE, spy);
+
+        if (transition === 'size') {
+          // Publish the write and restored timestamp in one turn between polls.
+          const { writeFileSync, utimesSync } = await import('node:fs');
+          writeFileSync(filePath, 'a different length');
+          utimesSync(filePath, accessed, timestamp);
+        } else if (transition === 'inode') {
+          await rename(replacementPath, filePath);
+        } else {
+          await utimes(filePath, new Date('2022-01-01T00:00:00Z'), timestamp);
+        }
+        for (let attempt = 0; attempt < 20; attempt++) {
+          await delay(25);
+          if (transition !== 'access-only' && spy.called) break;
+        }
+        equal(spy.callCount, transition === 'access-only' ? 0 : 1);
+        if (transition !== 'access-only') ok(calledWith(spy, [filePath]));
+      });
+    }
+
+    if (!isWindows) {
+      it('should report a polling symlink retarget with unchanged mtime and later atime (#1508)', async () => {
+        await mkdir(context.currentDir, { recursive: true });
+        const target = dpath('target.txt');
+        const replacement = dpath('replacement.txt');
+        const link = dpath('link.txt');
+        const temporaryLink = dpath('temporary-link.txt');
+        const timestamp = new Date('2020-01-01T00:00:00Z');
+        const accessed = new Date('2021-01-01T00:00:00Z');
+        await write(target, 'original');
+        await write(replacement, 'replaced');
+        await utimes(target, accessed, timestamp);
+        await utimes(replacement, accessed, timestamp);
+        await symlink(target, link);
+        const watcher = cwatch(link, {
+          backend: 'polling',
+          pollingInterval: 10,
+          ignoreInitial: true,
+        });
+        await waitForWatcher(watcher);
+        const spy = createSpy<EmitArgs, void>();
+        watcher.on(EV.CHANGE, spy);
+        await symlink(replacement, temporaryLink);
+        await rename(temporaryLink, link);
+        for (let attempt = 0; attempt < 20 && !spy.called; attempt++) await delay(25);
+        equal(spy.callCount, 1);
+        ok(calledWith(spy, [link]));
+      });
+    }
+
     it('should detect a backwards mtime change', async () => {
       await mkdir(context.currentDir, { recursive: true });
       const filePath = dpath('backwards-mtime.txt');

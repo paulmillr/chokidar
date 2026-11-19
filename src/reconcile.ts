@@ -21,6 +21,7 @@ import {
   isStrictlyInside,
   isWindows,
   logicalPathKey,
+  statIdentity,
   type NativeTrigger,
   type Path,
   type SchedulerTimer,
@@ -57,6 +58,20 @@ function sameMappedFileSnapshot(left: MappedFileSnapshot, right: MappedFileSnaps
     left.ctimeMs === right.ctimeMs &&
     left.ino === right.ino &&
     left.mode === right.mode
+  );
+}
+
+function hasFileChange(previous: Stats, current: Stats): boolean {
+  const before = statIdentity(previous);
+  const after = statIdentity(current);
+  const reliableInodeChanged =
+    !isWindows && before.ino !== 0 && after.ino !== 0 && before.ino !== after.ino;
+  return (
+    !current.atimeMs ||
+    current.atimeMs <= current.mtimeMs ||
+    after.mtimeMs !== before.mtimeMs ||
+    after.size !== before.size ||
+    reliableInodeChanged
   );
 }
 
@@ -482,9 +497,7 @@ export class ObservationEngine {
           // unwatch() may have retired this file while the stat was in flight.
           if (!isActive()) return;
           // Check that change event was not fired because of changed only accessTime.
-          const at = newStats.atimeMs;
-          const mt = newStats.mtimeMs;
-          if (!at || at <= mt || mt !== prevStats.mtimeMs) {
+          if (hasFileChange(prevStats, newStats)) {
             this.fsw.emitEvent(EV.CHANGE, file, newStats);
           }
           this.fsw.tree.recordObserved(file, newStats, 'change');
@@ -500,9 +513,7 @@ export class ObservationEngine {
         // add is about to be emitted if file not already tracked in parent
       } else if (parent.has(basename)) {
         // Check that change event was not fired because of changed only accessTime.
-        const at = newStats.atimeMs;
-        const mt = newStats.mtimeMs;
-        if (!at || at <= mt || mt !== prevStats.mtimeMs) {
+        if (hasFileChange(prevStats, newStats)) {
           this.fsw.emitEvent(EV.CHANGE, file, newStats);
         }
         this.fsw.tree.recordObserved(file, newStats, 'change');
