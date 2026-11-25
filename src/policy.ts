@@ -170,9 +170,7 @@ export class EventPolicy {
       const awfEmit = (error?: Error, currentStats?: Stats) => {
         if (this.context.isClosed()) return;
         if (error) {
-          event = EVENTS.ERROR;
-          (args as unknown as EmitErrorArgs)[0] = error;
-          this.context.publish(event, args);
+          this.context.handleError(error);
         } else if (currentStats) {
           if (args.length > 1) args[1] = currentStats;
           else args.push(currentStats);
