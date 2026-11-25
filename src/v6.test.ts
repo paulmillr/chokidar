@@ -13,6 +13,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import {
+  chmod,
   lstat,
   realpath,
   rename,
@@ -704,6 +705,43 @@ export function registerV6Tests(context: TestHarness): void {
       equal(internals(watcher).pendingWrites.size, 0);
       equal(scheduler.activeCount, 0);
     });
+
+    for (const ignorePermissionErrors of [false, true]) {
+      it(`should respect ignorePermissionErrors=${ignorePermissionErrors} during awaitWriteFinish`, async () => {
+        if (isWindows || process.getuid?.() === 0) return;
+        const directory = dpath('restricted');
+        await mkdir(directory, { recursive: true });
+        const filePath = sp.join(directory, 'pending.txt');
+        await write(filePath, 'pending');
+        const scheduler = new VirtualScheduler();
+        const watcher = new chokidar.FSWatcher(
+          { awaitWriteFinish: true, ignorePermissionErrors },
+          scheduler
+        );
+        WATCHERS.push(watcher);
+        internals(watcher).readyEmitted = true;
+        const errors: unknown[] = [];
+        watcher.on(EV.ERROR, (error) => errors.push(error));
+        const addSpy = createSpy();
+        watcher.on(EV.ADD, addSpy);
+
+        await internals(watcher).emitEvent(EV.ADD, filePath);
+        await chmod(directory, 0o600);
+        try {
+          scheduler.advanceBy(100);
+          await internals(watcher).drainTasks();
+          deepEqual(
+            errors.map((error) => (error as NodeJS.ErrnoException).code),
+            ignorePermissionErrors ? [] : ['EACCES']
+          );
+          equal(addSpy.callCount, 0);
+          equal(internals(watcher).pendingWrites.size, 0);
+          equal(scheduler.activeCount, 0);
+        } finally {
+          await chmod(directory, 0o700);
+        }
+      });
+    }
 
     it('should clean up a deleted AWF-pending add without emitting unlink', async () => {
       await mkdir(context.currentDir, { recursive: true });
