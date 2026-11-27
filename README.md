@@ -207,6 +207,9 @@ chokidar.watch('dir-or-file', {
 - **`EMFILE: too many open files`**: the process file-descriptor limit is exhausted. Watch less as
   above, raise the limit (`ulimit -n 65536`), or use `backend: 'polling'`, which holds no watch
   handles at the cost of CPU.
+- **Changes through hard links outside the watched directory** (Linux): native per-directory
+  watching can miss writes made through another name for the same file. Use
+  `backend: 'polling'` to detect changes in the watched file's size or modification time.
 - `fsevents`-related install errors (`WARN optional dep failed`, `fsevents is not a constructor`)
   are solved by upgrading to v4+.
 
